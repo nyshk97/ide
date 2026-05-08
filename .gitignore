@@ -1,0 +1,23 @@
+# Xcode
+*.xcodeproj
+xcuserdata/
+*.xcuserstate
+DerivedData/
+build/
+
+# XcodeGen 生成物
+# project.yml が source-of-truth で .xcodeproj は生成物なので無視
+
+# libghostty 関連（手動配置）
+GhosttyKit.xcframework/
+GhosttyKit.xcframework
+
+# 参考実装の clone（PoC 中だけ手元に置く、リポジトリには入れない）
+.refs/
+
+# macOS
+.DS_Store
+
+# 環境変数
+.env
+.env.local

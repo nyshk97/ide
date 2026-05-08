@@ -11,7 +11,7 @@
 - ターミナル: **libghostty** を組み込んで Ghostty 設定（`~/.config/ghostty/config`）を継承
 - ファイル系UI（ツリー・検索・プレビュー）: SwiftUI
 - シンタックスハイライト: NSTextView + tree-sitter（または Highlightr）
-- 参考実装: [cmux](https://github.com/japajoe/cmux) のソース
+- 参考実装: [cmux](https://github.com/manaflow-ai/cmux) のソース
 
 PoC で libghostty 統合が詰まった場合は **Tauri + xterm.js + CodeMirror 6 + portable-pty** にフォールバック。
 

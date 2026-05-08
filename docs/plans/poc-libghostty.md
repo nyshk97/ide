@@ -42,25 +42,25 @@
 ## ステップ
 
 ### 1. cmux ソース調査（半日〜1日）
-- [ ] cmux のリポジトリ URL を確定する（Zenn記事 or 検索で）
-- [ ] cmux を clone してビルドできる状態にする
-- [ ] cmux の libghostty 統合部分を読んで構造を把握:
+- [x] cmux のリポジトリ URL を確定する（Zenn記事 or 検索で）→ `https://github.com/manaflow-ai/cmux`
+- [x] cmux を clone してビルドできる状態にする → `/Users/d0ne1s/ide/.refs/cmux/` に shallow clone 済み（実ビルドは zig 必須・PoC 範囲外）
+- [x] cmux の libghostty 統合部分を読んで構造を把握:
   - libghostty をどう依存に入れているか（SPM or 手動 or バイナリ埋め込み）
   - Terminal View 相当のラッパーをどう実装しているか
   - PTY 起動・サイズ変更・入力イベントの取り回し
   - 設定ファイル読み込みのコード経路
-- [ ] 参照すべきファイル一覧をメモ
+- [x] 参照すべきファイル一覧をメモ → [poc-libghostty-step1-notes.md](./poc-libghostty-step1-notes.md)
 
 ### 2. SwiftUI プロジェクト初期化（半日）
-- [ ] Xcode で新規 macOS App プロジェクトを作成
-- [ ] プロジェクト名・bundle ID 決定
-- [ ] Swift Package Manager 経由 or 手動で libghostty を追加できる準備
-- [ ] 最小限のウィンドウが起動することを確認
+- [x] Xcode で新規 macOS App プロジェクトを作成 → XcodeGen 経由（`project.yml` → `ide.xcodeproj`）
+- [x] プロジェクト名・bundle ID 決定 → 仮名 `ide` / `local.d0ne1s.ide`
+- [x] Swift Package Manager 経由 or 手動で libghostty を追加できる準備 → 手動配置方式に確定（cmux と同じ。step3 で `GhosttyKit.xcframework` をルート配置 + `project.yml` から参照）
+- [x] 最小限のウィンドウが起動することを確認 → 900x532 ウィンドウ起動・スクリーンショット視認済み
 
 ### 3. libghostty 組み込み（1〜2日）
-- [ ] cmux と同じ方式で libghostty を依存に入れる
-- [ ] ビルド・リンクが通る状態に
-- [ ] libghostty の最小 API（インスタンス生成、レンダリング、入力受付）を呼び出せることを確認
+- [x] cmux と同じ方式で libghostty を依存に入れる → cmux fork prebuilt の `GhosttyKit.xcframework` をルート配置、`module GhosttyKit` を Swift から `import GhosttyKit`（Bridging Header は不要だった）
+- [x] ビルド・リンクが通る状態に → `-lc++` + `Metal/QuartzCore/IOSurface/UniformTypeIdentifiers/Carbon` の system framework 追加で BUILD SUCCEEDED
+- [x] libghostty の最小 API（インスタンス生成、レンダリング、入力受付）を呼び出せることを確認 → `ghostty_init` → `ghostty_config_new` → `load_default_files` → `finalize` → `ghostty_app_new` まで成功。**`~/.config/ghostty/config` を自動読込していることを diagnostic 出力で確認**（実質 step5 もクリア）。surface 作成は step4 で行う
 
 ### 4. 1タブのターミナル表示（1〜2日）
 - [ ] SwiftUI View（または NSViewRepresentable）として Terminal View を作成
@@ -98,3 +98,25 @@
 
 ## ログ
 （実装中の方針変更・想定外の失敗を1件10行以内で追記）
+
+### 2026-05-08 step3 完了
+- xcframework 取得: cmux fork の prebuilt（`xcframework-22fa801f8`、SHA256 8d7da0bb..., 131MB圧縮 / 536MB 展開）。SHA256 検証 ok
+- 配線: `import GhosttyKit` で Swift から直接呼べる。Bridging Header 不要
+- リンク要件: `-lc++` + `Metal/QuartzCore/IOSurface/UniformTypeIdentifiers/Carbon`（cmux と同じ）
+- 動作確認: `ghostty_init=0`, `ghostty_app_new` 非 nil, **`~/.config/ghostty/config` を読んで diagnostic を返した**（自分の config の `selection-foreground: invalid value "rgb(9, 9, 7)"` を検出）→ step5 の設定継承が事実上クリア
+- 初回起動の config load は ~6s、2回目以降は 1s 未満（コールドキャッシュ）
+- 構成: `Sources/ide/IdeApp.swift` の `init()` で `/tmp/ide-poc.log` に進捗を逐次書き出してデバッグ。step4 で surface を作るときも同じログ機構を使う
+
+### 2026-05-08 step2 完了
+- 構成: `project.yml` (XcodeGen) + `Sources/ide/` (SwiftUI) + `Resources/Info.plist`、bundle id `local.d0ne1s.ide`
+- `mise run build` / `mise run run` / `mise run regen` で再ビルド・再起動・再生成
+- `.xcodeproj` は生成物なので `.gitignore` 対象。`project.yml` が source-of-truth
+- ビルド成功 (Xcode 26.4.1 / Swift 6.3.1)、ウィンドウも前面表示確認
+
+### 2026-05-08 step1 完了
+- cmux 実体は `manaflow-ai/cmux`（REQUIREMENTS.md の `japajoe/cmux` は誤りで要修正）
+- ビルド方式は **GhosttyKit.xcframework を Bridging Header 経由で Swift にリンク**。prebuilt 取得経路があるので PoC で zig は必須でない
+- `~/.config/ghostty/config` の継承は `ghostty_config_load_default_files()` 一発で済む見込み
+- PTY は libghostty 内蔵（`io_mode = EXEC`）。自前 forkpty 不要
+- 撤退ラインに対する事前見立て: ビルド・bridging・設定継承は楽勝。**入力/IME 周りが PoC で一番ボリュームが出る**（cmux で約200行）
+- 詳細: [poc-libghostty-step1-notes.md](./poc-libghostty-step1-notes.md)

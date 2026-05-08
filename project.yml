@@ -1,0 +1,46 @@
+name: ide
+options:
+  bundleIdPrefix: local.d0ne1s
+  deploymentTarget:
+    macOS: "14.0"
+  createIntermediateGroups: true
+  generateEmptyDirectories: true
+
+settings:
+  base:
+    SWIFT_VERSION: "6.0"
+    MARKETING_VERSION: "0.0.1"
+    CURRENT_PROJECT_VERSION: "1"
+    DEVELOPMENT_TEAM: ""
+    CODE_SIGN_STYLE: Automatic
+    CODE_SIGN_IDENTITY: "-"
+    ENABLE_HARDENED_RUNTIME: YES
+
+targets:
+  ide:
+    type: application
+    platform: macOS
+    sources:
+      - Sources/ide
+    resources:
+      - Resources
+    dependencies:
+      - framework: GhosttyKit.xcframework
+        embed: false
+      # ghostty-internal.a が依存するシステムフレームワーク（cmux と同じセット）
+      - sdk: Metal.framework
+      - sdk: QuartzCore.framework
+      - sdk: IOSurface.framework
+      - sdk: UniformTypeIdentifiers.framework
+      - sdk: Carbon.framework
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: local.d0ne1s.ide
+        PRODUCT_NAME: ide
+        INFOPLIST_FILE: Resources/Info.plist
+        ENABLE_PREVIEWS: YES
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        COMBINE_HIDPI_IMAGES: YES
+        # ghostty-internal.a は C++ (glslang 等) を含むので libc++ をリンク
+        # システムフレームワークは dependencies の sdk: 経由で追加される
+        OTHER_LDFLAGS: -lc++

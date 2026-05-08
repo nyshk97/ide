@@ -1,0 +1,25 @@
+[tools]
+# Xcode/Swift 系はシステム標準を使う前提（mise で固定しない）
+
+[tasks.regen]
+description = "project.yml から ide.xcodeproj を再生成"
+run = "xcodegen generate"
+
+[tasks.build]
+description = "Debug ビルド（DerivedData は /tmp/ide-build）"
+run = "xcodebuild -project ide.xcodeproj -scheme ide -configuration Debug -destination 'platform=macOS' -derivedDataPath /tmp/ide-build build"
+
+[tasks.run]
+description = "ビルド済みアプリを再起動して開く（既存 ide プロセスを kill してから）"
+run = """
+pkill -x ide || true
+open -n /tmp/ide-build/Build/Products/Debug/ide.app
+"""
+depends = ["build"]
+
+[tasks.clean]
+description = "DerivedData と生成物を消す"
+run = """
+rm -rf /tmp/ide-build
+rm -rf ide.xcodeproj
+"""
