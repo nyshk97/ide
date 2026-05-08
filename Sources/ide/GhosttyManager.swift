@@ -7,6 +7,20 @@ final class GhosttyManager: @unchecked Sendable {
     private(set) var app: ghostty_app_t?
     private(set) var config: ghostty_config_t?
 
+    // TODO step5（複数タブ）: 単一 surface 前提のグローバル参照。
+    //                       タブ複数化のときに userdata/state ベースの解決に置き換える。
+    private(set) var activeSurface: ghostty_surface_t?
+
+    func register(surface: ghostty_surface_t) {
+        activeSurface = surface
+    }
+
+    func unregister(surface: ghostty_surface_t) {
+        if activeSurface == surface {
+            activeSurface = nil
+        }
+    }
+
     private init() {}
 
     func start() {
@@ -43,9 +57,9 @@ final class GhosttyManager: @unchecked Sendable {
             }
         }
         runtime.action_cb = { _, _, _ in true }
-        runtime.read_clipboard_cb = { _, _, _ in false }
-        runtime.confirm_read_clipboard_cb = { _, _, _, _ in }
-        runtime.write_clipboard_cb = { _, _, _, _, _ in }
+        runtime.read_clipboard_cb = ghosttyReadClipboardCallback
+        runtime.confirm_read_clipboard_cb = ghosttyConfirmReadClipboardCallback
+        runtime.write_clipboard_cb = ghosttyWriteClipboardCallback
         runtime.close_surface_cb = { _, _ in }
 
         guard let appHandle = ghostty_app_new(&runtime, cfg) else {

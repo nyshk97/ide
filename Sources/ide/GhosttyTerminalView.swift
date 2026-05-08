@@ -13,6 +13,13 @@ struct GhosttyTerminalView: NSViewRepresentable {
 }
 
 // MARK: - NSView 実装
+//
+// 機能ごとの実装は今後 extension に切り出す予定:
+//   - +Clipboard.swift   : Cmd+C/V / write/read_clipboard_cb
+//   - +Mouse.swift       : mouseDown/Dragged/Up, scrollWheel
+//   - +TextInput.swift   : NSTextInputClient（IME 対応）
+//   - +Surface.swift     : surface lifecycle / sync size
+// この本体ファイルにはライフサイクルと最小限のキー入力だけを残す方針。
 
 final class GhosttyTerminalNSView: NSView {
     nonisolated(unsafe) private var surface: ghostty_surface_t?
@@ -29,6 +36,7 @@ final class GhosttyTerminalNSView: NSView {
 
     deinit {
         if let s = surface {
+            GhosttyManager.shared.unregister(surface: s)
             ghostty_surface_free(s)
         }
     }
@@ -109,6 +117,7 @@ final class GhosttyTerminalNSView: NSView {
             return
         }
         surface = s
+        GhosttyManager.shared.register(surface: s)
         let scale = window?.backingScaleFactor ?? 1
         ghostty_surface_set_content_scale(s, scale, scale)
         if let displayID = window?.screen?.displayID {
@@ -134,6 +143,31 @@ final class GhosttyTerminalNSView: NSView {
     }
 
     // MARK: - キー入力（PoC は最小限。IME・修飾キー特殊処理なし）
+
+    /// Cmd+V や Cmd+C などのメニューショートカットは AppKit が menu chain で先に消費する。
+    /// Ghostty 側のキーバインドにマッチする場合はこちらで捕捉して surface に流す。
+    override func performKeyEquivalent(with event: NSEvent) -> Bool {
+        guard let s = surface else { return false }
+
+        var keyEvent = ghostty_input_key_s()
+        keyEvent.action = GHOSTTY_ACTION_PRESS
+        keyEvent.keycode = UInt32(event.keyCode)
+        keyEvent.mods = modsFromEvent(event)
+        keyEvent.consumed_mods = ghostty_input_mods_e(rawValue: 0)
+        keyEvent.composing = false
+        keyEvent.unshifted_codepoint = unshiftedCodepoint(from: event)
+
+        var flags = ghostty_binding_flags_e(rawValue: 0)
+        guard ghostty_surface_key_is_binding(s, keyEvent, &flags) else {
+            return false
+        }
+
+        let chars = event.characters ?? ""
+        return chars.withCString { ptr in
+            keyEvent.text = chars.isEmpty ? nil : ptr
+            return ghostty_surface_key(s, keyEvent)
+        }
+    }
 
     override func keyDown(with event: NSEvent) {
         guard let s = surface else { return super.keyDown(with: event) }
@@ -177,6 +211,11 @@ final class GhosttyTerminalNSView: NSView {
 }
 
 // MARK: - ヘルパ
+
+private func unshiftedCodepoint(from event: NSEvent) -> UInt32 {
+    let chars = event.charactersIgnoringModifiers ?? ""
+    return chars.unicodeScalars.first?.value ?? 0
+}
 
 private func modsFromEvent(_ event: NSEvent) -> ghostty_input_mods_e {
     var raw: UInt32 = 0

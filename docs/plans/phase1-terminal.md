@@ -77,17 +77,17 @@
 着手順は「使える状態を早く作る」を優先。マウス・クリップボードを先、IME と複数タブはその次、装飾系（バッジ・リンク化・ログ）は最後。
 
 ### 1. PoC コードの整理と動作確認の安定化（半日）
-- [ ] `GhosttyTerminalView.swift` の責務を NSView / Coordinator / Manager 連携で見直す（cmux のような portal レイヤは不要、素直な NSViewRepresentable）
-- [ ] 動作確認スクリプトを `scripts/` 配下に整理（AppleScript + screencapture のテンプレを再利用可能に）
-- [ ] `mise run build` に `regen` を依存として組み込む（Sources/ 追加忘れの罠回避）
-- [ ] VERIFY.md を新規作成し、PoC の動作確認手順をベースラインとして記載
+- [x] `GhosttyTerminalView.swift` の責務を NSView / Coordinator / Manager 連携で見直す → 現状の構造（5ファイル / 328行）はシンプルで OK と判断。今後の拡張は extension（+Clipboard / +Mouse / +TextInput / +Surface）で機能ごとに分割する方針コメントを本体に残した
+- [x] 動作確認スクリプトを `scripts/` 配下に整理 → `ide-launch.sh` / `ide-keystroke.sh` / `ide-screenshot.sh`
+- [x] `mise run build` に `regen` を依存として組み込む → `.mise.toml` の build タスクに `depends = ["regen"]`
+- [x] VERIFY.md を新規作成し、PoC の動作確認手順をベースラインとして記載 → `VERIFY.md` 作成（ビルド/起動/基本動作/リサイズ/設定継承/256色/TUI の6項目）
 
 ### 2. クリップボード（半日〜1日）
-- [ ] `read_clipboard_cb` / `confirm_read_clipboard_cb` / `write_clipboard_cb` を NSPasteboard 連携で実装
-- [ ] Cmd+C: 選択あり時のみコピー（選択がなければデフォルトキーバインド = Ctrl+C のまま通す）
-- [ ] Cmd+V: NSPasteboard から取り出して `ghostty_surface_text` で挿入
-- [ ] mime type 対応（`text/plain`、画像等は無視）
-- [ ] **動作確認**: ターミナルから別アプリへコピー、別アプリからターミナルへペースト
+- [x] `read_clipboard_cb` / `confirm_read_clipboard_cb` / `write_clipboard_cb` を NSPasteboard 連携で実装 → `ClipboardSupport.swift` 新規作成
+- [x] Cmd+C: 選択あり時のみコピー（選択がなければデフォルトキーバインド = Ctrl+C のまま通す） → `performKeyEquivalent` + `ghostty_surface_key_is_binding` で Ghostty 側のキーバインドにマッチした時のみキャッチする実装。Ghostty の copy バインディングは選択あり時のみ発火する想定（実機確認は step3 のマウス実装後）
+- [x] Cmd+V: NSPasteboard から取り出して `ghostty_surface_text` で挿入 → `pbcopy` 後に Cmd+V で内容が貼り付けられることを確認済
+- [x] mime type 対応（`text/plain`、画像等は無視） → `ghostty_clipboard_content_s` の mime を見て text/plain を優先採用
+- [x] **動作確認**: ターミナルから別アプリへコピー、別アプリからターミナルへペースト → 別アプリ → ide のペーストは確認済。逆方向は step3 のマウス選択実装後に確認
 
 ### 3. マウス入力（1日）
 - [ ] `mouseDown` / `mouseDragged` / `mouseUp` で `ghostty_surface_mouse_pos` + `ghostty_surface_mouse_button`

@@ -6,7 +6,8 @@ description = "project.yml から ide.xcodeproj を再生成"
 run = "xcodegen generate"
 
 [tasks.build]
-description = "Debug ビルド（DerivedData は /tmp/ide-build）"
+description = "Debug ビルド（DerivedData は /tmp/ide-build。Sources/ 追加忘れ対策で先に regen を走らせる）"
+depends = ["regen"]
 run = "xcodebuild -project ide.xcodeproj -scheme ide -configuration Debug -destination 'platform=macOS' -derivedDataPath /tmp/ide-build build"
 
 [tasks.run]
