@@ -1,0 +1,78 @@
+import AppKit
+import GhosttyKit
+
+final class GhosttyManager: @unchecked Sendable {
+    static let shared = GhosttyManager()
+
+    private(set) var app: ghostty_app_t?
+    private(set) var config: ghostty_config_t?
+
+    private init() {}
+
+    func start() {
+        let result = ghostty_init(UInt(CommandLine.argc), CommandLine.unsafeArgv)
+        let info = ghostty_info()
+        let version = info.version.map { String(cString: $0) } ?? "(nil)"
+        PocLog.write("[ghostty] init=\(result) version=\(version) build_mode=\(info.build_mode.rawValue)")
+        guard result == GHOSTTY_SUCCESS else { return }
+
+        guard let cfg = ghostty_config_new() else {
+            PocLog.write("[ghostty] config_new returned nil")
+            return
+        }
+        ghostty_config_load_default_files(cfg)
+        ghostty_config_load_recursive_files(cfg)
+        ghostty_config_finalize(cfg)
+        let diagCount = ghostty_config_diagnostics_count(cfg)
+        PocLog.write("[ghostty] config diagnostics: \(diagCount)")
+        for i in 0..<diagCount {
+            let diag = ghostty_config_get_diagnostic(cfg, i)
+            if let msg = diag.message {
+                PocLog.write("[ghostty]   diag[\(i)]: \(String(cString: msg))")
+            }
+        }
+
+        var runtime = ghostty_runtime_config_s()
+        runtime.userdata = nil
+        runtime.supports_selection_clipboard = false
+        runtime.wakeup_cb = { _ in
+            DispatchQueue.main.async {
+                if let app = GhosttyManager.shared.app {
+                    ghostty_app_tick(app)
+                }
+            }
+        }
+        runtime.action_cb = { _, _, _ in true }
+        runtime.read_clipboard_cb = { _, _, _ in false }
+        runtime.confirm_read_clipboard_cb = { _, _, _, _ in }
+        runtime.write_clipboard_cb = { _, _, _, _, _ in }
+        runtime.close_surface_cb = { _, _ in }
+
+        guard let appHandle = ghostty_app_new(&runtime, cfg) else {
+            PocLog.write("[ghostty] app_new returned nil")
+            ghostty_config_free(cfg)
+            return
+        }
+        self.app = appHandle
+        self.config = cfg
+        PocLog.write("[ghostty] app_new ok")
+
+        // フォーカス連動
+        NotificationCenter.default.addObserver(
+            forName: NSApplication.didBecomeActiveNotification,
+            object: nil, queue: .main
+        ) { _ in
+            if let app = GhosttyManager.shared.app {
+                ghostty_app_set_focus(app, true)
+            }
+        }
+        NotificationCenter.default.addObserver(
+            forName: NSApplication.didResignActiveNotification,
+            object: nil, queue: .main
+        ) { _ in
+            if let app = GhosttyManager.shared.app {
+                ghostty_app_set_focus(app, false)
+            }
+        }
+    }
+}

@@ -63,15 +63,15 @@
 - [x] libghostty の最小 API（インスタンス生成、レンダリング、入力受付）を呼び出せることを確認 → `ghostty_init` → `ghostty_config_new` → `load_default_files` → `finalize` → `ghostty_app_new` まで成功。**`~/.config/ghostty/config` を自動読込していることを diagnostic 出力で確認**（実質 step5 もクリア）。surface 作成は step4 で行う
 
 ### 4. 1タブのターミナル表示（1〜2日）
-- [ ] SwiftUI View（または NSViewRepresentable）として Terminal View を作成
-- [ ] PTY を起動して `$SHELL -l` を実行
-- [ ] 出力がターミナルに描画される
-- [ ] キー入力がシェルに渡る
-- [ ] ウィンドウリサイズに追従
+- [x] SwiftUI View（または NSViewRepresentable）として Terminal View を作成 → `GhosttyTerminalView: NSViewRepresentable` + `GhosttyTerminalNSView: NSView`
+- [x] PTY を起動して `$SHELL -l` を実行 → libghostty が内蔵 PTY で zsh を fork+exec、`ttys056` 割当確認
+- [x] 出力がターミナルに描画される → "Last login..." + zsh プロンプト + コマンド出力が表示される（zsh-syntax-highlighting も動作）
+- [x] キー入力がシェルに渡る → `echo hello-from-ide && pwd` を AppleScript keystroke で送って実行・出力確認
+- [x] ウィンドウリサイズに追従 → ウィンドウを 900x532 → 1300x762 にリサイズ後 `stty size` が `46 162` と PTY 側で正しく取得できることを確認
 
 ### 5. Ghostty 設定継承の確認（半日）
-- [ ] `~/.config/ghostty/config` のフォント・カラースキームが反映される
-- [ ] 反映されない場合、libghostty の API で読み込ませる方法を特定
+- [x] `~/.config/ghostty/config` のフォント・カラースキームが反映される → step3 の diagnostic 出力（ユーザー config の `selection-foreground: invalid value "rgb(9, 9, 7)"`）と step4 のスクリーンショット（プロンプト形式・色味）で確認済み
+- [x] 反映されない場合、libghostty の API で読み込ませる方法を特定 → 問題なく反映された（`ghostty_config_load_default_files` が自動で読込）
 
 ### 6. 動作確認（VERIFY 風）
 - [ ] `claude` コマンドを起動して TUI が崩れずに動作する
@@ -98,6 +98,15 @@
 
 ## ログ
 （実装中の方針変更・想定外の失敗を1件10行以内で追記）
+
+### 2026-05-08 step4+5 完了
+- 構成: `GhosttyManager`（app singleton + tick）、`GhosttyTerminalNSView`（CAMetalLayer + 入力）、`GhosttyTerminalView: NSViewRepresentable`、`PocLog` ヘルパに分割
+- `wakeup_cb` から `DispatchQueue.main.async { ghostty_app_tick }` で wake → tick が動き、PTY 出力が描画
+- Surface 作成は `viewDidMoveToWindow` で `nsview = passUnretained(self).toOpaque()` を渡すだけ
+- リサイズは `setFrameSize` / `viewDidChangeBackingProperties` で `convertToBacking` → `ghostty_surface_set_size` ＋ `metalLayer.drawableSize`
+- Swift 6 strict concurrency 対応: NSView 配下の C ポインタは `nonisolated(unsafe)` で deinit から触れる
+- 動作確認: zsh 起動 / `echo` 実行 / リサイズ後 `stty size` 反映 / シンタックスハイライト = ユーザー config 反映
+- 撤退ライン: 大幅クリア。**step6 の TUI 確認だけで PoC 結了**
 
 ### 2026-05-08 step3 完了
 - xcframework 取得: cmux fork の prebuilt（`xcframework-22fa801f8`、SHA256 8d7da0bb..., 131MB圧縮 / 536MB 展開）。SHA256 検証 ok
