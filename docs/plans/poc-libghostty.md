@@ -74,14 +74,14 @@
 - [x] 反映されない場合、libghostty の API で読み込ませる方法を特定 → 問題なく反映された（`ghostty_config_load_default_files` が自動で読込）
 
 ### 6. 動作確認（VERIFY 風）
-- [ ] `claude` コマンドを起動して TUI が崩れずに動作する
-- [ ] `vim` を開いて画面遷移が正常
-- [ ] `fzf` を実行してインタラクティブ動作する
-- [ ] 256色・True Color の表示確認
+- [x] `claude` コマンドを起動して TUI が崩れずに動作する → 信頼確認画面が正しく表示・選択肢のカーソル位置も期待通り
+- [x] `vim` を開いて画面遷移が正常 → REQUIREMENTS.md を vim で開き Markdown シンタックスハイライトと罫線文字も正常描画、`:q!` で復帰
+- [x] `fzf` を実行してインタラクティブ動作する → ファイル一覧表示・カーソルハイライト・`7/7` ステータス・Esc 復帰すべて OK
+- [x] 256色・True Color の表示確認 → 16x16 の 256 パレットと 24bit RGB グラデーションが滑らかに描画
 
 ### 7. 判断
-- [ ] PoC 成功 → 本実装プラン（次のplan）の作成へ
-- [ ] PoC 失敗 → REQUIREMENTS.md の想定スタックを Tauri に切替、フォールバックプラン作成
+- [x] **PoC 成功** → 本実装プラン（次のplan）の作成へ
+- [ ] ~~PoC 失敗 → REQUIREMENTS.md の想定スタックを Tauri に切替、フォールバックプラン作成~~（不要）
 
 ---
 
@@ -98,6 +98,11 @@
 
 ## ログ
 （実装中の方針変更・想定外の失敗を1件10行以内で追記）
+
+### 2026-05-08 step6+7 完了 → PoC 成功
+- TUI 全種クリア: vim (Markdown ハイライト + 罫線), fzf (インクリメンタル + 7/7), claude (信頼確認画面), 256色, True Color グラデーション
+- Tauri フォールバックは不要、Swift + libghostty + SwiftUI スタックで本実装に進む
+- 本実装プランを別途 `docs/plans/` 配下に作成する（複数タブ・ペイン・サイドバー・ファイルツリー・プレビュー・Ctrl+M 切替・BEL通知）
 
 ### 2026-05-08 step4+5 完了
 - 構成: `GhosttyManager`（app singleton + tick）、`GhosttyTerminalNSView`（CAMetalLayer + 入力）、`GhosttyTerminalView: NSViewRepresentable`、`PocLog` ヘルパに分割
