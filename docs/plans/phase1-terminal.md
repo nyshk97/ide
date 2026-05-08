@@ -1,0 +1,168 @@
+# Phase 1: ターミナルを実用レベルに完成させる
+
+## 目的
+
+[REQUIREMENTS.md](../../REQUIREMENTS.md) の section 4（ターミナル）・section 5 のうち AI 連携の通知バッジ部分・section 8（横断的関心事項）を実装し、**Ghostty を素で使うのと遜色ないレベルでターミナルだけ自作 IDE に置き換えられる状態**にする。
+
+[poc-libghostty.md](./poc-libghostty.md) で 1 タブだけ動く状態にしたので、ここからは普段使いに必要な機能を埋めていく。
+
+ファイル系 UI（プロジェクト管理・ファイルツリー・プレビュー・Cmd+P/Cmd+Shift+F）と Cmd+M プロジェクト切替は **Phase 2 以降** に切り出す。
+
+---
+
+## スコープ
+
+### やること
+
+ターミナル本体に閉じる範囲だけ。「Ghostty + cmux」レベルに追いつくのが終了条件。
+
+#### 入力・編集系
+- **クリップボード**: Cmd+C（選択あり時コピー）、Cmd+V（ペースト）、`read_clipboard_cb` / `confirm_read_clipboard_cb` / `write_clipboard_cb` の実装
+- **マウス**: クリックでカーソル移動、ドラッグで範囲選択、選択後の自動コピー（mouse capture モード対応）、ホイールスクロール
+- **IME（日本語入力）**: `NSTextInputClient` の `setMarkedText` / `insertText` / `firstRectForCharacterRange` 実装、`ghostty_surface_preedit` / `ghostty_surface_text` 連携
+- **キー入力の本格化**: PoC の最小実装から cmux 相当に拡張（`interpretKeyEvents` 経由・`ghostty_surface_key_translation_mods` 適用・`unshifted_codepoint` 計算）
+- **フォントサイズ**: Cmd++/Cmd+-/Cmd+0
+- **スクロールバック消去**: Cmd+K
+
+#### 構造系
+- **複数タブ**: タブバー UI、Cmd+T 追加 / Cmd+W 閉じる / Cmd+1〜9 ジャンプ、自動タイトル（cwd or 実行中プロセス名）、閉じる確認（foreground プロセスが shell 以外なら確認ダイアログ）
+- **複数ペイン**: 上小ターミナル + 下大ターミナル、各々独立したタブ群、ドラッグでリサイズ可（比率の保存はしない）
+- **ペイン間フォーカス**: マウスクリックのみ（キーバインドなし）
+- **shell の起動方式**: `$SHELL -l` でログインシェル起動（PoC 時点で済んでいる）、cwd は呼び出し元（最初は HOME のまま）
+
+#### 異常系
+- **PTY 異常終了表示**: shell や子プロセスが exit したらタブ内に「終了しました（exit code: N）」を表示、再起動ボタン付き、自動では閉じない
+- **エラー表示**: 単発エラーは toast、継続的状態異常はサイドバーや該当ペイン内に常駐表示、詳細はログファイル
+
+#### AI 連携
+- **AI 種別バッジ**: PTY の foreground プロセス監視で Claude / Codex を検知、タブにアイコン or カラー、終了したらバッジは消える
+- **BEL 通知**: ターミナル出力ストリームから `0x07` を聞き取り、非アクティブなタブ・ペインにバッジ点灯。アクティブにしたら自動クリア。粒度はタブ単位（プロジェクト単位は Phase 2 でサイドバーが入ったとき対応）
+
+#### ターミナル出力中のリンク化
+- **ファイルパス**（`path/to/file.ts:42:8` 形式）: クリックで「ファイルを開く意図」を発火（Phase 2 で実際に IDE プレビューに繋ぐ。Phase 1 では VSCode で開く動作で代替）
+- **URL**（http/https のみ）: クリックで外部ブラウザ
+- 検出方式: Ghostty 側の `ACTION_OPEN_URL` を利用 + 出力テキストに対する正規表現マッチ
+
+#### 横断的
+- **外部コマンド argv 配列起動**: VSCode 起動・将来のターミナルで開く等で、shell 文字列結合せず `Process` の argv 配列で起動
+- **ログ・診断**: `~/Library/Logs/ide/` に行頭タイムスタンプ付きで書き出し、ローテーション（数日分・上限サイズ）。メニューから「直近のログを開く」
+- **設定の永続化先**: `~/Library/Application Support/ide/` 配下に集約（Phase 2 の projects.json と同居予定）
+
+### やらないこと（Phase 2 以降）
+
+- 左サイドバー（プロジェクト一覧・ピン留め・MRU・追加削除）
+- 中央ペイン（ファイルツリー・ファイルプレビュー・戻る/進む）
+- Cmd+M プロジェクト切替（オーバーレイ + MRU サイクル）
+- Cmd+P クイック検索 / Cmd+Shift+F 全文検索（ripgrep）
+- VSCode で開く（Cmd+Option+O）以外の IDE 統合
+- Ghostty config 以外のアプリ自前設定 UI（フォントカスタマイズ等）
+- セッション復元・カスタム起動テンプレート・AI 起動ショートカット
+
+---
+
+## 先送り判断ライン
+
+各ステップは PoC と違って撤退するものではないが、以下に該当した個別機能は **Phase 1.5** に切り出して先送りする：
+
+- IME で 1 週間（実働）以上詰まったら → Phase 1 から外し、英字入力だけで先に dogfooding を始める
+- リンク化が `ACTION_OPEN_URL` だけで実現できないと判明したら → Phase 1 ではプレーンテキスト表示に留め、Phase 2 で出力スキャン実装
+- AI 種別バッジの foreground プロセス検知が PTY 制御端末経由で取れないと判明したら → 環境変数 `CLAUDE_CODE_*` 等の起動時シグナルで代替
+
+機能単位で先送りすればよく、Phase 全体の白紙撤回は不要（PoC で技術的成立性が確定済みのため）。
+
+---
+
+## ステップ
+
+着手順は「使える状態を早く作る」を優先。マウス・クリップボードを先、IME と複数タブはその次、装飾系（バッジ・リンク化・ログ）は最後。
+
+### 1. PoC コードの整理と動作確認の安定化（半日）
+- [ ] `GhosttyTerminalView.swift` の責務を NSView / Coordinator / Manager 連携で見直す（cmux のような portal レイヤは不要、素直な NSViewRepresentable）
+- [ ] 動作確認スクリプトを `scripts/` 配下に整理（AppleScript + screencapture のテンプレを再利用可能に）
+- [ ] `mise run build` に `regen` を依存として組み込む（Sources/ 追加忘れの罠回避）
+- [ ] VERIFY.md を新規作成し、PoC の動作確認手順をベースラインとして記載
+
+### 2. クリップボード（半日〜1日）
+- [ ] `read_clipboard_cb` / `confirm_read_clipboard_cb` / `write_clipboard_cb` を NSPasteboard 連携で実装
+- [ ] Cmd+C: 選択あり時のみコピー（選択がなければデフォルトキーバインド = Ctrl+C のまま通す）
+- [ ] Cmd+V: NSPasteboard から取り出して `ghostty_surface_text` で挿入
+- [ ] mime type 対応（`text/plain`、画像等は無視）
+- [ ] **動作確認**: ターミナルから別アプリへコピー、別アプリからターミナルへペースト
+
+### 3. マウス入力（1日）
+- [ ] `mouseDown` / `mouseDragged` / `mouseUp` で `ghostty_surface_mouse_pos` + `ghostty_surface_mouse_button`
+- [ ] `scrollWheel` で `ghostty_surface_mouse_scroll`（自然スクロール方向に注意）
+- [ ] mouse capture モード（vim 等が `\e[?1006h` で全イベント要求）に対応
+- [ ] 選択後の自動コピー（Ghostty config の `copy-on-select` を尊重）
+- [ ] **動作確認**: vim でマウススクロール、less でドラッグ選択、tig でクリック
+
+### 4. IME（日本語入力）（1〜2日）
+- [ ] `NSTextInputClient` 準拠: `insertText`, `setMarkedText`, `unmarkText`, `selectedRange`, `markedRange`, `hasMarkedText`, `attributedSubstring`, `firstRectForCharacterRange`, `characterIndexForPoint`
+- [ ] `interpretKeyEvents([event])` を `keyDown` で呼び出し、IME パイプラインを通す
+- [ ] `keyTextAccumulator` パターン（cmux 流）で IME 確定文字列を `ghostty_surface_key` に流す
+- [ ] `setMarkedText` → `ghostty_surface_preedit` で未確定テキストを Ghostty に伝える
+- [ ] `firstRectForCharacterRange` で `ghostty_surface_ime_point` を返して IME ポップアップ位置を合わせる
+- [ ] **動作確認**: 日本語 IME で「こんにちは」を入力 → 確定 → echo で表示
+
+### 5. 複数タブ（1〜2日）
+- [ ] タブバー UI（SwiftUI、上部に表示）
+- [ ] タブモデル `TerminalTab`（surface 1個 + 表示名 + 状態）を `ObservableObject` で管理
+- [ ] Cmd+T 追加 / Cmd+W 閉じる / Cmd+1〜9 ジャンプ
+- [ ] タブ自動タイトル: `ghostty_action_set_title` のコールバックを拾って表示名更新
+- [ ] 閉じる確認: `ghostty_surface_foreground_pid` を見て shell 以外なら NSAlert
+- [ ] **動作確認**: Cmd+T で 3 タブ開いてそれぞれ別コマンド、Cmd+1/2/3 で切替、Cmd+W で確認ダイアログ
+
+### 6. 複数ペイン（1〜2日）
+- [ ] 上小・下大の 2 ペイン構造（SwiftUI `HSplitView` か自前ドラッグ可能 SplitView）
+- [ ] 各ペインが独立したタブ群を保持（`PaneState` に `[TerminalTab]`）
+- [ ] ペイン間フォーカス: クリックで切替、現在フォーカス中のペインに対してキーボードショートカット（Cmd+T 等）が効く
+- [ ] ドラッグでペイン高さ変更（リサイズ後の rows/cols 同期は既に PoC で実装済み）
+- [ ] **動作確認**: 上ペインで vim、下ペインで claude を並行起動、それぞれ独立操作
+
+### 7. PTY 異常終了表示と再起動（半日〜1日）
+- [ ] `close_surface_cb` の `needsConfirmClose=false` 経路を「異常終了」とみなして UI 通知
+- [ ] `ghostty_surface_process_exited` で exit code 取得（API 確認、なければ shell 終了文字列をパース）
+- [ ] タブ内 overlay で「終了しました（exit code: N）」+ 再起動ボタン
+- [ ] 再起動: 同じタブ内で新しい surface を作成
+- [ ] **動作確認**: タブで `exit 42` を実行 → overlay 表示 → 再起動 → 新しいシェルが立ち上がる
+
+### 8. BEL 通知 + AI 種別バッジ（1〜2日）
+- [ ] `ghostty_action_ring_bell` 経由で BEL を検知（`GHOSTTY_ACTION_RING_BELL`）
+- [ ] 非アクティブなタブ・ペインにバッジ点灯、アクティブにしたら自動クリア
+- [ ] AI 種別バッジ: `ghostty_surface_foreground_pid` を定期的に取得 → `ps -p <pid>` で実行ファイル名取得 → `claude` / `codex` を識別
+- [ ] foreground プロセス変化を監視するタイマー（500ms 程度）
+- [ ] **動作確認**: claude 起動でアイコン点灯、ESC で抜けたら消える、別タブで claude 起動して BEL を鳴らすとバッジ点灯
+
+### 9. ターミナル出力リンク化（1日）
+- [ ] `ghostty_action_open_url` を listen して URL クリックを処理（http/https のみ NSWorkspace で開く）
+- [ ] OSC 8 hyperlink でクリック可能になっている部分を確認（標準動作で済むなら自前実装不要）
+- [ ] ファイルパス検出: 出力テキストへの正規表現マッチが必要なら別途実装（Phase 2 でも可）
+- [ ] **動作確認**: `echo https://example.com` の出力をクリックして Safari で開く
+
+### 10. ログ・診断（半日）
+- [ ] `~/Library/Logs/ide/` に出力するロガーを追加（既存の `PocLog` を本格化）
+- [ ] ログレベル（error / warn / info / debug）、ローテーション（日次・上限サイズ）
+- [ ] メニュー > Help > 「最近のログを開く」
+- [ ] エラー toast と常駐表示の切り分け（NSAlert / SwiftUI overlay）
+
+### 11. Phase 1 動作確認（半日）
+- [ ] VERIFY.md に各ステップの確認手順を追記して全項目通過
+- [ ] cmux で日常的にやっている操作（claude code 並列起動・vim 編集・git 操作）を 1 日通して試す
+- [ ] パフォーマンス確認（タイピング遅延、大量出力時のスクロール、多タブ時のメモリ）
+
+---
+
+## 想定リスクと対策
+
+| リスク | 兆候 | 対策 |
+|---|---|---|
+| IME の挙動が AppKit 仕様と Ghostty 仕様の境界で再現困難 | 確定文字列が二重入力される、preedit 表示が消えない | cmux の `keyTextAccumulator` + `markedTextBefore` 比較ロジックをそのまま移植 |
+| ペイン分割で SwiftUI と AppKit の hit-test 競合 | クリックがペイン境界で吸われる | NSViewRepresentable のラップで `acceptsFirstMouse` を明示、cmux と同様の portal を最終手段 |
+| AI 検知の foreground process がリモート shell や tmux 経由で取れない | claude バッジが点かないケースが出る | OSC 通知（claude code の hook で OSC を打たせる）にフォールバック |
+| BEL の誤検知（vim の入力エラー等で連発） | バッジがすぐ点滅する | debounce + 「shell プロンプトに戻ったら自動クリア」のヒューリスティック |
+| ログの個人情報漏洩 | パスや URL が含まれる | ローテーション短め + UI に共有時注意の旨表示（既に REQUIREMENTS.md 8.2 に記載） |
+
+---
+
+## ログ
+（実装中の方針変更・想定外の失敗を1件10行以内で追記）
