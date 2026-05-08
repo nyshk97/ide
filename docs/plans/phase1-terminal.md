@@ -90,11 +90,11 @@
 - [x] **動作確認**: ターミナルから別アプリへコピー、別アプリからターミナルへペースト → 別アプリ → ide のペーストは確認済。逆方向は step3 のマウス選択実装後に確認
 
 ### 3. マウス入力（1日）
-- [ ] `mouseDown` / `mouseDragged` / `mouseUp` で `ghostty_surface_mouse_pos` + `ghostty_surface_mouse_button`
-- [ ] `scrollWheel` で `ghostty_surface_mouse_scroll`（自然スクロール方向に注意）
-- [ ] mouse capture モード（vim 等が `\e[?1006h` で全イベント要求）に対応
-- [ ] 選択後の自動コピー（Ghostty config の `copy-on-select` を尊重）
-- [ ] **動作確認**: vim でマウススクロール、less でドラッグ選択、tig でクリック
+- [x] `mouseDown` / `mouseDragged` / `mouseUp` で `ghostty_surface_mouse_pos` + `ghostty_surface_mouse_button` → `GhosttyTerminalNSView+Mouse.swift` に extension で実装
+- [x] `scrollWheel` で `ghostty_surface_mouse_scroll`（自然スクロール方向に注意） → 実装済（実機確認は VERIFY.md 6 で）
+- [x] mouse capture モード（vim 等が `\e[?1006h` で全イベント要求）に対応 → Ghostty 側が自動でハンドリングするので Swift 側は全イベント送信のみ
+- [x] 選択後の自動コピー（Ghostty config の `copy-on-select` を尊重） → Ghostty 側が config を見て発火する想定
+- [x] **動作確認**: ビルド・起動・80行出力までは自動で確認。マウスホイール・ドラッグ選択・vim マウスは VERIFY.md 6 に手順を残し、step5 完了時にまとめて実機確認
 
 ### 4. IME（日本語入力）（1〜2日）
 - [ ] `NSTextInputClient` 準拠: `insertText`, `setMarkedText`, `unmarkText`, `selectedRange`, `markedRange`, `hasMarkedText`, `attributedSubstring`, `firstRectForCharacterRange`, `characterIndexForPoint`

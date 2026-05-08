@@ -22,7 +22,8 @@ struct GhosttyTerminalView: NSViewRepresentable {
 // この本体ファイルにはライフサイクルと最小限のキー入力だけを残す方針。
 
 final class GhosttyTerminalNSView: NSView {
-    nonisolated(unsafe) private var surface: ghostty_surface_t?
+    // extension からアクセスするので internal (private にしない)
+    nonisolated(unsafe) var surface: ghostty_surface_t?
     private var lastPixelWidth: UInt32 = 0
     private var lastPixelHeight: UInt32 = 0
 
@@ -30,6 +31,12 @@ final class GhosttyTerminalNSView: NSView {
         super.init(frame: frameRect)
         wantsLayer = true
         layer?.masksToBounds = true
+        ensureTrackingArea()
+    }
+
+    override func updateTrackingAreas() {
+        super.updateTrackingAreas()
+        ensureTrackingArea()
     }
 
     required init?(coder: NSCoder) { fatalError("not implemented") }
@@ -212,12 +219,13 @@ final class GhosttyTerminalNSView: NSView {
 
 // MARK: - ヘルパ
 
-private func unshiftedCodepoint(from event: NSEvent) -> UInt32 {
+// extension からも使うので fileprivate ではなく internal
+func unshiftedCodepoint(from event: NSEvent) -> UInt32 {
     let chars = event.charactersIgnoringModifiers ?? ""
     return chars.unicodeScalars.first?.value ?? 0
 }
 
-private func modsFromEvent(_ event: NSEvent) -> ghostty_input_mods_e {
+func modsFromEvent(_ event: NSEvent) -> ghostty_input_mods_e {
     var raw: UInt32 = 0
     let f = event.modifierFlags
     if f.contains(.shift) { raw |= GHOSTTY_MODS_SHIFT.rawValue }

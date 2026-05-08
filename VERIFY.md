@@ -76,7 +76,38 @@ sleep 0.5
 
 スクショに 16x16 の 256 パレットと、24bit RGB のなめらかなグラデーションが映っていること。
 
-## 6. TUI 動作確認
+## 6. マウス（手動確認）
+
+```bash
+./scripts/ide-launch.sh
+./scripts/ide-keystroke.sh --enter "for i in {1..80}; do echo \"line \$i\"; done"
+```
+
+以下を実機で確認:
+- マウスホイールで上下スクロールができる
+- ドラッグでテキスト選択、選択範囲がハイライトされる
+- 選択後 `Cmd+C` でクリップボードへコピーされる（`pbpaste` で確認）
+- `vim` 起動後、マウスホイールでバッファスクロールできる
+
+## 7. クリップボードペースト
+
+```bash
+echo "expected-payload-$(date +%s)" | tr -d '\n' | pbcopy
+./scripts/ide-launch.sh
+./scripts/ide-keystroke.sh "echo "
+osascript -e 'tell application "System Events" to keystroke "v" using command down'
+sleep 0.3
+./scripts/ide-keystroke.sh --keycode 36
+sleep 0.5
+./scripts/ide-screenshot.sh /tmp/v-paste.png
+```
+
+スクショの出力に `pbcopy` で渡した文字列が映っていること。ログ確認:
+```bash
+grep "\[clip\]" /tmp/ide-poc.log
+```
+
+## 8. TUI 動作確認
 
 ### vim
 
