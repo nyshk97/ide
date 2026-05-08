@@ -76,7 +76,29 @@ sleep 0.5
 
 スクショに 16x16 の 256 パレットと、24bit RGB のなめらかなグラデーションが映っていること。
 
-## 6. マウス（手動確認）
+## 6. IME（日本語入力）
+
+入力ソースが日本語のとき、AppleScript で英字を打つとライブ変換が走る:
+```bash
+./scripts/ide-launch.sh
+osascript -e 'tell application "System Events" to keystroke "echo"'  # IME が日本語ローマ字なら「えちょ」になる
+```
+→ ターミナル上で preedit が表示される（赤文字 = zsh-syntax-highlighting でコマンド未存在判定）= `setMarkedText` → `ghostty_surface_preedit` 経路が動作。
+
+英数モードに戻して ASCII 入力が壊れていないか:
+```bash
+./scripts/ide-launch.sh
+osascript -e 'tell application "System Events" to key code 102'  # 英数キー
+./scripts/ide-keystroke.sh --enter "echo ascii-after-eisuu"
+sleep 0.5
+./scripts/ide-screenshot.sh /tmp/v-ime-ascii.png
+```
+
+実機での日本語確認（手動）:
+- 入力ソースを日本語に切替 → ide にフォーカス
+- 「あ」と打って preedit が出る、Space で変換、Enter で確定 → ターミナルに「あ」が入る
+
+## 7. マウス（手動確認）
 
 ```bash
 ./scripts/ide-launch.sh

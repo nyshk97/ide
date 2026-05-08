@@ -97,12 +97,12 @@
 - [x] **動作確認**: ビルド・起動・80行出力までは自動で確認。マウスホイール・ドラッグ選択・vim マウスは VERIFY.md 6 に手順を残し、step5 完了時にまとめて実機確認
 
 ### 4. IME（日本語入力）（1〜2日）
-- [ ] `NSTextInputClient` 準拠: `insertText`, `setMarkedText`, `unmarkText`, `selectedRange`, `markedRange`, `hasMarkedText`, `attributedSubstring`, `firstRectForCharacterRange`, `characterIndexForPoint`
-- [ ] `interpretKeyEvents([event])` を `keyDown` で呼び出し、IME パイプラインを通す
-- [ ] `keyTextAccumulator` パターン（cmux 流）で IME 確定文字列を `ghostty_surface_key` に流す
-- [ ] `setMarkedText` → `ghostty_surface_preedit` で未確定テキストを Ghostty に伝える
-- [ ] `firstRectForCharacterRange` で `ghostty_surface_ime_point` を返して IME ポップアップ位置を合わせる
-- [ ] **動作確認**: 日本語 IME で「こんにちは」を入力 → 確定 → echo で表示
+- [x] `NSTextInputClient` 準拠 → `GhosttyTerminalNSView+TextInput.swift` で全プロトコル要件を実装
+- [x] `interpretKeyEvents([event])` を `keyDown` で呼び出し、IME パイプラインを通す
+- [x] `keyTextAccumulator` パターン（cmux 流）で IME 確定文字列を `ghostty_surface_key` に流す
+- [x] `setMarkedText` → `ghostty_surface_preedit` で未確定テキストを Ghostty に伝える
+- [x] `firstRectForCharacterRange` で `ghostty_surface_ime_point` を返して IME ポップアップ位置を合わせる
+- [x] **動作確認**: AppleScript の `keystroke "echo"` を日本語IMEモードで送ると「えちょ」とライブ変換される（preedit 動作確認）。英数モードでの ASCII 入力も問題なし。実機での日本語確定動作は VERIFY.md 6 で手動確認
 
 ### 5. 複数タブ（1〜2日）
 - [ ] タブバー UI（SwiftUI、上部に表示）

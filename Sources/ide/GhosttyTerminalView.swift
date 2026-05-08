@@ -27,6 +27,12 @@ final class GhosttyTerminalNSView: NSView {
     private var lastPixelWidth: UInt32 = 0
     private var lastPixelHeight: UInt32 = 0
 
+    // IME（NSTextInputClient）の状態
+    var markedText: NSMutableAttributedString = NSMutableAttributedString()
+    var markedSelectedRange: NSRange = NSRange(location: 0, length: 0)
+    /// keyDown 中のみ非 nil。IME confirmed text を一時的に貯める箱
+    var keyTextAccumulator: [String]?
+
     override init(frame frameRect: NSRect) {
         super.init(frame: frameRect)
         wantsLayer = true
@@ -178,13 +184,43 @@ final class GhosttyTerminalNSView: NSView {
 
     override func keyDown(with event: NSEvent) {
         guard let s = surface else { return super.keyDown(with: event) }
+
+        let action = event.isARepeat ? GHOSTTY_ACTION_REPEAT : GHOSTTY_ACTION_PRESS
+        let markedBefore = markedText.length > 0
+
+        // AppKit の IME パイプラインに通す。confirm された文字列は accumulator に流れる。
+        keyTextAccumulator = []
+        interpretKeyEvents([event])
+        let accumulatedText = keyTextAccumulator ?? []
+        keyTextAccumulator = nil
+
+        // preedit の現状を Ghostty に同期
+        syncPreedit()
+
+        // IME が消費したケース: marked text が新たに発生・更新され、確定文字列が空なら surface に key を送らない
+        if accumulatedText.isEmpty, markedText.length > 0 {
+            return
+        }
+
         var keyEvent = ghostty_input_key_s()
-        keyEvent.action = event.isARepeat ? GHOSTTY_ACTION_REPEAT : GHOSTTY_ACTION_PRESS
+        keyEvent.action = action
         keyEvent.keycode = UInt32(event.keyCode)
         keyEvent.mods = modsFromEvent(event)
         keyEvent.consumed_mods = ghostty_input_mods_e(rawValue: 0)
-        keyEvent.composing = false
-        keyEvent.unshifted_codepoint = 0
+        keyEvent.unshifted_codepoint = unshiftedCodepoint(from: event)
+        keyEvent.composing = markedText.length > 0 || markedBefore
+
+        if !accumulatedText.isEmpty {
+            // IME 確定文字列を1つずつ送る
+            keyEvent.composing = false
+            for text in accumulatedText where !text.isEmpty {
+                text.withCString { ptr in
+                    keyEvent.text = ptr
+                    _ = ghostty_surface_key(s, keyEvent)
+                }
+            }
+            return
+        }
 
         let chars = event.characters ?? ""
         if !chars.isEmpty, !event.modifierFlags.contains(.command) {
