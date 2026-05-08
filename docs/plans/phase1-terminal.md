@@ -105,12 +105,13 @@
 - [x] **動作確認**: AppleScript の `keystroke "echo"` を日本語IMEモードで送ると「えちょ」とライブ変換される（preedit 動作確認）。英数モードでの ASCII 入力も問題なし。実機での日本語確定動作は VERIFY.md 6 で手動確認
 
 ### 5. 複数タブ（1〜2日）
-- [ ] タブバー UI（SwiftUI、上部に表示）
-- [ ] タブモデル `TerminalTab`（surface 1個 + 表示名 + 状態）を `ObservableObject` で管理
-- [ ] Cmd+T 追加 / Cmd+W 閉じる / Cmd+1〜9 ジャンプ
-- [ ] タブ自動タイトル: `ghostty_action_set_title` のコールバックを拾って表示名更新
-- [ ] 閉じる確認: `ghostty_surface_foreground_pid` を見て shell 以外なら NSAlert
-- [ ] **動作確認**: Cmd+T で 3 タブ開いてそれぞれ別コマンド、Cmd+1/2/3 で切替、Cmd+W で確認ダイアログ
+- [x] タブバー UI（SwiftUI、上部に表示） → `TabsView.swift` に実装、ZStack で全タブ常駐させて opacity 切替
+- [x] タブモデル `TerminalTab`（surface 1個 + 表示名 + 状態）を `ObservableObject` で管理 → `TerminalTab` + `TerminalTabsModel`（singleton）
+- [x] Cmd+T 追加 / Cmd+W 閉じる → `GhosttyTerminalNSView.performKeyEquivalent` で先回り処理（SwiftUI Commands は Ghostty のキーバインディング解決に先を越されるので AppKit 層で捕捉）
+- [ ] Cmd+1〜9 ジャンプ → step6 以降に持ち越し
+- [ ] タブ自動タイトル: `ghostty_action_set_title` のコールバックを拾って表示名更新 → step6 以降に持ち越し（現状は "shell N" 固定）
+- [ ] 閉じる確認: `ghostty_surface_foreground_pid` を見て shell 以外なら NSAlert → step6 以降に持ち越し
+- [x] **動作確認**: Cmd+T で 2 タブ開いてそれぞれ独立シェル、Cmd+W で閉じても残ったタブのバッファが保持される（VERIFY.md 6 の手順）
 
 ### 6. 複数ペイン（1〜2日）
 - [ ] 上小・下大の 2 ペイン構造（SwiftUI `HSplitView` か自前ドラッグ可能 SplitView）

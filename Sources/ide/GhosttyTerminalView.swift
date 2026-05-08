@@ -97,6 +97,8 @@ final class GhosttyTerminalNSView: NSView {
         let ok = super.becomeFirstResponder()
         if let s = surface {
             ghostty_surface_set_focus(s, true)
+            // クリップボード等の "active surface" もこの NSView の surface に切替
+            GhosttyManager.shared.register(surface: s)
         }
         return ok
     }
@@ -160,6 +162,23 @@ final class GhosttyTerminalNSView: NSView {
     /// Cmd+V や Cmd+C などのメニューショートカットは AppKit が menu chain で先に消費する。
     /// Ghostty 側のキーバインドにマッチする場合はこちらで捕捉して surface に流す。
     override func performKeyEquivalent(with event: NSEvent) -> Bool {
+        // ide 側のショートカットを Ghostty より先に捕まえる
+        if event.modifierFlags.contains(.command),
+           !event.modifierFlags.contains(.shift),
+           !event.modifierFlags.contains(.option),
+           !event.modifierFlags.contains(.control) {
+            switch event.charactersIgnoringModifiers {
+            case "t":
+                TerminalTabsModel.shared.addTab()
+                return true
+            case "w":
+                TerminalTabsModel.shared.closeActiveTab()
+                return true
+            default:
+                break
+            }
+        }
+
         guard let s = surface else { return false }
 
         var keyEvent = ghostty_input_key_s()

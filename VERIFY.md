@@ -76,7 +76,48 @@ sleep 0.5
 
 スクショに 16x16 の 256 パレットと、24bit RGB のなめらかなグラデーションが映っていること。
 
-## 6. IME（日本語入力）
+## 6. 複数タブ
+
+```bash
+./scripts/ide-launch.sh
+osascript -e 'tell application "System Events"
+  tell process "ide"
+    set frontmost to true
+  end tell
+  delay 0.3
+  key code 102
+  delay 0.2
+  keystroke "echo tab-1"
+  delay 0.1
+  key code 36
+  delay 0.5
+  keystroke "t" using command down  -- 新規タブ
+  delay 0.7
+  keystroke "echo tab-2"
+  delay 0.1
+  key code 36
+end tell'
+sleep 1
+./scripts/ide-screenshot.sh /tmp/v-tabs.png
+```
+
+期待: タブバーに `shell 1` と `shell 2` が並び、shell 2 がアクティブで `tab-2` 出力が見える。
+
+```bash
+osascript -e 'tell application "System Events"
+  tell process "ide"
+    set frontmost to true
+  end tell
+  delay 0.3
+  keystroke "w" using command down  -- アクティブタブ閉じる
+end tell'
+sleep 1
+./scripts/ide-screenshot.sh /tmp/v-tabs-close.png
+```
+
+期待: shell 2 が閉じて shell 1 だけ残り、shell 1 のバッファ（`tab-1` 出力）が保持されている。
+
+## 7. IME（日本語入力）
 
 入力ソースが日本語のとき、AppleScript で英字を打つとライブ変換が走る:
 ```bash
