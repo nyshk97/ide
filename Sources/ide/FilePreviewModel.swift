@@ -15,21 +15,36 @@ final class FilePreviewModel: ObservableObject {
     /// プレビュー対象を切替（履歴に push）。
     func open(_ url: URL) {
         if currentURL == url { return }
-        // 同じパスを連続で開くのは履歴重複させない
-        if let last = history.last, last == url { } else {
-            // 履歴の途中まで進んでいた場合、それ以降を破棄してから push
-            if historyIndex >= 0 && historyIndex < history.count - 1 {
-                history.removeSubrange((historyIndex + 1)..<history.count)
-            }
-            history.append(url)
-            historyIndex = history.count - 1
+        // 履歴の途中まで進んでいた場合、それ以降を破棄してから push
+        if historyIndex >= 0 && historyIndex < history.count - 1 {
+            history.removeSubrange((historyIndex + 1)..<history.count)
         }
+        // 同じパスを連続で開くのは重複させない
+        if history.last != url {
+            history.append(url)
+        }
+        historyIndex = history.count - 1
         currentURL = url
     }
 
     /// プレビューを閉じてツリーに戻る。履歴は保持。
     func close() {
         currentURL = nil
+    }
+
+    var canGoBack: Bool { historyIndex > 0 }
+    var canGoForward: Bool { historyIndex >= 0 && historyIndex < history.count - 1 }
+
+    func goBack() {
+        guard canGoBack else { return }
+        historyIndex -= 1
+        currentURL = history[historyIndex]
+    }
+
+    func goForward() {
+        guard canGoForward else { return }
+        historyIndex += 1
+        currentURL = history[historyIndex]
     }
 }
 

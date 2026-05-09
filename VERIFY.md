@@ -737,3 +737,12 @@ rm -f "$HOME/Library/Application Support/ide/projects.json"*
 - **50MB 超**: 自動的に「外部で開いてください」+「VSCode で開く」
 - **Cmd+Option+O**: VSCode が起動し、当該ファイルが開く
 - **Esc / ツリーに戻るボタン**: ツリーに戻る
+
+### 27. プレビュー履歴ナビ（手動）
+
+実機で確認:
+- ツリー → ファイル A をクリック → プレビュー A を表示、ツールバーの ← → は両方 disable
+- ファイル B をクリック → プレビュー B、← が enable、→ は disable
+- ← をクリック → A に戻る、→ が enable に
+- → をクリック → B に進む
+- 同じファイルを連続でクリックしても履歴は重複しない（A → A → B → A の操作で履歴は A → B → A の 3 件）

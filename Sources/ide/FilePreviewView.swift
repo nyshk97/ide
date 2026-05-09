@@ -4,6 +4,8 @@ import PDFKit
 
 /// 中央ペインのファイルプレビュー。閲覧専用、形式別に分岐表示。
 struct FilePreviewView: View {
+    @ObservedObject var preview: FilePreviewModel
+
     let url: URL
     let onClose: () -> Void
 
@@ -29,6 +31,21 @@ struct FilePreviewView: View {
             }
             .buttonStyle(.plain)
             .keyboardShortcut(.escape, modifiers: [])
+
+            // 履歴ナビ
+            Button { preview.goBack() } label: {
+                Image(systemName: "arrow.left")
+            }
+            .buttonStyle(.plain)
+            .disabled(!preview.canGoBack)
+            .help("前のファイル")
+
+            Button { preview.goForward() } label: {
+                Image(systemName: "arrow.right")
+            }
+            .buttonStyle(.plain)
+            .disabled(!preview.canGoForward)
+            .help("次のファイル")
 
             Spacer()
 
