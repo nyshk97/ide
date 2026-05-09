@@ -167,3 +167,14 @@
 
 ## ログ
 （実装中の方針変更・想定外の失敗を1件10行以内で追記）
+
+### 2026-05-09 step5.5 NSBeep 抑制
+- 症状: Backspace / Enter 等を押すたびに macOS の「無効キー」音が鳴る（入力自体は正常）
+- 原因: `interpretKeyEvents` が特殊キーを `deleteBackward(_:)` / `insertNewline(_:)` 等のセレクタコマンドに変換し、`NSResponder.doCommand(by:)` に投げる。我々は keycode 経由で処理済みだが override してないので AppKit が「未処理」と判定して NSBeep
+- 対応: `GhosttyTerminalNSView` で `doCommand(by:)` を空 override（cmux と同じパターン）
+- 検証: 実機でユーザー確認 OK
+
+### 2026-05-09 step1〜step5 実機 dogfooding 結果
+- マウス（ホイール/ドラッグ選択/Cmd+C）、日本語 IME（preedit/変換/確定）、複数タブ（Cmd+T/Cmd+W）すべて期待通り動作
+- 唯一の発覚問題が上記 NSBeep のみ
+- 撤退ライン的に Phase 1 残ステップ（複数ペイン以降）の前提が固まった

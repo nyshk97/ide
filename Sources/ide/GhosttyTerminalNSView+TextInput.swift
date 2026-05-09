@@ -80,6 +80,13 @@ extension GhosttyTerminalNSView: @preconcurrency NSTextInputClient {
         markedSelectedRange = NSRange(location: 0, length: 0)
     }
 
+    /// AppKit がキーをセレクタコマンド（deleteBackward / insertNewline 等）に変換して投げてくる経路。
+    /// 我々は ghostty_surface_key で keycode から処理しているのでここでは何もしない。
+    /// 空実装にしないと「未処理コマンド」扱いで NSBeep が鳴る。
+    override func doCommand(by selector: Selector) {
+        // intentionally empty
+    }
+
     /// IME ポップアップの位置決め。Ghostty が知っているカーソル位置を画面座標に変換して返す。
     func firstRect(forCharacterRange range: NSRange, actualRange: NSRangePointer?) -> NSRect {
         guard let s = surface, let window = window else { return .zero }
