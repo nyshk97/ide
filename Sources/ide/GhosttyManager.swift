@@ -72,16 +72,29 @@ final class GhosttyManager: @unchecked Sendable {
             }
         }
         runtime.action_cb = { _, target, action in
-            if action.tag == GHOSTTY_ACTION_SHOW_CHILD_EXITED,
-               target.tag == GHOSTTY_TARGET_SURFACE,
-               let surface = target.target.surface {
-                let code = action.action.child_exited.exit_code
-                PocLog.write("[exit] surface=\(String(describing: surface)) exit_code=\(code)")
-                DispatchQueue.main.async {
-                    if let tab = GhosttyManager.shared.tab(forSurface: surface) {
-                        tab.lifecycle = .exited(code: code)
+            switch action.tag {
+            case GHOSTTY_ACTION_SHOW_CHILD_EXITED:
+                if target.tag == GHOSTTY_TARGET_SURFACE,
+                   let surface = target.target.surface {
+                    let code = action.action.child_exited.exit_code
+                    DispatchQueue.main.async {
+                        if let tab = GhosttyManager.shared.tab(forSurface: surface) {
+                            tab.lifecycle = .exited(code: code)
+                        }
                     }
                 }
+            case GHOSTTY_ACTION_RING_BELL:
+                if target.tag == GHOSTTY_TARGET_SURFACE,
+                   let surface = target.target.surface {
+                    DispatchQueue.main.async {
+                        if let tab = GhosttyManager.shared.tab(forSurface: surface),
+                           !WorkspaceModel.shared.isCurrentlyActive(tab: tab) {
+                            tab.hasUnreadNotification = true
+                        }
+                    }
+                }
+            default:
+                break
             }
             return true
         }

@@ -62,19 +62,28 @@ struct TabsView: View {
 
     private func tabButton(index: Int, tab: TerminalTab) -> some View {
         let active = index == pane.activeIndex
-        return Button(action: {
-            pane.selectTab(at: index)
-            workspace.setActive(pane)
-        }) {
-            Text(tab.title)
-                .lineLimit(1)
-                .font(.system(size: 12))
+        return TabObserver(tab: tab) { tab in
+            Button(action: {
+                self.pane.selectTab(at: index)
+                self.workspace.setActive(self.pane)
+            }) {
+                HStack(spacing: 5) {
+                    Text(tab.title)
+                        .lineLimit(1)
+                        .font(.system(size: 12))
+                    if tab.hasUnreadNotification {
+                        Circle()
+                            .fill(Color.blue)
+                            .frame(width: 6, height: 6)
+                    }
+                }
                 .padding(.horizontal, 10)
                 .frame(height: 22)
                 .background(active ? Color.accentColor.opacity(0.25) : Color.clear)
                 .clipShape(RoundedRectangle(cornerRadius: 4))
+            }
+            .buttonStyle(.plain)
         }
-        .buttonStyle(.plain)
     }
 
     private var paneIsActive: Bool { workspace.isActive(pane) }

@@ -76,7 +76,34 @@ sleep 0.5
 
 スクショに 16x16 の 256 パレットと、24bit RGB のなめらかなグラデーションが映っていること。
 
-## 6. PTY 異常終了表示と再起動
+## 6. BEL 通知
+
+```bash
+cat > /tmp/bel-test.sh <<'SCRIPT'
+(sleep 2 && printf '\a') &
+SCRIPT
+chmod +x /tmp/bel-test.sh
+
+./scripts/ide-launch.sh
+osascript -e 'tell application "System Events" to tell process "ide" to set frontmost to true'
+sleep 0.3
+osascript -e 'tell application "System Events" to key code 102'
+osascript -e 'tell application "System Events" to keystroke "source /tmp/bel-test.sh"'
+osascript -e 'tell application "System Events" to key code 36'
+sleep 0.4
+# Cmd+T で別タブに切替（shell 1 が非active になる）
+osascript -e 'tell application "System Events" to keystroke "t" using command down'
+sleep 3
+./scripts/ide-screenshot.sh /tmp/v-bel.png
+```
+
+期待: スクショで `shell 1` のタブ名の右に青丸（●）バッジが表示されている（非active タブで BEL 受信）。
+
+実機での確認:
+- `shell 1` タブをクリックで切替 → バッジが消える
+- アクティブタブ自身で `printf '\a'` を実行 → バッジは出ない（自分で触っているので未読扱いしない）
+
+## 7. PTY 異常終了表示と再起動
 
 ```bash
 ./scripts/ide-launch.sh

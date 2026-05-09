@@ -110,10 +110,13 @@ final class GhosttyTerminalNSView: NSView {
 
     override func becomeFirstResponder() -> Bool {
         let ok = super.becomeFirstResponder()
-        // 自分の属するペインを active pane に昇格
+        // 自分の属するペインを active pane に昇格（setActive 内で未読通知はクリアされる）
         if let pane {
             WorkspaceModel.shared.setActive(pane)
         }
+        // becomeFirstResponder した NSView は自身のタブを最前面表示しているはずなので
+        // そのタブの未読も明示的にクリア
+        tab?.hasUnreadNotification = false
         if let s = surface, let tab {
             ghostty_surface_set_focus(s, true)
             GhosttyManager.shared.register(surface: s, tab: tab)

@@ -128,11 +128,11 @@
 - [x] **動作確認**: `exit 42` で overlay 表示確認済。再起動ボタンの click は実機で確認（VERIFY.md 6）
 
 ### 8. BEL 通知 + AI 種別バッジ（1〜2日）
-- [ ] `ghostty_action_ring_bell` 経由で BEL を検知（`GHOSTTY_ACTION_RING_BELL`）
-- [ ] 非アクティブなタブ・ペインにバッジ点灯、アクティブにしたら自動クリア
-- [ ] AI 種別バッジ: `ghostty_surface_foreground_pid` を定期的に取得 → `ps -p <pid>` で実行ファイル名取得 → `claude` / `codex` を識別
-- [ ] foreground プロセス変化を監視するタイマー（500ms 程度）
-- [ ] **動作確認**: claude 起動でアイコン点灯、ESC で抜けたら消える、別タブで claude 起動して BEL を鳴らすとバッジ点灯
+- [x] `ghostty_action_ring_bell` 経由で BEL を検知 → `action_cb` の `GHOSTTY_ACTION_RING_BELL` 分岐
+- [x] 非アクティブなタブ・ペインにバッジ点灯、アクティブにしたら自動クリア → `TerminalTab.hasUnreadNotification` + `WorkspaceModel.isCurrentlyActive(tab:)` でゲーティング、タブ選択 / focus 取得 / setActive で自動クリア
+- [ ] AI 種別バッジ: `ghostty_surface_foreground_pid` を定期的に取得 → `ps -p <pid>` で実行ファイル名取得 → `claude` / `codex` を識別 → step8-B として分離（次のステップ）
+- [ ] foreground プロセス変化を監視するタイマー（500ms 程度）→ step8-B
+- [x] **動作確認(BEL)**: 下ペイン shell 1 で `(sleep 2 && printf '\a') &` 仕掛け → Cmd+T で shell 2 に切替 → 2秒後に shell 1 タブ名の右に青丸が表示される
 
 ### 9. ターミナル出力リンク化（1日）
 - [ ] `ghostty_action_open_url` を listen して URL クリックを処理（http/https のみ NSWorkspace で開く）

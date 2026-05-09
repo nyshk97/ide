@@ -13,6 +13,9 @@ final class TerminalTab: ObservableObject, Identifiable {
     /// `restart()` で increment。SwiftUI 側の `.id()` に混ぜることで view 再生成を起こす。
     @Published var generation: Int = 0
 
+    /// BEL 受信などで未読通知が立っている状態。アクティブ化で自動クリアする。
+    @Published var hasUnreadNotification: Bool = false
+
     enum Lifecycle: Equatable {
         case alive
         case exited(code: UInt32)

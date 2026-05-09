@@ -21,11 +21,20 @@ final class WorkspaceModel: ObservableObject {
     }
 
     func setActive(_ pane: PaneState) {
-        guard pane !== activePane else { return }
-        activePane = pane
+        if pane !== activePane {
+            activePane = pane
+        }
+        // active になったペインのカレントタブの未読通知をクリア
+        pane.activeTab?.hasUnreadNotification = false
     }
 
     func isActive(_ pane: PaneState) -> Bool {
         pane === activePane
+    }
+
+    /// 与えられたタブが「真にアクティブ」（active pane の active tab）か。
+    /// BEL 通知で「アクティブ時は無視」の判定に使う。
+    func isCurrentlyActive(tab: TerminalTab) -> Bool {
+        activePane.activeTab === tab
     }
 }

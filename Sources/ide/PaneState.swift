@@ -35,5 +35,7 @@ final class PaneState: ObservableObject, Identifiable {
     func selectTab(at index: Int) {
         guard tabs.indices.contains(index) else { return }
         activeIndex = index
+        // タブを能動的に切替えたら未読通知はクリア
+        tabs[index].hasUnreadNotification = false
     }
 }
