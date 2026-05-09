@@ -21,5 +21,7 @@ enum PocLog {
             try? line.write(toFile: path, atomically: true, encoding: String.Encoding.utf8)
         }
         FileHandle.standardError.write(data)
+        // step12 以降は ~/Library/Logs/ide/ にも書き出す（PocLog は /tmp で並走）。
+        Logger.shared.debug(message)
     }
 }

@@ -265,11 +265,11 @@ Phase 1 で踏んだ罠を Phase 2 でも同じ轍を踏まないように記録
 - [x] **動作確認**: ide で `Project` で 116 件ヒット
 
 ### 12. ログ・診断（半日）
-- [ ] `Logger` クラス（Swift 標準 `os.Logger` ベース）
-- [ ] `~/Library/Logs/ide/ide-YYYY-MM-DD.log` への永続化、日次ローテーション、上限サイズ 50MB
-- [ ] error / warn / info / debug の 4 段階
-- [ ] メニュー > Help > 「最近のログを開く」（Finder で reveal）
-- [ ] 既存の `PocLog` 呼び出しを `Logger.debug` 等に置き換え（ハードコードされた `/tmp/ide-poc.log` を撤去）
+- [x] `Logger` クラス（自前、`~/Library/Logs/ide/` に永続化）
+- [x] `~/Library/Logs/ide/ide-YYYY-MM-DD.log` への永続化、日次ローテーション、上限サイズ 50MB
+- [x] error / warn / info / debug の 4 段階
+- [x] メニュー > Help > 「最近のログを開く」（Finder で reveal、Cmd+Shift+L）
+- [x] 既存の `PocLog.write` 内部で Logger.debug にも転送（PocLog は /tmp 用に並走）
 
 ### 13. エラー表示（半日）
 - [ ] 単発エラー toast 用の overlay コンポーネント
