@@ -4,20 +4,40 @@ struct TabsView: View {
     @ObservedObject var pane: PaneState
     @ObservedObject private var workspace: WorkspaceModel = .shared
 
+    /// ForEach のループ内で各 tab を `@ObservedObject` 化するため、ヘルパで個別に観測する
+    private struct TabObserver<Content: View>: View {
+        @ObservedObject var tab: TerminalTab
+        let content: (TerminalTab) -> Content
+        var body: some View { content(tab) }
+    }
+
     var body: some View {
         VStack(spacing: 0) {
             tabBar
             ZStack {
                 ForEach(Array(pane.tabs.enumerated()), id: \.element.id) { index, tab in
-                    GhosttyTerminalView(pane: pane)
+                    paneContent(index: index, tab: tab)
                         .opacity(index == pane.activeIndex ? 1 : 0)
                         .allowsHitTesting(index == pane.activeIndex)
-                        .id(tab.id)
                 }
             }
         }
         // active pane 切替は GhosttyTerminalNSView.becomeFirstResponder() 経由で実行する。
         // ここで .onTapGesture を仕込むと NSView への mouseDown を SwiftUI が吸ってしまう。
+    }
+
+    /// 1タブ分の表示。lifecycle に応じて exited overlay を被せる。
+    private func paneContent(index: Int, tab: TerminalTab) -> some View {
+        TabObserver(tab: tab) { tab in
+            ZStack {
+                // .id に generation を混ぜると restart() で view 再生成→新 surface
+                GhosttyTerminalView(pane: self.pane, tab: tab)
+                    .id("\(tab.id.uuidString)-\(tab.generation)")
+                if case .exited(let code) = tab.lifecycle {
+                    ExitedOverlayView(exitCode: code, onRestart: { tab.restart() })
+                }
+            }
+        }
     }
 
     private var tabBar: some View {

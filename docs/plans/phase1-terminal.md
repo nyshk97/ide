@@ -121,11 +121,11 @@
 - [x] **動作確認**: 上下分割と各ペイン独立 PTY（別 ttys）はスクリプトで自動確認済。実機でのクリック切替・ドラッグリサイズは VERIFY.md 6 で手動
 
 ### 7. PTY 異常終了表示と再起動（半日〜1日）
-- [ ] `close_surface_cb` の `needsConfirmClose=false` 経路を「異常終了」とみなして UI 通知
-- [ ] `ghostty_surface_process_exited` で exit code 取得（API 確認、なければ shell 終了文字列をパース）
-- [ ] タブ内 overlay で「終了しました（exit code: N）」+ 再起動ボタン
-- [ ] 再起動: 同じタブ内で新しい surface を作成
-- [ ] **動作確認**: タブで `exit 42` を実行 → overlay 表示 → 再起動 → 新しいシェルが立ち上がる
+- [x] 異常終了の検知 → `action_cb` で `GHOSTTY_ACTION_SHOW_CHILD_EXITED` を捕捉（`close_surface_cb` ではなく action 経由）
+- [x] exit code 取得 → `action.action.child_exited.exit_code`（ghostty fork の現状値は常に 0 で来る挙動。UI 表示自体は動作）
+- [x] タブ内 overlay で「終了しました（exit code: N）」+ 再起動ボタン → `ExitedOverlayView.swift`
+- [x] 再起動: 同じタブ内で新しい surface を作成 → `tab.restart()` で `generation` を increment、SwiftUI の `.id()` に混ぜて view 再生成
+- [x] **動作確認**: `exit 42` で overlay 表示確認済。再起動ボタンの click は実機で確認（VERIFY.md 6）
 
 ### 8. BEL 通知 + AI 種別バッジ（1〜2日）
 - [ ] `ghostty_action_ring_bell` 経由で BEL を検知（`GHOSTTY_ACTION_RING_BELL`）

@@ -6,15 +6,18 @@ import GhosttyKit
 
 struct GhosttyTerminalView: NSViewRepresentable {
     let pane: PaneState
+    let tab: TerminalTab
 
     func makeNSView(context: Context) -> GhosttyTerminalNSView {
         let view = GhosttyTerminalNSView(frame: .zero)
         view.pane = pane
+        view.tab = tab
         return view
     }
 
     func updateNSView(_ nsView: GhosttyTerminalNSView, context: Context) {
         nsView.pane = pane
+        nsView.tab = tab
     }
 }
 
@@ -35,6 +38,9 @@ final class GhosttyTerminalNSView: NSView {
 
     /// この NSView が属するペイン。Cmd+T/W や activePane 連動で参照する。
     weak var pane: PaneState?
+
+    /// この NSView が紐づく TerminalTab。surface 作成時に GhosttyManager に登録して逆引きに使う。
+    weak var tab: TerminalTab?
 
     // IME（NSTextInputClient）の状態
     var markedText: NSMutableAttributedString = NSMutableAttributedString()
@@ -108,10 +114,9 @@ final class GhosttyTerminalNSView: NSView {
         if let pane {
             WorkspaceModel.shared.setActive(pane)
         }
-        if let s = surface {
+        if let s = surface, let tab {
             ghostty_surface_set_focus(s, true)
-            // クリップボード等の "active surface" もこの NSView の surface に切替
-            GhosttyManager.shared.register(surface: s)
+            GhosttyManager.shared.register(surface: s, tab: tab)
         }
         return ok
     }
@@ -145,7 +150,9 @@ final class GhosttyTerminalNSView: NSView {
             return
         }
         surface = s
-        GhosttyManager.shared.register(surface: s)
+        if let tab {
+            GhosttyManager.shared.register(surface: s, tab: tab)
+        }
         let scale = window?.backingScaleFactor ?? 1
         ghostty_surface_set_content_scale(s, scale, scale)
         if let displayID = window?.screen?.displayID {

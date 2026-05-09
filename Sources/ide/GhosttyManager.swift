@@ -7,18 +7,33 @@ final class GhosttyManager: @unchecked Sendable {
     private(set) var app: ghostty_app_t?
     private(set) var config: ghostty_config_t?
 
-    // TODO step5（複数タブ）: 単一 surface 前提のグローバル参照。
-    //                       タブ複数化のときに userdata/state ベースの解決に置き換える。
+    /// クリップボード等で使う「現在フォーカスのある surface」。
+    /// becomeFirstResponder のたびに切替わる。
     private(set) var activeSurface: ghostty_surface_t?
 
-    func register(surface: ghostty_surface_t) {
+    /// surface ハンドルから所属タブを逆引きするための弱参照マップ。
+    /// SHOW_CHILD_EXITED action で exit code をタブに反映するのに使う。
+    private var surfaceToTab: [ghostty_surface_t: WeakTabRef] = [:]
+
+    private final class WeakTabRef {
+        weak var value: TerminalTab?
+        init(_ tab: TerminalTab) { self.value = tab }
+    }
+
+    func register(surface: ghostty_surface_t, tab: TerminalTab) {
         activeSurface = surface
+        surfaceToTab[surface] = WeakTabRef(tab)
     }
 
     func unregister(surface: ghostty_surface_t) {
         if activeSurface == surface {
             activeSurface = nil
         }
+        surfaceToTab.removeValue(forKey: surface)
+    }
+
+    func tab(forSurface surface: ghostty_surface_t) -> TerminalTab? {
+        surfaceToTab[surface]?.value
     }
 
     private init() {}
@@ -56,7 +71,20 @@ final class GhosttyManager: @unchecked Sendable {
                 }
             }
         }
-        runtime.action_cb = { _, _, _ in true }
+        runtime.action_cb = { _, target, action in
+            if action.tag == GHOSTTY_ACTION_SHOW_CHILD_EXITED,
+               target.tag == GHOSTTY_TARGET_SURFACE,
+               let surface = target.target.surface {
+                let code = action.action.child_exited.exit_code
+                PocLog.write("[exit] surface=\(String(describing: surface)) exit_code=\(code)")
+                DispatchQueue.main.async {
+                    if let tab = GhosttyManager.shared.tab(forSurface: surface) {
+                        tab.lifecycle = .exited(code: code)
+                    }
+                }
+            }
+            return true
+        }
         runtime.read_clipboard_cb = ghosttyReadClipboardCallback
         runtime.confirm_read_clipboard_cb = ghosttyConfirmReadClipboardCallback
         runtime.write_clipboard_cb = ghosttyWriteClipboardCallback
