@@ -299,3 +299,28 @@ sleep 4
 ```
 
 claude code の起動画面（信頼確認やプロンプト入力欄）が崩れずに描画されること。
+
+---
+
+## Phase 2
+
+### 9. 3カラムレイアウト
+
+```bash
+./scripts/ide-launch.sh
+./scripts/ide-screenshot.sh /tmp/v-3col.png
+./scripts/ide-keystroke.sh --enter "echo phase2-step1-ok && pwd"
+sleep 0.5
+./scripts/ide-screenshot.sh /tmp/v-3col-terminal.png
+```
+
+期待:
+- スクショに 3 カラム（左 `Projects` / 中央 `Tree / Preview` / 右 ターミナル）が表示される
+- 起動時の幅は サイドバー 約240px、中央 約480px、残りがターミナル
+- 右ペインは上下 2 タブ（VSplitView）が引き続き動作
+- `echo phase2-step1-ok` の出力が右ペインのアクティブターミナルに表示される
+
+実機での手動確認:
+- 左サイドバーと中央ペインの境界をドラッグで動かせる
+- 中央ペインと右ペインの境界をドラッグで動かせる
+- ウィンドウ最小幅は 1000px（それ以下に縮められない）

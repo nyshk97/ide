@@ -11,7 +11,7 @@ struct IdeApp: App {
     var body: some Scene {
         WindowGroup {
             ContentView()
-                .frame(minWidth: 800, minHeight: 500)
+                .frame(minWidth: 1000, minHeight: 500)
         }
     }
 }

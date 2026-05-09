@@ -175,10 +175,10 @@ Phase 1 で踏んだ罠を Phase 2 でも同じ轍を踏まないように記録
 依存関係を考慮した順序。前 step がないと後 step の動作確認が成立しない構造。
 
 ### 1. 3カラムレイアウトの枠組（半日〜1日）
-- [ ] `RootLayoutView`（仮）で 左サイドバー(LeftSidebarView 空) + 中央ペイン(CenterPaneView 空) + 既存 WorkspaceView を `HSplitView` で並べる
-- [ ] サイドバー幅は `idealWidth` 200、ターミナル領域を保護
-- [ ] `ContentView` を `RootLayoutView` に差し替え
-- [ ] **動作確認**: 起動して 3 カラム表示。ターミナルが今までどおり右ペインで動く
+- [x] `RootLayoutView`（仮）で 左サイドバー(LeftSidebarView 空) + 中央ペイン(CenterPaneView 空) + 既存 WorkspaceView を `HSplitView` で並べる
+- [x] サイドバー幅は `idealWidth` 200、ターミナル領域を保護
+- [x] `ContentView` を `RootLayoutView` に差し替え
+- [x] **動作確認**: 起動して 3 カラム表示。ターミナルが今までどおり右ペインで動く
 
 ### 2. プロジェクトモデル（インメモリ・1日）
 - [ ] `Project` 型（id / path / displayName / isPinned / lastOpenedAt）
@@ -297,3 +297,8 @@ Phase 1 で踏んだ罠を Phase 2 でも同じ轍を踏まないように記録
 
 ## ログ
 （実装中の方針変更・想定外の失敗を1件10行以内で追記）
+
+### step1: HSplitView の idealWidth 無視
+- 方針変更: `idealWidth` だけだと初期は均等分割になり左サイドバーが画面の 1/3 を占めた
+- 対応: `maxWidth` を サイドバー 240 / 中央 480 に絞り、右ペイン（ターミナル）だけ無限に伸びる構成に
+- ペイン比率はドラッグ可・保存しないという要件は変えていない（ユーザーが広げたければ広げられる）
