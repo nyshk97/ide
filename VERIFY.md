@@ -609,3 +609,54 @@ rm -f "$HOME/Library/Application Support/ide/projects.json"*
   - 2 回目: C にカーソル
   - 3 回目: A にカーソル（一周）
 - Ctrl 離した瞬間に確定 → 選んでた project が active になる
+
+### 20. ファイルツリー基本表示（自動）
+
+```bash
+mkdir -p "$HOME/Library/Application Support/ide"
+cat > "$HOME/Library/Application Support/ide/projects.json" <<'JSON'
+{
+  "projects" : [
+    {"displayName":"ide","id":"11111111-1111-1111-1111-111111111111","isPinned":true,"lastOpenedAt":"2026-05-09T01:00:00Z","path":"/Users/d0ne1s/ide"}
+  ],
+  "schemaVersion" : 1
+}
+JSON
+pkill -x ide 2>/dev/null; sleep 0.4
+APP=/tmp/ide-build/Build/Products/Debug/ide.app
+IDE_TEST_AUTO_ACTIVATE_INDEX=0 "$APP/Contents/MacOS/ide" >/tmp/ide-stdout.log 2>&1 &
+sleep 2.5
+./scripts/ide-screenshot.sh /tmp/v-step6-tree.png
+```
+
+期待:
+- 中央ペインに ide リポジトリの直下子（フォルダ先・アルファベット順）が表示
+  - .git / .refs / docs / GhosttyKit.xcframework / ide.xcodeproj / Resources / scripts / Sources
+  - .gitignore / .mise.toml / project.yml / REQUIREMENTS.md / VERIFY.md
+- 各ディレクトリの左に展開 chevron（▶）
+- 拡張子別アイコン: .md = 紫の doc.richtext、.toml/.yml = doc.text、folder = 青
+- ツールバー: tree アイコン + プロジェクト名 + 👁 (gitignore 表示トグル) + 🔄 (reload)
+
+クリーンアップ:
+```bash
+pkill -x ide 2>/dev/null
+rm -f "$HOME/Library/Application Support/ide/projects.json"*
+```
+
+### 21. ファイルツリー展開・右クリック（手動）
+
+実機で確認（座標 click が SwiftUI の onTapGesture に届かないため自動不可）:
+- ディレクトリの ▶ chevron か行をクリック → 子要素が展開（lazy scan で初回のみ僅かに遅延）
+- もう一度クリックで折り畳み
+- `.gitignore` 対象（例: `Sources/ide/build` や `.refs/`）が薄表示になっている
+- 👁 ボタンを押すと gitignore 対象が完全非表示になる、もう一度押すと薄表示に戻る
+- 🔄 ボタンを押すと再スキャンされる（変更が反映される）
+- ファイルを右クリック → 「相対パスをコピー」「ターミナルで開く」
+  - 相対パスをコピー: pasteboard に project root からの相対パスが入る
+  - ターミナルで開く: 暫定実装（pasteboard に `cd <絶対パス>\n` が入る、step8 以降で active terminal に直接送る予定）
+
+### 22. シンボリックリンクの扱い（手動）
+
+実機で確認:
+- ディレクトリ symlink（例: `.refs/cmux` のような external clone）は中身を辿らず、矢印 → リンク先パスが表示される
+- ファイル symlink は通常のファイルとして表示、矢印で target も併記

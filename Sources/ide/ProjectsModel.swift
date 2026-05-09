@@ -22,6 +22,9 @@ final class ProjectsModel: ObservableObject {
     /// close されたときだけ破棄する。
     @Published private(set) var workspaces: [UUID: WorkspaceModel] = [:]
 
+    /// プロジェクトごとのファイルツリーモデル。`fileTree(for:)` で遅延作成。
+    @Published private(set) var fileTrees: [UUID: FileTreeModel] = [:]
+
     /// 「最近使ったプロジェクト」MRU スタック。先頭が最新。確定したタイミングで先頭に push される。
     /// 最大 5 件保持。Ctrl+M オーバーレイの候補ソースに使う。
     @Published private(set) var mruStack: [UUID] = []
@@ -88,6 +91,7 @@ final class ProjectsModel: ObservableObject {
         pinned.removeAll { $0.id == project.id }
         temporary.removeAll { $0.id == project.id }
         workspaces.removeValue(forKey: project.id)
+        fileTrees.removeValue(forKey: project.id)
         if activeProject?.id == project.id {
             activeProject = allOrdered.first
         }
@@ -110,6 +114,15 @@ final class ProjectsModel: ObservableObject {
     var activeWorkspace: WorkspaceModel? {
         guard let active = activeProject else { return nil }
         return workspace(for: active)
+    }
+
+    /// プロジェクトに紐付く FileTreeModel を返す。なければ新規作成して dictionary に保持。
+    /// 初回作成時にツリースキャンが走る。
+    func fileTree(for project: Project) -> FileTreeModel {
+        if let existing = fileTrees[project.id] { return existing }
+        let model = FileTreeModel(project: project)
+        fileTrees[project.id] = model
+        return model
     }
 
     // MARK: - ピン留め切替

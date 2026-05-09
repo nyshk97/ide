@@ -36,19 +36,7 @@ struct CenterPaneView: View {
     }
 
     private func placeholder(for project: Project) -> some View {
-        VStack(spacing: 6) {
-            Spacer()
-            Text(project.displayName)
-                .font(.headline)
-            Text(project.path.path)
-                .font(.callout)
-                .foregroundStyle(.secondary)
-            Text("Tree / Preview（step6 以降で実装）")
-                .font(.caption)
-                .foregroundStyle(.tertiary)
-                .padding(.top, 8)
-            Spacer()
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        FileTreeView(model: projects.fileTree(for: project))
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 }
