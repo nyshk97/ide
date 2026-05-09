@@ -13,6 +13,22 @@
 
 ログは `/tmp/ide-poc.log`（init() で reset）に書き出される。`tail -f /tmp/ide-poc.log` で追える。
 
+## ⚠️ projects.json を触る検証は事前バックアップ必須
+
+以下のセクションは `~/Library/Application Support/ide/projects.json` をテスト用フィクスチャで上書きし、最後に `rm -f` で消します。**ユーザーがピン留めしているデータが入っているので、検証前に必ずバックアップを取り、検証後に復元してください。**
+
+```bash
+# 検証開始前
+BACKUP_DIR=$(mktemp -d)
+cp -a "$HOME/Library/Application Support/ide/" "$BACKUP_DIR/ide-backup" 2>/dev/null || true
+
+# 検証完了後
+rm -rf "$HOME/Library/Application Support/ide"
+mv "$BACKUP_DIR/ide-backup" "$HOME/Library/Application Support/ide" 2>/dev/null || true
+```
+
+対象セクション: 13, 14, 16, 17, 19, 23, 25, 28, 30 など `cat > .../projects.json` を含む全節。
+
 ---
 
 ## 1. ビルドと起動
