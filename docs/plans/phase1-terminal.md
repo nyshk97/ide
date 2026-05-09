@@ -141,16 +141,18 @@
 - [ ] ファイルパス検出 → Phase 2 のファイル系UI と一緒に実装（プレビューに繋ぐため）
 - [x] **動作確認**: `echo https://example.com` の出力が表示されることはスクリプトで確認、`Cmd+クリック` で Safari が開く動作は実機（VERIFY.md 6）
 
-### 10. ログ・診断（半日）
-- [ ] `~/Library/Logs/ide/` に出力するロガーを追加（既存の `PocLog` を本格化）
-- [ ] ログレベル（error / warn / info / debug）、ローテーション（日次・上限サイズ）
-- [ ] メニュー > Help > 「最近のログを開く」
-- [ ] エラー toast と常駐表示の切り分け（NSAlert / SwiftUI overlay）
+### 10. ログ・診断（半日）→ Phase 2 へ持ち越し
+- ~~[ ] `~/Library/Logs/ide/` に出力するロガーを追加~~
+- ~~[ ] ログレベル（error / warn / info / debug）、ローテーション（日次・上限サイズ）~~
+- ~~[ ] メニュー > Help > 「最近のログを開く」~~
+- ~~[ ] エラー toast と常駐表示の切り分け（NSAlert / SwiftUI overlay）~~
+- 暫定: PoC 由来の `PocLog`（`/tmp/ide-poc.log`）を Phase 1 のデバッグログとしてそのまま使う
+- Phase 2 でファイル系UI実装と同時に Logger / 永続化 / メニュー連携を本格対応
 
 ### 11. Phase 1 動作確認（半日）
-- [ ] VERIFY.md に各ステップの確認手順を追記して全項目通過
-- [ ] cmux で日常的にやっている操作（claude code 並列起動・vim 編集・git 操作）を 1 日通して試す
-- [ ] パフォーマンス確認（タイピング遅延、大量出力時のスクロール、多タブ時のメモリ）
+- [x] VERIFY.md に各ステップの確認手順を追記 → 全 step 分の項目が揃った
+- [ ] cmux で日常的にやっている操作（claude code 並列起動・vim 編集・git 操作）を 1 日通して試す → **dogfooding 中**
+- [ ] パフォーマンス確認（タイピング遅延、大量出力時のスクロール、多タブ時のメモリ）→ dogfooding と一緒に
 
 ---
 
@@ -168,6 +170,12 @@
 
 ## ログ
 （実装中の方針変更・想定外の失敗を1件10行以内で追記）
+
+### 2026-05-09 Phase 1 機能実装完了 → dogfooding 期間に
+- step1〜9 すべて実装完了（コミット 18 本）
+- step10（ログ・診断）は Phase 2 でファイル系UIと一緒に本格対応する判断、暫定で PocLog を流用
+- step11 は実機 dogfooding 中。普段使いで詰まるところがあれば step9.5 等で順次修正
+- AppleScript の `click at` が NSViewRepresentable 配下の hit test に届かない問題があり、ペイン切替・タブクリック・URL Cmd+クリック・再起動ボタンクリック等は実機確認に倒した
 
 ### 2026-05-09 step5.5 NSBeep 抑制
 - 症状: Backspace / Enter 等を押すたびに macOS の「無効キー」音が鳴る（入力自体は正常）
