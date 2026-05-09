@@ -197,11 +197,11 @@ Phase 1 で踏んだ罠を Phase 2 でも同じ轍を踏まないように記録
 - [x] **動作確認**: ピン留めしたプロジェクトが再起動後も復元、一時は消える、ディレクトリを mv した後に missing 表示
 
 ### 4. プロジェクト切替時のターミナル状態（1日）
-- [ ] プロジェクトごとに `WorkspaceModel` インスタンス（PaneState を含む）を保持 → `ProjectsModel` 経由で active project の workspace を引く
-- [ ] プロジェクト切替で右ペインの workspace を差し替え（前のはバックグラウンドに保持）
-- [ ] 初回オープン時のみ shell 起動、2回目以降は表示切替だけ（要件通り）
-- [ ] 起動時 cwd をプロジェクトルートに設定（`ghostty_surface_config.working_directory`）
-- [ ] **動作確認**: 2 プロジェクトを行き来、それぞれのターミナルが独立して動作
+- [x] プロジェクトごとに `WorkspaceModel` インスタンス（PaneState を含む）を保持 → `ProjectsModel` 経由で active project の workspace を引く
+- [x] プロジェクト切替で右ペインの workspace を差し替え（前のはバックグラウンドに保持）
+- [x] 初回オープン時のみ shell 起動、2回目以降は表示切替だけ（要件通り）
+- [x] 起動時 cwd をプロジェクトルートに設定（`ghostty_surface_config.working_directory`）
+- [x] **動作確認**: 2 プロジェクトを行き来、それぞれのターミナルが独立して動作
 
 ### 5. Cmd+M MRU 切替オーバーレイ（1日）
 - [ ] MRU スタック（最大5件、プロジェクトのみ、表示確定で更新、Esc で不変）
@@ -302,6 +302,15 @@ Phase 1 で踏んだ罠を Phase 2 でも同じ轍を踏まないように記録
 - 方針変更: `idealWidth` だけだと初期は均等分割になり左サイドバーが画面の 1/3 を占めた
 - 対応: `maxWidth` を サイドバー 240 / 中央 480 に絞り、右ペイン（ターミナル）だけ無限に伸びる構成に
 - ペイン比率はドラッグ可・保存しないという要件は変えていない（ユーザーが広げたければ広げられる）
+
+### step4: ZStack + opacity でプロジェクト切替
+- 設計判断: ZStack で全 active 化済み workspace を重ねて opacity 0/1 で切替
+- ProjectsModel が `[UUID: WorkspaceModel]` を dictionary で保持し、setActive 時に遅延作成
+- これで「初回オープン時のみ shell 起動、切替はインスタント、前のは生きっぱなし」を全部満たす
+- 副作用: AppleScript の click が SwiftUI の onTapGesture に届かないため、テスト用に
+  `IDE_TEST_AUTO_ACTIVATE_INDEX` 環境変数で起動時 active 化するデバッグ機能を追加
+- working_directory は ghostty_surface_config_s.working_directory に C 文字列で渡す。
+  withCString のスコープ内で ghostty_surface_new を呼ぶ必要があり、createSurface 内で分岐
 
 ### step3: AppleScript の右クリック自動化が破綻
 - 想定外の失敗: Control+Click を AppleScript で送ると、過去のセッションで開いていた NSOpenPanel に干渉して input が日本語 IME ローマ字変換されてしまう

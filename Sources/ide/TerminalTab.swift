@@ -31,8 +31,12 @@ final class TerminalTab: ObservableObject, Identifiable {
         case exited(code: UInt32)
     }
 
-    init(title: String) {
+    /// 起動時 cwd。プロジェクトのルートを渡す想定。nil なら $HOME。
+    let cwd: URL?
+
+    init(title: String, cwd: URL? = nil) {
         self.title = title
+        self.cwd = cwd
     }
 
     func restart() {

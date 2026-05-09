@@ -1,14 +1,18 @@
 import SwiftUI
 
 /// 1ペイン分のタブ群を管理するモデル。
-/// Phase 1 では上ペイン・下ペインで2インスタンス保持、各々が独立したタブ群を持つ。
+/// 上ペイン・下ペインで2インスタンス保持、各々が独立したタブ群を持つ。
 @MainActor
 final class PaneState: ObservableObject, Identifiable {
     let id = UUID()
     @Published var tabs: [TerminalTab] = []
     @Published var activeIndex: Int = 0
 
-    init() {
+    /// 新規タブ起動時に使う cwd。プロジェクトルートを想定。
+    let cwd: URL?
+
+    init(cwd: URL? = nil) {
+        self.cwd = cwd
         addTab()
     }
 
@@ -17,7 +21,7 @@ final class PaneState: ObservableObject, Identifiable {
     }
 
     func addTab() {
-        tabs.append(TerminalTab(title: "shell \(tabs.count + 1)"))
+        tabs.append(TerminalTab(title: "shell \(tabs.count + 1)", cwd: cwd))
         activeIndex = tabs.count - 1
     }
 

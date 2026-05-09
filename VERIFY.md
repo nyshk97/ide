@@ -444,3 +444,55 @@ rm -f "$HOME/Library/Application Support/ide/projects.json"*
 - 選ぶと NSOpenPanel が開く
 - 別のフォルダを選ぶと displayName とアイコンが復活する
 - アプリを再起動してもパスが永続化されている
+
+### 16. プロジェクトごとのターミナル + cwd（自動）
+
+`IDE_TEST_AUTO_ACTIVATE_INDEX` で起動時に N 番目のピン留めを active にできる（デバッグ用フラグ。本番では使わない）。
+
+```bash
+pkill -x ide 2>/dev/null
+mkdir -p "$HOME/Library/Application Support/ide"
+cat > "$HOME/Library/Application Support/ide/projects.json" <<'JSON'
+{
+  "projects" : [
+    {"displayName":"ide","id":"11111111-1111-1111-1111-111111111111","isPinned":true,"lastOpenedAt":"2026-05-09T01:00:00Z","path":"/Users/d0ne1s/ide"},
+    {"displayName":"Documents","id":"22222222-2222-2222-2222-222222222222","isPinned":true,"lastOpenedAt":"2026-05-09T02:00:00Z","path":"/Users/d0ne1s/Documents"}
+  ],
+  "schemaVersion" : 1
+}
+JSON
+APP=/tmp/ide-build/Build/Products/Debug/ide.app
+
+# index=0 で ide を active 起動 → cwd が /Users/d0ne1s/ide のターミナル
+IDE_TEST_AUTO_ACTIVATE_INDEX=0 "$APP/Contents/MacOS/ide" >/dev/null 2>&1 &
+sleep 2
+./scripts/ide-screenshot.sh /tmp/v-step4-ide-term.png
+grep "surface\] new" /tmp/ide-poc.log | tail -2
+pkill -x ide 2>/dev/null; sleep 0.4
+
+# index=1 で Documents を active 起動 → cwd が /Users/d0ne1s/Documents のターミナル
+IDE_TEST_AUTO_ACTIVATE_INDEX=1 "$APP/Contents/MacOS/ide" >/dev/null 2>&1 &
+sleep 2
+./scripts/ide-screenshot.sh /tmp/v-step4-documents.png
+grep "surface\] new" /tmp/ide-poc.log | tail -2
+```
+
+期待:
+- ide active 時のスクショで右ペインのプロンプトに `~/ide main !` が出る（cwd が /Users/d0ne1s/ide）
+- Documents active 時のスクショでプロンプトに `~/Documents` が出る
+- ログに `[surface] new ok cwd=...` が project に応じて変わる
+- 中央ペインに active project の名前とパスが表示される
+
+クリーンアップ:
+```bash
+pkill -x ide 2>/dev/null
+rm -f "$HOME/Library/Application Support/ide/projects.json"*
+```
+
+### 17. プロジェクト切替の状態保持（手動）
+
+実機で確認（要件「ターミナルセッションは生きっぱなし」）:
+- ide active のターミナルで `echo from-ide` を実行
+- 左サイドバーで Documents をクリック → ターミナル切替（cwd が変わる）
+- もう一度 ide をクリック → 前の echo 出力が見える、新しい login 行は出ない
+- ide のターミナルで `claude` を起動して回しっぱなしにする → Documents に切り替えても claude は動き続ける（プロセス的に kill されない）

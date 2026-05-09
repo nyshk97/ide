@@ -133,7 +133,7 @@ final class GhosttyManager: @unchecked Sendable {
                    let surface = target.target.surface {
                     DispatchQueue.main.async {
                         if let tab = GhosttyManager.shared.tab(forSurface: surface),
-                           !WorkspaceModel.shared.isCurrentlyActive(tab: tab) {
+                           !(ProjectsModel.shared.activeWorkspace?.isCurrentlyActive(tab: tab) ?? false) {
                             tab.hasUnreadNotification = true
                         }
                     }

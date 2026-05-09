@@ -112,7 +112,7 @@ final class GhosttyTerminalNSView: NSView {
         let ok = super.becomeFirstResponder()
         // 自分の属するペインを active pane に昇格（setActive 内で未読通知はクリアされる）
         if let pane {
-            WorkspaceModel.shared.setActive(pane)
+            ProjectsModel.shared.activeWorkspace?.setActive(pane)
         }
         // becomeFirstResponder した NSView は自身のタブを最前面表示しているはずなので
         // そのタブの未読も明示的にクリア
@@ -146,12 +146,30 @@ final class GhosttyTerminalNSView: NSView {
         ))
         cfg.scale_factor = Double(window?.backingScaleFactor ?? 1)
         // font_size = 0 で config の値を使う想定（cmux 同様）
-        // command/working_directory/initial_input は nil（$SHELL -l + HOME を使う）
+        // command/initial_input は nil（$SHELL -l を使う）
 
-        guard let s = ghostty_surface_new(app, &cfg) else {
-            PocLog.write("[surface] ghostty_surface_new returned nil")
-            return
+        // working_directory はプロジェクトルートを渡す。tab.cwd が nil なら ghostty 既定（HOME）。
+        // C 文字列は createSurface のスコープ内で生かしておく必要があるので、ここで保持。
+        let cwdString = tab?.cwd?.path
+        if let cwdString {
+            cwdString.withCString { ptr in
+                cfg.working_directory = ptr
+                guard let s = ghostty_surface_new(app, &cfg) else {
+                    PocLog.write("[surface] ghostty_surface_new returned nil")
+                    return
+                }
+                attachSurface(s, cfg: cfg)
+            }
+        } else {
+            guard let s = ghostty_surface_new(app, &cfg) else {
+                PocLog.write("[surface] ghostty_surface_new returned nil")
+                return
+            }
+            attachSurface(s, cfg: cfg)
         }
+    }
+
+    private func attachSurface(_ s: ghostty_surface_t, cfg: ghostty_surface_config_s) {
         surface = s
         if let tab {
             GhosttyManager.shared.register(surface: s, tab: tab)
@@ -162,7 +180,8 @@ final class GhosttyTerminalNSView: NSView {
             ghostty_surface_set_display_id(s, displayID)
         }
         syncSize()
-        PocLog.write("[surface] new ok")
+        let cwdLog = tab?.cwd?.path ?? "(default)"
+        PocLog.write("[surface] new ok cwd=\(cwdLog)")
     }
 
     private func syncSize() {
@@ -193,10 +212,10 @@ final class GhosttyTerminalNSView: NSView {
            !event.modifierFlags.contains(.control) {
             switch event.charactersIgnoringModifiers {
             case "t":
-                WorkspaceModel.shared.activePane.addTab()
+                ProjectsModel.shared.activeWorkspace?.activePane.addTab()
                 return true
             case "w":
-                WorkspaceModel.shared.activePane.closeActiveTab()
+                ProjectsModel.shared.activeWorkspace?.activePane.closeActiveTab()
                 return true
             default:
                 break

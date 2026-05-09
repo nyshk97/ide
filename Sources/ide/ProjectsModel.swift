@@ -15,14 +15,19 @@ final class ProjectsModel: ObservableObject {
     /// 一時プロジェクト。MRU 順（先頭が最近開いた）。
     @Published private(set) var temporary: [Project] = []
 
-    /// 現在アクティブなプロジェクト。サイドバーでのハイライトと（step4 以降の）ターミナル選択に使う。
+    /// 現在アクティブなプロジェクト。サイドバーでのハイライトとターミナル選択に使う。
     @Published private(set) var activeProject: Project?
+
+    /// プロジェクトごとの WorkspaceModel。一度開いた project の shell をバックグラウンドで生かしておく。
+    /// close されたときだけ破棄する。
+    @Published private(set) var workspaces: [UUID: WorkspaceModel] = [:]
 
     private let store: ProjectsStore
 
     private init(store: ProjectsStore = .shared) {
         self.store = store
         load()
+        applyTestAutoActivate()
     }
 
     private func load() {
@@ -34,6 +39,18 @@ final class ProjectsModel: ObservableObject {
             return p
         }
         self.pinned = restored
+    }
+
+    /// `IDE_TEST_AUTO_ACTIVATE_INDEX` 環境変数が設定されている場合、起動時に
+    /// 指定インデックスのピン留めプロジェクトをアクティブにする。VERIFY 用デバッグ機能。
+    /// 通常は要件通り「再起動時は active を復元しない」挙動。
+    private func applyTestAutoActivate() {
+        guard let envValue = ProcessInfo.processInfo.environment["IDE_TEST_AUTO_ACTIVATE_INDEX"],
+              let index = Int(envValue),
+              pinned.indices.contains(index) else { return }
+        let target = pinned[index]
+        setActive(target)
+        PocLog.write("[projects] test-auto-activate index=\(index) name=\(target.displayName)")
     }
 
     /// 表示順に並べた全プロジェクト（pinned + temporary）。
@@ -55,14 +72,34 @@ final class ProjectsModel: ObservableObject {
     }
 
     /// プロジェクトを閉じる（一覧から除去）。一時もピン留めも対象。
+    /// 開いていた workspace は破棄する（shell プロセスも一緒に解放される）。
     func close(_ project: Project) {
         let wasPinned = project.isPinned
         pinned.removeAll { $0.id == project.id }
         temporary.removeAll { $0.id == project.id }
+        workspaces.removeValue(forKey: project.id)
         if activeProject?.id == project.id {
             activeProject = allOrdered.first
         }
         if wasPinned { persist() }
+    }
+
+    // MARK: - Workspace 管理
+
+    /// プロジェクトに紐付く WorkspaceModel を返す。なければ新規作成して dictionary に保持。
+    /// 初回作成時に shell プロセスが立ち上がる（PaneState の init 経由）。
+    func workspace(for project: Project) -> WorkspaceModel {
+        if let existing = workspaces[project.id] { return existing }
+        let model = WorkspaceModel(project: project)
+        workspaces[project.id] = model
+        return model
+    }
+
+    /// 現在アクティブなプロジェクトの WorkspaceModel。
+    /// アクセスすると workspace を遅延作成する（active なら shell が立ち上がる）。
+    var activeWorkspace: WorkspaceModel? {
+        guard let active = activeProject else { return nil }
+        return workspace(for: active)
     }
 
     // MARK: - ピン留め切替
@@ -107,6 +144,8 @@ final class ProjectsModel: ObservableObject {
             temporary.insert(updated, at: 0)
         }
         activeProject = updated
+        // 初回 active 時に workspace を作る（=shell 起動）。2 回目以降は既存を再利用。
+        _ = workspace(for: updated)
     }
 
     // MARK: - 再選択（missing 復旧用）

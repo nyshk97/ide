@@ -2,7 +2,7 @@ import SwiftUI
 
 struct TabsView: View {
     @ObservedObject var pane: PaneState
-    @ObservedObject private var workspace: WorkspaceModel = .shared
+    @ObservedObject var workspace: WorkspaceModel
 
     /// ForEach のループ内で各 tab を `@ObservedObject` 化するため、ヘルパで個別に観測する
     private struct TabObserver<Content: View>: View {
