@@ -28,6 +28,14 @@ final class ProjectsModel: ObservableObject {
     /// プロジェクトごとのファイルプレビュー状態。
     @Published private(set) var previews: [UUID: FilePreviewModel] = [:]
 
+    /// プロジェクトごとのファイルインデックス（Cmd+P 用）。
+    @Published private(set) var fileIndexes: [UUID: FileIndex] = [:]
+
+    /// Cmd+P クイック検索のオーバーレイ状態。
+    @Published var quickSearchVisible: Bool = false
+    @Published var quickSearchQuery: String = ""
+    @Published var quickSearchSelection: Int = 0
+
     /// 「最近使ったプロジェクト」MRU スタック。先頭が最新。確定したタイミングで先頭に push される。
     /// 最大 5 件保持。Ctrl+M オーバーレイの候補ソースに使う。
     @Published private(set) var mruStack: [UUID] = []
@@ -108,6 +116,7 @@ final class ProjectsModel: ObservableObject {
         workspaces.removeValue(forKey: project.id)
         fileTrees.removeValue(forKey: project.id)
         previews.removeValue(forKey: project.id)
+        fileIndexes.removeValue(forKey: project.id)
         if activeProject?.id == project.id {
             activeProject = allOrdered.first
         }
@@ -147,6 +156,44 @@ final class ProjectsModel: ObservableObject {
         let model = FilePreviewModel()
         previews[project.id] = model
         return model
+    }
+
+    /// プロジェクトに紐付く FileIndex を返す。なければ新規作成（バックグラウンドで再帰スキャン開始）。
+    func fileIndex(for project: Project) -> FileIndex {
+        if let existing = fileIndexes[project.id] { return existing }
+        let model = FileIndex(project: project)
+        fileIndexes[project.id] = model
+        return model
+    }
+
+    // MARK: - Cmd+P クイック検索
+
+    func openQuickSearch() {
+        guard activeProject != nil else { return }
+        quickSearchQuery = ""
+        quickSearchSelection = 0
+        quickSearchVisible = true
+    }
+
+    func closeQuickSearch() {
+        quickSearchVisible = false
+    }
+
+    func quickSearchMoveSelection(_ delta: Int) {
+        guard let active = activeProject else { return }
+        let total = fileIndex(for: active).search(quickSearchQuery).count
+        guard total > 0 else { return }
+        let next = (quickSearchSelection + delta) % total
+        quickSearchSelection = next < 0 ? total + next : next
+    }
+
+    func quickSearchSelect(_ entry: FileIndex.Entry) {
+        guard let active = activeProject else { return }
+        if !entry.isDirectory {
+            preview(for: active).open(entry.url)
+            fileIndex(for: active).recordOpen(entry.url)
+        }
+        closeQuickSearch()
     }
 
     // MARK: - ピン留め切替

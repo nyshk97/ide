@@ -21,6 +21,22 @@ struct RootLayoutView: View {
             if let state = projects.mruOverlay {
                 MRUOverlayView(state: state)
                     .transition(.opacity.combined(with: .scale(scale: 0.95)))
+            } else if projects.quickSearchVisible, let active = projects.activeProject {
+                QuickSearchView(
+                    index: projects.fileIndex(for: active),
+                    query: Binding(
+                        get: { projects.quickSearchQuery },
+                        set: { projects.quickSearchQuery = $0 }
+                    ),
+                    selection: Binding(
+                        get: { projects.quickSearchSelection },
+                        set: { projects.quickSearchSelection = $0 }
+                    ),
+                    onSelect: { projects.quickSearchSelect($0) },
+                    onCancel: { projects.closeQuickSearch() }
+                )
+                .padding(.top, 80)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
             }
         }
     }

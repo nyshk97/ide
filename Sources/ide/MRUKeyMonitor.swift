@@ -41,6 +41,29 @@ enum MRUKeyMonitor {
             return true
         }
 
+        // Cmd+P: クイック検索オーバーレイ起動。
+        if mods == .command, event.keyCode == 35 {  // 35 = P
+            model.openQuickSearch()
+            return true
+        }
+
+        // クイック検索表示中のキー操作
+        if model.quickSearchVisible {
+            switch event.keyCode {
+            case 53:  // Esc
+                model.closeQuickSearch()
+                return true
+            case 125:  // Down
+                model.quickSearchMoveSelection(1)
+                return true
+            case 126:  // Up
+                model.quickSearchMoveSelection(-1)
+                return true
+            default:
+                break
+            }
+        }
+
         return false
     }
 

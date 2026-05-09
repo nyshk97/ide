@@ -746,3 +746,42 @@ rm -f "$HOME/Library/Application Support/ide/projects.json"*
 - ← をクリック → A に戻る、→ が enable に
 - → をクリック → B に進む
 - 同じファイルを連続でクリックしても履歴は重複しない（A → A → B → A の操作で履歴は A → B → A の 3 件）
+
+### 28. Cmd+P クイック検索（自動）
+
+```bash
+mkdir -p "$HOME/Library/Application Support/ide"
+cat > "$HOME/Library/Application Support/ide/projects.json" <<'JSON'
+{"projects":[{"displayName":"ide","id":"11111111-1111-1111-1111-111111111111","isPinned":true,"lastOpenedAt":"2026-05-09T01:00:00Z","path":"/Users/d0ne1s/ide"}],"schemaVersion":1}
+JSON
+APP=/tmp/ide-build/Build/Products/Debug/ide.app
+pkill -x ide 2>/dev/null; sleep 0.4
+IDE_TEST_AUTO_ACTIVATE_INDEX=0 "$APP/Contents/MacOS/ide" >/dev/null 2>&1 &
+sleep 3
+osascript <<'OSA'
+tell application "System Events"
+  tell process "ide"
+    set frontmost to true
+    delay 0.3
+    keystroke "p" using {command down}
+    delay 0.4
+    keystroke "Read"
+    delay 0.5
+  end tell
+end tell
+OSA
+./scripts/ide-screenshot.sh /tmp/v-step10-read.png
+pkill -x ide 2>/dev/null
+rm -f "$HOME/Library/Application Support/ide/projects.json"*
+```
+
+期待: 中央上部にオーバーレイが表示され、検索結果の一番上に `REQUIREMENTS.md` が出る。
+
+### 29. Cmd+P 操作（手動）
+
+実機で確認:
+- Cmd+P でオーバーレイ起動
+- ↓↑ で選択を移動
+- Enter で選んだファイルを preview に開く
+- Esc でキャンセル
+- スラッシュを含むクエリ（例: `sources/i`）はパスマッチに自動切替で精度が変わる
