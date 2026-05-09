@@ -1,16 +1,54 @@
 import SwiftUI
 
 /// 中央ペイン（ファイルツリー / プレビューを切り替える領域）。
-/// Phase 2 step6 以降で本実装。現状はプレースホルダ。
+/// step6 以降で本実装。step2 では空状態の案内と暫定プレースホルダだけ持つ。
 struct CenterPaneView: View {
+    @ObservedObject var projects: ProjectsModel = .shared
+
     var body: some View {
-        VStack {
-            Spacer()
-            Text("Tree / Preview")
+        Group {
+            if projects.allOrdered.isEmpty {
+                emptyState
+            } else if let active = projects.activeProject {
+                placeholder(for: active)
+            } else {
+                Text("左からプロジェクトを選択")
+                    .foregroundStyle(.tertiary)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            }
+        }
+        .background(Color(nsColor: .windowBackgroundColor))
+    }
+
+    private var emptyState: some View {
+        VStack(spacing: 12) {
+            Image(systemName: "folder.badge.plus")
+                .font(.system(size: 40))
+                .foregroundStyle(.tertiary)
+            Text("フォルダを追加して始めよう")
+                .font(.title3)
                 .foregroundStyle(.secondary)
+            Text("左サイドバー上部の「+」からフォルダを選択してください。")
+                .font(.callout)
+                .foregroundStyle(.tertiary)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    private func placeholder(for project: Project) -> some View {
+        VStack(spacing: 6) {
+            Spacer()
+            Text(project.displayName)
+                .font(.headline)
+            Text(project.path.path)
+                .font(.callout)
+                .foregroundStyle(.secondary)
+            Text("Tree / Preview（step6 以降で実装）")
+                .font(.caption)
+                .foregroundStyle(.tertiary)
+                .padding(.top, 8)
             Spacer()
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(Color(nsColor: .windowBackgroundColor))
     }
 }

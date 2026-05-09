@@ -324,3 +324,65 @@ sleep 0.5
 - 左サイドバーと中央ペインの境界をドラッグで動かせる
 - 中央ペインと右ペインの境界をドラッグで動かせる
 - ウィンドウ最小幅は 1000px（それ以下に縮められない）
+
+### 10. プロジェクト追加（インメモリ・自動）
+
+```bash
+./scripts/ide-launch.sh
+./scripts/ide-screenshot.sh /tmp/v-step2-empty.png
+```
+
+期待: 起動直後はサイドバー上部に「+」ボタンのみ、中央ペインに `フォルダを追加して始めよう` が表示。
+
+NSOpenPanel 経由で 3 つフォルダを追加（座標クリック + Cmd+Shift+G でパス入力）:
+
+```bash
+add_project() {
+  /usr/bin/osascript <<OSA
+tell application "System Events"
+  tell process "ide"
+    set frontmost to true
+    delay 0.3
+    set winPos to position of front window
+    set wx to (item 1 of winPos) as integer
+    set wy to (item 2 of winPos) as integer
+    click at {wx + 92, wy + 44}
+    delay 0.6
+    keystroke "g" using {command down, shift down}
+    delay 0.4
+    keystroke "$1"
+    delay 0.2
+    key code 36
+    delay 0.4
+    key code 36
+    delay 0.4
+  end tell
+end tell
+OSA
+}
+add_project "/Users/d0ne1s/ide"
+add_project "/Users/d0ne1s/Downloads"
+add_project "/tmp"
+sleep 0.4
+./scripts/ide-screenshot.sh /tmp/v-step2-3rows.png
+```
+
+期待:
+- サイドバーに 3 行（最後に追加したものが最上、MRU 順）
+- 一番上の行（最後に追加）にアクティブハイライト（青背景）
+- 各行に `folder` アイコン（ピン留め前は灰色）
+- 中央ペインに最後に追加したプロジェクトの displayName + フルパス + `Tree / Preview（step6 以降で実装）` が表示
+
+注意: `Cmd+Shift+G` のパス入力は NSOpenPanel の状態によっては親ディレクトリが選択されることがある（既知の挙動、機能には影響なし）。
+
+### 11. プロジェクト切替・ピン留め・閉じる（手動）
+
+座標クリックで AppleScript 経由でも届くが、Phase 1 の知見どおりマウス起因は実機確認に倒す。
+
+実機で確認:
+- 別の行をクリック → アクティブハイライトが移動、中央ペインのパスが切り替わる
+- 行を右クリック → 「ピン留め」「閉じる」のメニューが出る
+- 「ピン留め」 → 行が上部に移動、アイコンがオレンジの 📌 に変わる、ピン留めセクションと一時セクションの間に薄い divider が出る
+- ピン留め済みの行で右クリック → 「ピン解除」が出る、選ぶと一時セクションに戻る
+- 「閉じる」 → 行が消える、アクティブだった場合は隣の行がアクティブになる
+- 全部閉じる → 中央ペインが「フォルダを追加して始めよう」に戻る

@@ -181,12 +181,12 @@ Phase 1 で踏んだ罠を Phase 2 でも同じ轍を踏まないように記録
 - [x] **動作確認**: 起動して 3 カラム表示。ターミナルが今までどおり右ペインで動く
 
 ### 2. プロジェクトモデル（インメモリ・1日）
-- [ ] `Project` 型（id / path / displayName / isPinned / lastOpenedAt）
-- [ ] `ProjectsModel`（singleton 候補）: pinned/unpinned 配列、追加/削除/ピン留め切替
-- [ ] サイドバー UI: ピン留め群 + 一時群 + 「+」ボタン
-- [ ] 「+」で `NSOpenPanel` でフォルダ選択 → 一時プロジェクトとして追加
-- [ ] サイドバーから選択でアクティブ切替（`activeProject`）
-- [ ] **動作確認**: 「+」で 3 つフォルダ追加、アクティブ切替
+- [x] `Project` 型（id / path / displayName / isPinned / lastOpenedAt）
+- [x] `ProjectsModel`（singleton 候補）: pinned/unpinned 配列、追加/削除/ピン留め切替
+- [x] サイドバー UI: ピン留め群 + 一時群 + 「+」ボタン
+- [x] 「+」で `NSOpenPanel` でフォルダ選択 → 一時プロジェクトとして追加
+- [x] サイドバーから選択でアクティブ切替（`activeProject`）
+- [x] **動作確認**: 「+」で 3 つフォルダ追加、アクティブ切替
 
 ### 3. プロジェクト永続化（半日〜1日）
 - [ ] `~/Library/Application Support/ide/projects.json` のスキーマ（`schemaVersion: 1`）
@@ -302,3 +302,9 @@ Phase 1 で踏んだ罠を Phase 2 でも同じ轍を踏まないように記録
 - 方針変更: `idealWidth` だけだと初期は均等分割になり左サイドバーが画面の 1/3 を占めた
 - 対応: `maxWidth` を サイドバー 240 / 中央 480 に絞り、右ペイン（ターミナル）だけ無限に伸びる構成に
 - ペイン比率はドラッグ可・保存しないという要件は変えていない（ユーザーが広げたければ広げられる）
+
+### step2: NSOpenPanel の AppleScript 自動化
+- 想定外の収穫: NSOpenPanel は Cmd+Shift+G でパス入力 → Enter 2 回で「追加」できることが分かった
+- 「+」ボタンは座標クリックで届く（SwiftUI の Button は AXIdentifier 取得に失敗するが、座標クリックは効く）
+- 行クリック・右クリックメニュー（ピン留め切替・閉じる）は座標で届く保証がないので VERIFY.md に手動手順として残した
+- ドラッグ並び替えは step2 では未実装、step3 か別 step に切り出す予定
