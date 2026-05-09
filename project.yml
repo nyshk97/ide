@@ -22,8 +22,7 @@ targets:
     platform: macOS
     sources:
       - Sources/ide
-    resources:
-      - Resources
+      - Resources/Assets.xcassets
     dependencies:
       - framework: GhosttyKit.xcframework
         embed: false
