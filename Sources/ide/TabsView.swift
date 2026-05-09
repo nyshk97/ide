@@ -1,28 +1,31 @@
 import SwiftUI
 
 struct TabsView: View {
-    @EnvironmentObject var model: TerminalTabsModel
+    @ObservedObject var pane: PaneState
+    @ObservedObject private var workspace: WorkspaceModel = .shared
 
     var body: some View {
         VStack(spacing: 0) {
             tabBar
             ZStack {
-                ForEach(Array(model.tabs.enumerated()), id: \.element.id) { index, tab in
-                    GhosttyTerminalView()
-                        .opacity(index == model.activeIndex ? 1 : 0)
-                        .allowsHitTesting(index == model.activeIndex)
+                ForEach(Array(pane.tabs.enumerated()), id: \.element.id) { index, tab in
+                    GhosttyTerminalView(pane: pane)
+                        .opacity(index == pane.activeIndex ? 1 : 0)
+                        .allowsHitTesting(index == pane.activeIndex)
                         .id(tab.id)
                 }
             }
         }
+        // active pane 切替は GhosttyTerminalNSView.becomeFirstResponder() 経由で実行する。
+        // ここで .onTapGesture を仕込むと NSView への mouseDown を SwiftUI が吸ってしまう。
     }
 
     private var tabBar: some View {
         HStack(spacing: 4) {
-            ForEach(Array(model.tabs.enumerated()), id: \.element.id) { index, tab in
+            ForEach(Array(pane.tabs.enumerated()), id: \.element.id) { index, tab in
                 tabButton(index: index, tab: tab)
             }
-            Button(action: { model.addTab() }) {
+            Button(action: { pane.addTab(); workspace.setActive(pane) }) {
                 Image(systemName: "plus")
                     .frame(width: 22, height: 22)
             }
@@ -33,15 +36,16 @@ struct TabsView: View {
         }
         .padding(.horizontal, 6)
         .frame(height: 28)
-        .background(Color(nsColor: .windowBackgroundColor))
-        .overlay(alignment: .bottom) {
-            Divider()
-        }
+        .background(paneIsActive ? Color.accentColor.opacity(0.05) : Color(nsColor: .windowBackgroundColor))
+        .overlay(alignment: .bottom) { Divider() }
     }
 
     private func tabButton(index: Int, tab: TerminalTab) -> some View {
-        let active = index == model.activeIndex
-        return Button(action: { model.selectTab(at: index) }) {
+        let active = index == pane.activeIndex
+        return Button(action: {
+            pane.selectTab(at: index)
+            workspace.setActive(pane)
+        }) {
             Text(tab.title)
                 .lineLimit(1)
                 .font(.system(size: 12))
@@ -52,4 +56,6 @@ struct TabsView: View {
         }
         .buttonStyle(.plain)
     }
+
+    private var paneIsActive: Bool { workspace.isActive(pane) }
 }

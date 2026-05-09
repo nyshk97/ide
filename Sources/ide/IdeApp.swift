@@ -11,7 +11,6 @@ struct IdeApp: App {
     var body: some Scene {
         WindowGroup {
             ContentView()
-                .environmentObject(TerminalTabsModel.shared)
                 .frame(minWidth: 800, minHeight: 500)
         }
     }

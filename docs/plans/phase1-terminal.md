@@ -114,11 +114,11 @@
 - [x] **動作確認**: Cmd+T で 2 タブ開いてそれぞれ独立シェル、Cmd+W で閉じても残ったタブのバッファが保持される（VERIFY.md 6 の手順）
 
 ### 6. 複数ペイン（1〜2日）
-- [ ] 上小・下大の 2 ペイン構造（SwiftUI `HSplitView` か自前ドラッグ可能 SplitView）
-- [ ] 各ペインが独立したタブ群を保持（`PaneState` に `[TerminalTab]`）
-- [ ] ペイン間フォーカス: クリックで切替、現在フォーカス中のペインに対してキーボードショートカット（Cmd+T 等）が効く
-- [ ] ドラッグでペイン高さ変更（リサイズ後の rows/cols 同期は既に PoC で実装済み）
-- [ ] **動作確認**: 上ペインで vim、下ペインで claude を並行起動、それぞれ独立操作
+- [x] 上小・下大の 2 ペイン構造 → SwiftUI `VSplitView`（自動でドラッグハンドルを出してくれる）
+- [x] 各ペインが独立したタブ群を保持 → `PaneState`（旧 TerminalTabsModel をリネーム）+ `WorkspaceModel.shared` が上下を保持
+- [x] ペイン間フォーカス: クリックで切替、フォーカス中のペインに Cmd+T 等が効く → `GhosttyTerminalNSView.becomeFirstResponder` で `WorkspaceModel.shared.setActive(pane)`、`performKeyEquivalent` の Cmd+T/W は `activePane` に作用
+- [x] ドラッグでペイン高さ変更 → VSplitView の標準動作、PTY 側のサイズ追従は PoC で実装済（`ghostty_surface_set_size`）
+- [x] **動作確認**: 上下分割と各ペイン独立 PTY（別 ttys）はスクリプトで自動確認済。実機でのクリック切替・ドラッグリサイズは VERIFY.md 6 で手動
 
 ### 7. PTY 異常終了表示と再起動（半日〜1日）
 - [ ] `close_surface_cb` の `needsConfirmClose=false` 経路を「異常終了」とみなして UI 通知

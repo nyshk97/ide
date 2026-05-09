@@ -5,11 +5,17 @@ import GhosttyKit
 // MARK: - SwiftUI ラッパー
 
 struct GhosttyTerminalView: NSViewRepresentable {
+    let pane: PaneState
+
     func makeNSView(context: Context) -> GhosttyTerminalNSView {
-        GhosttyTerminalNSView(frame: .zero)
+        let view = GhosttyTerminalNSView(frame: .zero)
+        view.pane = pane
+        return view
     }
 
-    func updateNSView(_ nsView: GhosttyTerminalNSView, context: Context) {}
+    func updateNSView(_ nsView: GhosttyTerminalNSView, context: Context) {
+        nsView.pane = pane
+    }
 }
 
 // MARK: - NSView 実装
@@ -26,6 +32,9 @@ final class GhosttyTerminalNSView: NSView {
     nonisolated(unsafe) var surface: ghostty_surface_t?
     private var lastPixelWidth: UInt32 = 0
     private var lastPixelHeight: UInt32 = 0
+
+    /// この NSView が属するペイン。Cmd+T/W や activePane 連動で参照する。
+    weak var pane: PaneState?
 
     // IME（NSTextInputClient）の状態
     var markedText: NSMutableAttributedString = NSMutableAttributedString()
@@ -95,6 +104,10 @@ final class GhosttyTerminalNSView: NSView {
 
     override func becomeFirstResponder() -> Bool {
         let ok = super.becomeFirstResponder()
+        // 自分の属するペインを active pane に昇格
+        if let pane {
+            WorkspaceModel.shared.setActive(pane)
+        }
         if let s = surface {
             ghostty_surface_set_focus(s, true)
             // クリップボード等の "active surface" もこの NSView の surface に切替
@@ -162,17 +175,18 @@ final class GhosttyTerminalNSView: NSView {
     /// Cmd+V や Cmd+C などのメニューショートカットは AppKit が menu chain で先に消費する。
     /// Ghostty 側のキーバインドにマッチする場合はこちらで捕捉して surface に流す。
     override func performKeyEquivalent(with event: NSEvent) -> Bool {
-        // ide 側のショートカットを Ghostty より先に捕まえる
+        // ide 側のショートカットを Ghostty より先に捕まえる。
+        // 操作対象は WorkspaceModel.activePane（フォーカス中のペイン）。
         if event.modifierFlags.contains(.command),
            !event.modifierFlags.contains(.shift),
            !event.modifierFlags.contains(.option),
            !event.modifierFlags.contains(.control) {
             switch event.charactersIgnoringModifiers {
             case "t":
-                TerminalTabsModel.shared.addTab()
+                WorkspaceModel.shared.activePane.addTab()
                 return true
             case "w":
-                TerminalTabsModel.shared.closeActiveTab()
+                WorkspaceModel.shared.activePane.closeActiveTab()
                 return true
             default:
                 break

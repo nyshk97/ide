@@ -2,11 +2,10 @@ import SwiftUI
 
 struct ContentView: View {
     var body: some View {
-        TabsView()
+        WorkspaceView()
     }
 }
 
 #Preview {
     ContentView()
-        .environmentObject(TerminalTabsModel())
 }
