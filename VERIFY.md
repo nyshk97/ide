@@ -496,3 +496,116 @@ rm -f "$HOME/Library/Application Support/ide/projects.json"*
 - 左サイドバーで Documents をクリック → ターミナル切替（cwd が変わる）
 - もう一度 ide をクリック → 前の echo 出力が見える、新しい login 行は出ない
 - ide のターミナルで `claude` を起動して回しっぱなしにする → Documents に切り替えても claude は動き続ける（プロセス的に kill されない）
+
+### 18. Ctrl+M MRU 切替オーバーレイ（自動）
+
+要件: TUI（vim/claude）内でも例外なく IDE が捕捉。逃がし手段はなし。
+
+```bash
+mkdir -p "$HOME/Library/Application Support/ide"
+cat > "$HOME/Library/Application Support/ide/projects.json" <<'JSON'
+{
+  "projects" : [
+    {"displayName":"ide","id":"11111111-1111-1111-1111-111111111111","isPinned":true,"lastOpenedAt":"2026-05-09T01:00:00Z","path":"/Users/d0ne1s/ide"},
+    {"displayName":"Documents","id":"22222222-2222-2222-2222-222222222222","isPinned":true,"lastOpenedAt":"2026-05-09T02:00:00Z","path":"/Users/d0ne1s/Documents"}
+  ],
+  "schemaVersion" : 1
+}
+JSON
+pkill -x ide 2>/dev/null; sleep 0.4
+APP=/tmp/ide-build/Build/Products/Debug/ide.app
+IDE_TEST_AUTO_ACTIVATE_INDEX=0 "$APP/Contents/MacOS/ide" >/tmp/ide-stdout.log 2>&1 &
+sleep 2
+```
+
+#### 18-A. ターミナル上で Ctrl+M
+
+```bash
+# Ctrl 押しっぱなしで M を 1 回 → オーバーレイ表示
+osascript <<'OSA'
+tell application "System Events"
+  tell process "ide"
+    set frontmost to true
+    delay 0.3
+    key down control
+    delay 0.05
+    key code 46  -- M
+    delay 0.05
+  end tell
+end tell
+OSA
+sleep 0.2
+./scripts/ide-screenshot.sh /tmp/v-step5-overlay.png
+osascript -e 'tell application "System Events" to key up control'
+sleep 0.4
+./scripts/ide-screenshot.sh /tmp/v-step5-after-commit.png
+```
+
+期待:
+- overlay スクショで中央に半透明パネル、ide / Documents の 2 件が並び、Documents（直前=MRU 2 番目）が青ハイライト
+- after-commit スクショで Documents が active（左サイドバーで青ハイライト、右ペインの cwd が `~/Documents`）
+
+#### 18-B. vim 起動中に Ctrl+M
+
+```bash
+./scripts/ide-keystroke.sh --enter "vim README.md"
+sleep 1.5
+osascript <<'OSA'
+tell application "System Events"
+  tell process "ide"
+    set frontmost to true
+    delay 0.3
+    key down control
+    delay 0.05
+    key code 46
+    delay 0.05
+  end tell
+end tell
+OSA
+sleep 0.2
+./scripts/ide-screenshot.sh /tmp/v-step5-vim-overlay.png
+osascript -e 'tell application "System Events" to key up control'
+```
+
+期待: vim 編集中でも overlay が表示される（vim 側に CR は届かない=改行されない）。
+
+#### 18-C. Esc キャンセル
+
+```bash
+# Documents が active の状態から
+osascript <<'OSA'
+tell application "System Events"
+  tell process "ide"
+    set frontmost to true
+    delay 0.3
+    key down control
+    delay 0.05
+    key code 46    -- M
+    delay 0.05
+    key code 53    -- Esc
+    delay 0.05
+  end tell
+end tell
+OSA
+osascript -e 'tell application "System Events" to key up control'
+sleep 0.4
+./scripts/ide-screenshot.sh /tmp/v-step5-after-esc.png
+```
+
+期待: Documents が active のまま（Esc で active 不変、MRU も不変）。
+
+クリーンアップ:
+```bash
+pkill -x ide 2>/dev/null
+rm -f "$HOME/Library/Application Support/ide/projects.json"*
+```
+
+### 19. Ctrl+M 連打サイクル（手動）
+
+実機で確認:
+- 3 つ以上のプロジェクトを開いて MRU を貯める（A → B → C と順に active 化）
+- A active の状態で **Ctrl 押しっぱなしで M 連打**
+  - 1 回目: B にカーソル（直前）
+  - 2 回目: C にカーソル
+  - 3 回目: A にカーソル（一周）
+- Ctrl 離した瞬間に確定 → 選んでた project が active になる

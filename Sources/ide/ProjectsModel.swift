@@ -22,6 +22,16 @@ final class ProjectsModel: ObservableObject {
     /// close されたときだけ破棄する。
     @Published private(set) var workspaces: [UUID: WorkspaceModel] = [:]
 
+    /// 「最近使ったプロジェクト」MRU スタック。先頭が最新。確定したタイミングで先頭に push される。
+    /// 最大 5 件保持。Ctrl+M オーバーレイの候補ソースに使う。
+    @Published private(set) var mruStack: [UUID] = []
+
+    /// Ctrl+M で表示するオーバーレイの状態。nil なら非表示。
+    @Published var mruOverlay: MRUOverlayState?
+
+    /// MRU の最大保持数（要件: 直近5件程度）。
+    private let mruLimit = 5
+
     private let store: ProjectsStore
 
     private init(store: ProjectsStore = .shared) {
@@ -143,9 +153,73 @@ final class ProjectsModel: ObservableObject {
             temporary.remove(at: idx)
             temporary.insert(updated, at: 0)
         }
+        let didSwitch = activeProject?.id != updated.id
         activeProject = updated
         // 初回 active 時に workspace を作る（=shell 起動）。2 回目以降は既存を再利用。
         _ = workspace(for: updated)
+        // 実際にプロジェクトが切り替わった瞬間に MRU 確定（要件通り）。
+        if didSwitch { pushMRU(updated.id) }
+    }
+
+    // MARK: - MRU
+
+    /// MRU スタックの先頭にプロジェクト ID を移動（重複は除去、上限 5 件）。
+    private func pushMRU(_ id: UUID) {
+        mruStack.removeAll { $0 == id }
+        mruStack.insert(id, at: 0)
+        if mruStack.count > mruLimit { mruStack.removeLast(mruStack.count - mruLimit) }
+    }
+
+    /// オーバーレイ用の候補。MRU 順に並べた現存プロジェクト群（close 済みは除外）。
+    func mruCandidates() -> [Project] {
+        let allById: [UUID: Project] = Dictionary(uniqueKeysWithValues: allOrdered.map { ($0.id, $0) })
+        var seen = Set<UUID>()
+        var result: [Project] = []
+        // MRU に載っているもの優先
+        for id in mruStack {
+            if let p = allById[id], !seen.contains(id) {
+                result.append(p)
+                seen.insert(id)
+            }
+        }
+        // MRU に未掲載のサイドバー上の project も候補末尾に積む。
+        // 要件: 「ピン留め・一時を区別せず、開いてるプロジェクトはすべて MRU の対象」
+        // → 「開いてる」= サイドバーに並んでいる全 project と解釈する。
+        for p in allOrdered where !seen.contains(p.id) {
+            result.append(p)
+            seen.insert(p.id)
+        }
+        return result
+    }
+
+    /// Ctrl+M で起動 / 既に起動中なら次の候補にサイクル。
+    func openOrCycleMRUOverlay() {
+        let candidates = mruCandidates()
+        guard !candidates.isEmpty else { return }
+        if var current = mruOverlay {
+            // サイクル: 次のインデックスへ
+            current.selection = (current.selection + 1) % candidates.count
+            current.candidates = candidates
+            mruOverlay = current
+        } else {
+            // 起動: 「直前のプロジェクト」（= MRU の 2 番目）にカーソル。1 件しかなければ 0。
+            let initial = candidates.count > 1 ? 1 : 0
+            mruOverlay = MRUOverlayState(candidates: candidates, selection: initial)
+        }
+    }
+
+    /// 確定（Ctrl 離した瞬間）: 選択中のプロジェクトを active にして MRU に push。
+    func commitMRUOverlay() {
+        guard let state = mruOverlay else { return }
+        mruOverlay = nil
+        guard state.candidates.indices.contains(state.selection) else { return }
+        let target = state.candidates[state.selection]
+        setActive(target)  // これが pushMRU を呼ぶ
+    }
+
+    /// Esc キャンセル: MRU は不変、active も変えない。
+    func cancelMRUOverlay() {
+        mruOverlay = nil
     }
 
     // MARK: - 再選択（missing 復旧用）

@@ -6,6 +6,7 @@ struct IdeApp: App {
     init() {
         PocLog.reset()
         GhosttyManager.shared.start()
+        MRUKeyMonitor.install()
     }
 
     var body: some Scene {

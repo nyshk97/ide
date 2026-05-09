@@ -17,6 +17,12 @@ struct RootLayoutView: View {
             rightArea
                 .frame(minWidth: 400)
         }
+        .overlay(alignment: .center) {
+            if let state = projects.mruOverlay {
+                MRUOverlayView(state: state)
+                    .transition(.opacity.combined(with: .scale(scale: 0.95)))
+            }
+        }
     }
 
     /// 右ペイン: 一度開いた project の WorkspaceView を ZStack で重ねて opacity 切替。

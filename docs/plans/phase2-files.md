@@ -203,13 +203,13 @@ Phase 1 で踏んだ罠を Phase 2 でも同じ轍を踏まないように記録
 - [x] 起動時 cwd をプロジェクトルートに設定（`ghostty_surface_config.working_directory`）
 - [x] **動作確認**: 2 プロジェクトを行き来、それぞれのターミナルが独立して動作
 
-### 5. Cmd+M MRU 切替オーバーレイ（1日）
-- [ ] MRU スタック（最大5件、プロジェクトのみ、表示確定で更新、Esc で不変）
-- [ ] Cmd+M でオーバーレイ起動、直前プロジェクトにカーソル
-- [ ] Ctrl 押しっぱなしで M 連打 → サイクル、Ctrl 離して確定
-- [ ] Esc でキャンセル
-- [ ] `GhosttyTerminalNSView.performKeyEquivalent` で **Ghostty より先に Cmd+M を捕捉**（TUI 内でも最優先）
-- [ ] **動作確認**: ターミナル/vim/claude 内のいずれでも Cmd+M でオーバーレイが出る、サイクル動作確認
+### 5. Ctrl+M MRU 切替オーバーレイ（1日）
+- [x] MRU スタック（最大5件、プロジェクトのみ、表示確定で更新、Esc で不変）
+- [x] Ctrl+M でオーバーレイ起動、直前プロジェクトにカーソル
+- [x] Ctrl 押しっぱなしで M 連打 → サイクル、Ctrl 離して確定
+- [x] Esc でキャンセル
+- [x] `NSEvent.addLocalMonitorForEvents` で **Ghostty より先に Ctrl+M を捕捉**（TUI 内でも最優先）
+- [x] **動作確認**: ターミナル/vim 内のいずれでも Ctrl+M でオーバーレイが出る、サイクルは手動確認
 
 ### 6. ファイルツリー基本表示（1〜2日）
 - [ ] アクティブプロジェクトのファイルを再帰的に表示（フォルダ先・アルファベット順）
@@ -302,6 +302,21 @@ Phase 1 で踏んだ罠を Phase 2 でも同じ轍を踏まないように記録
 - 方針変更: `idealWidth` だけだと初期は均等分割になり左サイドバーが画面の 1/3 を占めた
 - 対応: `maxWidth` を サイドバー 240 / 中央 480 に絞り、右ペイン（ターミナル）だけ無限に伸びる構成に
 - ペイン比率はドラッグ可・保存しないという要件は変えていない（ユーザーが広げたければ広げられる）
+
+### step5: Ctrl+M / Cmd+M 表記の統一
+- 想定外: プランは「Cmd+M」と書いていたが要件 section 3 タイトルは「Ctrl+M」、本文も Ctrl で統一
+- 要件は「Enter は Return キーで打つ運用、Ctrl+M を Enter として使わない」と強い意思
+- 対応: 実装は要件通り Ctrl+M、plan の表記も訂正
+
+### step5: Ctrl+M を NSEvent.addLocalMonitorForEvents で握る
+- GhosttyTerminalNSView.performKeyEquivalent より早く取れるので vim/claude 内でも捕捉できる
+- chars `"m"` 比較は失敗（macOS が Ctrl+letter を CR(\r) に変換する）→ keyCode 46 で判定
+- flagsChanged で Ctrl 離しを検出して commitMRUOverlay
+- AppleScript の `key code 46 using {control down}` は内部的に瞬時に Ctrl down → key down/up → Ctrl up を送るので、テストでは `key down control` / `key up control` を分けて送る必要がある（押しっぱなし状態を保持してオーバーレイの screenshot を撮るため）
+
+### step5: mruCandidates の解釈
+- 当初 workspaces dict にあるもののみを候補に → 初回 Ctrl+M で 1 件しか出ず commit が no-op
+- 要件「ピン留め・一時を区別せず、開いてるプロジェクトはすべて MRU の対象」を「サイドバー上の全 project」と解釈し、MRU 順優先 + 残りはサイドバー順で末尾に積む形に修正
 
 ### step4: ZStack + opacity でプロジェクト切替
 - 設計判断: ZStack で全 active 化済み workspace を重ねて opacity 0/1 で切替
