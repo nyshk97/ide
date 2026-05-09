@@ -785,3 +785,31 @@ rm -f "$HOME/Library/Application Support/ide/projects.json"*
 - Enter で選んだファイルを preview に開く
 - Esc でキャンセル
 - スラッシュを含むクエリ（例: `sources/i`）はパスマッチに自動切替で精度が変わる
+
+### 30. Cmd+Shift+F 全文検索（自動）
+
+`IDE_TEST_AUTO_FULLSEARCH` で起動時に grep を実行できる。
+
+```bash
+mkdir -p "$HOME/Library/Application Support/ide"
+cat > "$HOME/Library/Application Support/ide/projects.json" <<'JSON'
+{"projects":[{"displayName":"ide","id":"11111111-1111-1111-1111-111111111111","isPinned":true,"lastOpenedAt":"2026-05-09T01:00:00Z","path":"/Users/d0ne1s/ide"}],"schemaVersion":1}
+JSON
+APP=/tmp/ide-build/Build/Products/Debug/ide.app
+pkill -x ide 2>/dev/null; sleep 0.4
+IDE_TEST_AUTO_ACTIVATE_INDEX=0 IDE_TEST_AUTO_PREVIEW="REQUIREMENTS.md" IDE_TEST_AUTO_FULLSEARCH="Project" "$APP/Contents/MacOS/ide" >/dev/null 2>&1 &
+sleep 4
+./scripts/ide-screenshot.sh /tmp/v-step11-search.png
+pkill -x ide 2>/dev/null
+rm -f "$HOME/Library/Application Support/ide/projects.json"*
+```
+
+期待: スクショで `Project` の検索結果が複数件並ぶ（VERIFY.md / phase2-files.md / MRUKeyMonitor.swift など）。各行にファイル名 + 行番号 + プレビュー。
+
+### 31. Cmd+Shift+F 操作（手動）
+
+実機で確認:
+- Cmd+Shift+F でオーバーレイ起動
+- 文字を入力して Enter で検索実行（AppleScript 経由では onSubmit が効かないので手動必須）
+- ↑↓ で結果選択、Enter / クリックで preview 切替
+- Esc でキャンセル

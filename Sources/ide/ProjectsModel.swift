@@ -36,6 +36,13 @@ final class ProjectsModel: ObservableObject {
     @Published var quickSearchQuery: String = ""
     @Published var quickSearchSelection: Int = 0
 
+    /// Cmd+Shift+F 全文検索のオーバーレイ状態。
+    @Published var fullSearchVisible: Bool = false
+    @Published var fullSearchQuery: String = ""
+    @Published var fullSearchHits: [SearchHit] = []
+    @Published var fullSearchSelection: Int = 0
+    @Published var fullSearchInProgress: Bool = false
+
     /// 「最近使ったプロジェクト」MRU スタック。先頭が最新。確定したタイミングで先頭に push される。
     /// 最大 5 件保持。Ctrl+M オーバーレイの候補ソースに使う。
     @Published private(set) var mruStack: [UUID] = []
@@ -87,6 +94,12 @@ final class ProjectsModel: ObservableObject {
         guard FileManager.default.fileExists(atPath: target.path) else { return }
         preview(for: active).open(target)
         PocLog.write("[projects] test-auto-preview \(relPath)")
+
+        if let query = ProcessInfo.processInfo.environment["IDE_TEST_AUTO_FULLSEARCH"] {
+            openFullSearch()
+            fullSearchQuery = query
+            runFullSearch()
+        }
     }
 
     /// 表示順に並べた全プロジェクト（pinned + temporary）。
@@ -194,6 +207,50 @@ final class ProjectsModel: ObservableObject {
             fileIndex(for: active).recordOpen(entry.url)
         }
         closeQuickSearch()
+    }
+
+    // MARK: - Cmd+Shift+F 全文検索
+
+    func openFullSearch() {
+        guard activeProject != nil else { return }
+        fullSearchHits = []
+        fullSearchSelection = 0
+        fullSearchInProgress = false
+        fullSearchVisible = true
+    }
+
+    func closeFullSearch() {
+        fullSearchVisible = false
+    }
+
+    func runFullSearch() {
+        guard let active = activeProject else { return }
+        let q = fullSearchQuery
+        let path = active.path
+        fullSearchInProgress = true
+        fullSearchHits = []
+        fullSearchSelection = 0
+        Task.detached { [weak self] in
+            let result = FullTextSearcher.run(query: q, in: path)
+            await MainActor.run {
+                self?.fullSearchHits = result
+                self?.fullSearchInProgress = false
+            }
+        }
+    }
+
+    func fullSearchMoveSelection(_ delta: Int) {
+        let total = fullSearchHits.count
+        guard total > 0 else { return }
+        let next = (fullSearchSelection + delta) % total
+        fullSearchSelection = next < 0 ? total + next : next
+    }
+
+    func fullSearchSelect(_ hit: SearchHit) {
+        guard let active = activeProject else { return }
+        preview(for: active).open(hit.url)
+        fileIndex(for: active).recordOpen(hit.url)
+        closeFullSearch()
     }
 
     // MARK: - ピン留め切替

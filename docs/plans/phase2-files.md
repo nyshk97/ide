@@ -258,11 +258,11 @@ Phase 1 で踏んだ罠を Phase 2 でも同じ轍を踏まないように記録
 - [x] **動作確認**: ide で `Read` で REQUIREMENTS.md が上位
 
 ### 11. Cmd+Shift+F 全文検索（1日）
-- [ ] ripgrep を Bundle.main から呼ぶ（`Process` で argv 配列起動、`-l/--hidden`/`--no-ignore` トグルに対応）
-- [ ] 結果上限 1000 件、10秒タイムアウト、Esc キャンセル
-- [ ] UI: 結果一覧（ファイル + 行番号 + プレビュー）、クリックで該当行ジャンプ
-- [ ] Cmd+C で行のパスコピー
-- [ ] **動作確認**: 自分のリポジトリで適当な単語で grep、結果からファイルを開く
+- [ ] ~~ripgrep を Bundle.main から呼ぶ~~（Phase 2.5 へ、現状は macOS 標準 grep -rnIH で代用）
+- [x] 結果上限 1000 件、10秒タイムアウト、Esc キャンセル
+- [x] UI: 結果一覧（ファイル + 行番号 + プレビュー）、クリックで preview に切替（行ジャンプは未対応）
+- [ ] ~~Cmd+C で行のパスコピー~~（後段）
+- [x] **動作確認**: ide で `Project` で 116 件ヒット
 
 ### 12. ログ・診断（半日）
 - [ ] `Logger` クラス（Swift 標準 `os.Logger` ベース）
@@ -303,6 +303,17 @@ Phase 1 で踏んだ罠を Phase 2 でも同じ轍を踏まないように記録
 - 方針変更: `idealWidth` だけだと初期は均等分割になり左サイドバーが画面の 1/3 を占めた
 - 対応: `maxWidth` を サイドバー 240 / 中央 480 に絞り、右ペイン（ターミナル）だけ無限に伸びる構成に
 - ペイン比率はドラッグ可・保存しないという要件は変えていない（ユーザーが広げたければ広げられる）
+
+### step11: ripgrep バンドリングを先送り
+- 想定外: ripgrep バイナリがホストにインストールされていない（brew で未導入）
+- 要件「Bundle.main から呼ぶ」を満たすには xcframework に rg を含めるか SPM 経由で取る必要があるが、entitlements 検証含めると大きい
+- 代替: macOS 標準の `grep -rnIH -F --exclude-dir=...` を argv 配列で起動（要件 8.1 充足）
+- ripgrep バンドリングは Phase 2.5 で再検討（cmux 等で先行例あり）
+
+### step11: TextField の onSubmit が AppleScript の return で発火しない
+- `keystroke return` を AppleScript で送っても TextField.onSubmit が動かないケースに遭遇
+- 実機での Enter 押下では動作する想定（手動確認）
+- VERIFY のため `IDE_TEST_AUTO_FULLSEARCH` 環境変数で起動時に `runFullSearch` 直接呼び出し可能に
 
 ### step8: ファイルクリックを AppleScript で取れない問題の回避
 - onTapGesture が AppleScript の click を受けない問題は step5 から続く既知の制約

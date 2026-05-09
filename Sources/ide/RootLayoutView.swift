@@ -37,6 +37,30 @@ struct RootLayoutView: View {
                 )
                 .padding(.top, 80)
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+            } else if projects.fullSearchVisible {
+                FullSearchView(
+                    query: Binding(
+                        get: { projects.fullSearchQuery },
+                        set: { projects.fullSearchQuery = $0 }
+                    ),
+                    hits: Binding(
+                        get: { projects.fullSearchHits },
+                        set: { projects.fullSearchHits = $0 }
+                    ),
+                    selection: Binding(
+                        get: { projects.fullSearchSelection },
+                        set: { projects.fullSearchSelection = $0 }
+                    ),
+                    isSearching: Binding(
+                        get: { projects.fullSearchInProgress },
+                        set: { projects.fullSearchInProgress = $0 }
+                    ),
+                    onSubmit: { projects.runFullSearch() },
+                    onSelect: { projects.fullSearchSelect($0) },
+                    onCancel: { projects.closeFullSearch() }
+                )
+                .padding(.top, 80)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
             }
         }
     }

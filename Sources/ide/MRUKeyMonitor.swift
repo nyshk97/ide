@@ -47,6 +47,12 @@ enum MRUKeyMonitor {
             return true
         }
 
+        // Cmd+Shift+F: 全文検索オーバーレイ起動。
+        if mods == [.command, .shift], event.keyCode == 3 {  // 3 = F
+            model.openFullSearch()
+            return true
+        }
+
         // クイック検索表示中のキー操作
         if model.quickSearchVisible {
             switch event.keyCode {
@@ -58,6 +64,23 @@ enum MRUKeyMonitor {
                 return true
             case 126:  // Up
                 model.quickSearchMoveSelection(-1)
+                return true
+            default:
+                break
+            }
+        }
+
+        // 全文検索表示中のキー操作
+        if model.fullSearchVisible {
+            switch event.keyCode {
+            case 53:  // Esc
+                model.closeFullSearch()
+                return true
+            case 125:  // Down
+                model.fullSearchMoveSelection(1)
+                return true
+            case 126:  // Up
+                model.fullSearchMoveSelection(-1)
                 return true
             default:
                 break
