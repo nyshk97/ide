@@ -189,12 +189,12 @@ Phase 1 で踏んだ罠を Phase 2 でも同じ轍を踏まないように記録
 - [x] **動作確認**: 「+」で 3 つフォルダ追加、アクティブ切替
 
 ### 3. プロジェクト永続化（半日〜1日）
-- [ ] `~/Library/Application Support/ide/projects.json` のスキーマ（`schemaVersion: 1`）
-- [ ] アトミック書き込み（temp file → rename）、書き込み失敗の握り潰し（コンソール警告 + UI へ表示は次 step）
-- [ ] バックアップ世代保持（`projects.json.1` ... `.3`）
-- [ ] 起動時にロード、ピン留めだけ復元（一時プロジェクトは消える、要件通り）
-- [ ] missing 状態の表示（パス消失・アクセス拒否）+ 右クリック「再選択」「ピン解除」
-- [ ] **動作確認**: ピン留めしたプロジェクトが再起動後も復元、一時は消える、ディレクトリを mv した後に missing 表示
+- [x] `~/Library/Application Support/ide/projects.json` のスキーマ（`schemaVersion: 1`）
+- [x] アトミック書き込み（temp file → rename）、書き込み失敗の握り潰し（コンソール警告 + UI へ表示は次 step）
+- [x] バックアップ世代保持（`projects.json.1` ... `.3`）
+- [x] 起動時にロード、ピン留めだけ復元（一時プロジェクトは消える、要件通り）
+- [x] missing 状態の表示（パス消失・アクセス拒否）+ 右クリック「再選択」「ピン解除」
+- [x] **動作確認**: ピン留めしたプロジェクトが再起動後も復元、一時は消える、ディレクトリを mv した後に missing 表示
 
 ### 4. プロジェクト切替時のターミナル状態（1日）
 - [ ] プロジェクトごとに `WorkspaceModel` インスタンス（PaneState を含む）を保持 → `ProjectsModel` 経由で active project の workspace を引く
@@ -302,6 +302,15 @@ Phase 1 で踏んだ罠を Phase 2 でも同じ轍を踏まないように記録
 - 方針変更: `idealWidth` だけだと初期は均等分割になり左サイドバーが画面の 1/3 を占めた
 - 対応: `maxWidth` を サイドバー 240 / 中央 480 に絞り、右ペイン（ターミナル）だけ無限に伸びる構成に
 - ペイン比率はドラッグ可・保存しないという要件は変えていない（ユーザーが広げたければ広げられる）
+
+### step3: AppleScript の右クリック自動化が破綻
+- 想定外の失敗: Control+Click を AppleScript で送ると、過去のセッションで開いていた NSOpenPanel に干渉して input が日本語 IME ローマ字変換されてしまう
+- 対応: ピン留め切替の動作確認は手動に倒し、永続化テストは projects.json を直接書いて起動 → 復元を screenshot で確認するパターンに切替
+- アトミック書き込み・バックアップ世代・「再選択」メニューも手動確認に倒した（VERIFY.md 14, 15 参照）
+
+### step3: ProjectsStore の Sendable 適合
+- 静的 `shared` を `Sendable` 適合のため `struct ProjectsStore: Sendable` にしたら `FileManager.default` の stored property が non-Sendable で弾かれた
+- 対応: `private var fileManager: FileManager { .default }` に変更（毎回 `.default` を返す computed property）。FileManager は内部的に thread-safe なので問題なし
 
 ### step2: NSOpenPanel の AppleScript 自動化
 - 想定外の収穫: NSOpenPanel は Cmd+Shift+G でパス入力 → Enter 2 回で「追加」できることが分かった

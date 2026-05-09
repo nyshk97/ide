@@ -68,10 +68,17 @@ struct LeftSidebarView: View {
 
     private func row(_ project: Project) -> some View {
         let isActive = projects.activeProject?.id == project.id
+        let missing = project.isMissing
         return HStack(spacing: 6) {
-            Image(systemName: project.isPinned ? "pin.fill" : "folder")
-                .foregroundStyle(project.isPinned ? .orange : .secondary)
-                .frame(width: 14)
+            if missing {
+                Image(systemName: "exclamationmark.triangle.fill")
+                    .foregroundStyle(.yellow)
+                    .frame(width: 14)
+            } else {
+                Image(systemName: project.isPinned ? "pin.fill" : "folder")
+                    .foregroundStyle(project.isPinned ? .orange : .secondary)
+                    .frame(width: 14)
+            }
             Text(project.displayName)
                 .lineLimit(1)
                 .truncationMode(.middle)
@@ -81,13 +88,21 @@ struct LeftSidebarView: View {
         .padding(.vertical, 4)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(isActive ? Color.accentColor.opacity(0.25) : Color.clear)
+        .opacity(missing ? 0.55 : 1.0)
+        .help(missing ? "パスが見つかりません: \(project.path.path)" : project.path.path)
         .contentShape(Rectangle())
         .onTapGesture {
+            // missing でもアクティブにはできる（中央ペインで状態を見てもらう）
             projects.setActive(project)
         }
         .contextMenu {
             Button(project.isPinned ? "ピン解除" : "ピン留め") {
                 projects.togglePin(project)
+            }
+            if missing {
+                Button("再選択…") {
+                    relocateProject(project)
+                }
             }
             Button("閉じる") {
                 projects.close(project)
@@ -106,6 +121,18 @@ struct LeftSidebarView: View {
         panel.prompt = "追加"
         if panel.runModal() == .OK, let url = panel.url {
             projects.addTemporary(path: url)
+        }
+    }
+
+    private func relocateProject(_ project: Project) {
+        let panel = NSOpenPanel()
+        panel.canChooseFiles = false
+        panel.canChooseDirectories = true
+        panel.allowsMultipleSelection = false
+        panel.message = "「\(project.displayName)」のフォルダを再選択"
+        panel.prompt = "選択"
+        if panel.runModal() == .OK, let url = panel.url {
+            projects.relocate(project, to: url)
         }
     }
 }

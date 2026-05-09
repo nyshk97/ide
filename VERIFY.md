@@ -386,3 +386,61 @@ sleep 0.4
 - ピン留め済みの行で右クリック → 「ピン解除」が出る、選ぶと一時セクションに戻る
 - 「閉じる」 → 行が消える、アクティブだった場合は隣の行がアクティブになる
 - 全部閉じる → 中央ペインが「フォルダを追加して始めよう」に戻る
+
+### 12. プロジェクト永続化（自動）
+
+ピン留めだけが `~/Library/Application Support/ide/projects.json` に保存され、再起動でサイドバーに復元される。一時プロジェクトは保存されない。
+
+```bash
+pkill -x ide 2>/dev/null
+mkdir -p "$HOME/Library/Application Support/ide"
+mkdir -p /tmp/ide-step3-test/willmove
+cat > "$HOME/Library/Application Support/ide/projects.json" <<'JSON'
+{
+  "projects" : [
+    {"displayName":"ide","id":"11111111-1111-1111-1111-111111111111","isPinned":true,"lastOpenedAt":"2026-05-09T01:00:00Z","path":"/Users/d0ne1s/ide"},
+    {"displayName":"willmove","id":"22222222-2222-2222-2222-222222222222","isPinned":true,"lastOpenedAt":"2026-05-09T02:00:00Z","path":"/tmp/ide-step3-test/willmove"}
+  ],
+  "schemaVersion" : 1
+}
+JSON
+./scripts/ide-launch.sh
+sleep 0.5
+./scripts/ide-screenshot.sh /tmp/v-step3-restored.png
+```
+
+期待: ピン留めセクションに ide / willmove が並ぶ（オレンジ 📌）、一時セクションは空、中央ペインに「左からプロジェクトを選択」。
+
+### 13. missing 状態（自動）
+
+```bash
+pkill -x ide 2>/dev/null
+mv /tmp/ide-step3-test/willmove /tmp/ide-step3-test/moved-away
+./scripts/ide-launch.sh
+sleep 0.5
+./scripts/ide-screenshot.sh /tmp/v-step3-missing.png
+```
+
+期待: willmove が黄色 ⚠ アイコン + 半透明で表示、ide は通常表示のまま。
+
+クリーンアップ:
+```bash
+pkill -x ide 2>/dev/null
+rm -rf /tmp/ide-step3-test
+rm -f "$HOME/Library/Application Support/ide/projects.json"*
+```
+
+### 14. アトミック書き込み・バックアップ世代（手動）
+
+実機で確認:
+- ピン留めを 4 回切り替える
+- `ls "$HOME/Library/Application Support/ide/"` で `projects.json` `.1` `.2` `.3` が並ぶ
+- ピン留め中に強制終了させても `projects.json` か `.1` が読み取れること
+
+### 15. 「再選択」メニュー（手動）
+
+実機で確認:
+- missing 状態の行を右クリック → 「再選択…」が出る
+- 選ぶと NSOpenPanel が開く
+- 別のフォルダを選ぶと displayName とアイコンが復活する
+- アプリを再起動してもパスが永続化されている
