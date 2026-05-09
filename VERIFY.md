@@ -76,7 +76,23 @@ sleep 0.5
 
 スクショに 16x16 の 256 パレットと、24bit RGB のなめらかなグラデーションが映っていること。
 
-## 6. BEL 通知
+## 6. AI 種別バッジ
+
+```bash
+./scripts/ide-launch.sh
+osascript -e 'tell application "System Events" to tell process "ide" to set frontmost to true'
+sleep 0.3
+osascript -e 'tell application "System Events" to key code 102'
+./scripts/ide-keystroke.sh --enter "claude"
+sleep 4
+./scripts/ide-screenshot.sh /tmp/v-ai-badge.png
+```
+
+期待: タブ名「shell 1」の左に 🅒 アイコン（オレンジ tint）が出る。Esc で claude を抜けるとアイコンが消える。
+
+`codex` 起動時は 🅞（緑 tint）が出る。識別は `proc_pidpath` の basename から拡張子を除いて行う（claude のバイナリは `claude.exe` で来るので注意）。
+
+## 7. BEL 通知
 
 ```bash
 cat > /tmp/bel-test.sh <<'SCRIPT'

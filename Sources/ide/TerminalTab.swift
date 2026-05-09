@@ -16,6 +16,16 @@ final class TerminalTab: ObservableObject, Identifiable {
     /// BEL 受信などで未読通知が立っている状態。アクティブ化で自動クリアする。
     @Published var hasUnreadNotification: Bool = false
 
+    /// foreground プロセスを定期 polling して識別した結果。タブのアイコン表示に使う。
+    @Published var foregroundProgram: ForegroundProgram = .shell
+
+    enum ForegroundProgram: Equatable {
+        case shell           // シェルだけ動いている（バッジ無し）
+        case claude
+        case codex
+        case other(String)   // 上記以外（バッジ無しでもよいが将来 hook 可能）
+    }
+
     enum Lifecycle: Equatable {
         case alive
         case exited(code: UInt32)

@@ -15,6 +15,9 @@ final class GhosttyManager: @unchecked Sendable {
     /// SHOW_CHILD_EXITED action で exit code をタブに反映するのに使う。
     private var surfaceToTab: [ghostty_surface_t: WeakTabRef] = [:]
 
+    /// foreground プロセスを polling するタイマー。
+    private var foregroundPollTimer: Timer?
+
     private final class WeakTabRef {
         weak var value: TerminalTab?
         init(_ tab: TerminalTab) { self.value = tab }
@@ -34,6 +37,37 @@ final class GhosttyManager: @unchecked Sendable {
 
     func tab(forSurface surface: ghostty_surface_t) -> TerminalTab? {
         surfaceToTab[surface]?.value
+    }
+
+    /// 全 surface の foreground プロセスを 500ms ごとに識別し、変化があればタブに反映。
+    private func startForegroundPolling() {
+        foregroundPollTimer?.invalidate()
+        foregroundPollTimer = Timer.scheduledTimer(withTimeInterval: 0.5, repeats: true) { _ in
+            Task { @MainActor in
+                GhosttyManager.shared.tickForegroundPolling()
+            }
+        }
+    }
+
+    @MainActor
+    private func tickForegroundPolling() {
+        // 死んだ参照は除去
+        surfaceToTab = surfaceToTab.filter { $0.value.value != nil }
+
+        for (surface, ref) in surfaceToTab {
+            guard let tab = ref.value else { continue }
+            let pid = ghostty_surface_foreground_pid(surface)
+            let program = ForegroundProcessInspector.classify(pid: pid_t(pid))
+            #if DEBUG
+            if tab.foregroundProgram != program {
+                let path = ForegroundProcessInspector.executablePath(for: pid_t(pid)) ?? "(nil)"
+                PocLog.write("[fg] tab=\(tab.title) pid=\(pid) path=\(path) -> \(program)")
+            }
+            #endif
+            if tab.foregroundProgram != program {
+                tab.foregroundProgram = program
+            }
+        }
     }
 
     private init() {}
@@ -111,6 +145,9 @@ final class GhosttyManager: @unchecked Sendable {
         self.app = appHandle
         self.config = cfg
         PocLog.write("[ghostty] app_new ok")
+
+        // foreground プロセス監視を開始
+        startForegroundPolling()
 
         // フォーカス連動
         NotificationCenter.default.addObserver(

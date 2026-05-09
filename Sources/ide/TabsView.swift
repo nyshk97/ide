@@ -68,6 +68,11 @@ struct TabsView: View {
                 self.workspace.setActive(self.pane)
             }) {
                 HStack(spacing: 5) {
+                    if let icon = programIcon(tab.foregroundProgram) {
+                        icon
+                            .font(.system(size: 11, weight: .semibold))
+                            .frame(width: 14, height: 14)
+                    }
                     Text(tab.title)
                         .lineLimit(1)
                         .font(.system(size: 12))
@@ -87,4 +92,16 @@ struct TabsView: View {
     }
 
     private var paneIsActive: Bool { workspace.isActive(pane) }
+
+    private func programIcon(_ program: TerminalTab.ForegroundProgram) -> Text? {
+        switch program {
+        case .claude:
+            return Text("🅒").foregroundStyle(Color.orange)
+        case .codex:
+            return Text("🅞").foregroundStyle(Color.green)
+        case .other, .shell:
+            // shell とその他は無印
+            return nil
+        }
+    }
 }
