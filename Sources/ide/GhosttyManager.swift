@@ -1,6 +1,17 @@
 import AppKit
 import GhosttyKit
 
+/// `http` / `https` のみ外部ブラウザで開く。`file://` 等は無視（要件 4 のリンク化ポリシー）。
+@MainActor
+private func openExternalURL(_ urlString: String) {
+    guard urlString.hasPrefix("http://") || urlString.hasPrefix("https://"),
+          let url = URL(string: urlString) else {
+        PocLog.write("[url] skipped non-http: \(urlString.prefix(80))")
+        return
+    }
+    NSWorkspace.shared.open(url)
+}
+
 final class GhosttyManager: @unchecked Sendable {
     static let shared = GhosttyManager()
 
@@ -125,6 +136,14 @@ final class GhosttyManager: @unchecked Sendable {
                            !WorkspaceModel.shared.isCurrentlyActive(tab: tab) {
                             tab.hasUnreadNotification = true
                         }
+                    }
+                }
+            case GHOSTTY_ACTION_OPEN_URL:
+                let openUrl = action.action.open_url
+                if let urlPtr = openUrl.url {
+                    let urlString = String(cString: urlPtr)
+                    DispatchQueue.main.async {
+                        openExternalURL(urlString)
                     }
                 }
             default:

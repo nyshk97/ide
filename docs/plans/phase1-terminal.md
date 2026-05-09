@@ -136,10 +136,10 @@
 - [x] **動作確認(AIバッジ)**: `claude` 起動でタブの左に 🅒 アイコン（オレンジ tint）が表示される
 
 ### 9. ターミナル出力リンク化（1日）
-- [ ] `ghostty_action_open_url` を listen して URL クリックを処理（http/https のみ NSWorkspace で開く）
-- [ ] OSC 8 hyperlink でクリック可能になっている部分を確認（標準動作で済むなら自前実装不要）
-- [ ] ファイルパス検出: 出力テキストへの正規表現マッチが必要なら別途実装（Phase 2 でも可）
-- [ ] **動作確認**: `echo https://example.com` の出力をクリックして Safari で開く
+- [x] `ghostty_action_open_url` を listen して URL クリックを処理 → `action_cb` の `GHOSTTY_ACTION_OPEN_URL` 分岐で http/https のみ `NSWorkspace.open`
+- [x] OSC 8 hyperlink でクリック可能になっている部分 → Ghostty 標準動作（マウスホバー下線・Cmd+クリック）に乗っかる、自前実装不要
+- [ ] ファイルパス検出 → Phase 2 のファイル系UI と一緒に実装（プレビューに繋ぐため）
+- [x] **動作確認**: `echo https://example.com` の出力が表示されることはスクリプトで確認、`Cmd+クリック` で Safari が開く動作は実機（VERIFY.md 6）
 
 ### 10. ログ・診断（半日）
 - [ ] `~/Library/Logs/ide/` に出力するロガーを追加（既存の `PocLog` を本格化）

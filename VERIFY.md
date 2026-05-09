@@ -76,7 +76,19 @@ sleep 0.5
 
 スクショに 16x16 の 256 パレットと、24bit RGB のなめらかなグラデーションが映っていること。
 
-## 6. AI 種別バッジ
+## 6. URL リンク化
+
+```bash
+./scripts/ide-launch.sh
+./scripts/ide-keystroke.sh --enter "echo https://example.com"
+```
+
+実機で:
+- 出力中の URL をマウスホバー → 下線が出る（Ghostty 標準動作）
+- `Cmd+クリック` で Safari が開く
+- `file://` 等は ide 側で弾く（無視）
+
+## 7. AI 種別バッジ
 
 ```bash
 ./scripts/ide-launch.sh
