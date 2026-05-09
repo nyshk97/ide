@@ -37,15 +37,30 @@ struct CenterPaneView: View {
 
     @ViewBuilder
     private func placeholder(for project: Project) -> some View {
-        let preview = projects.preview(for: project)
-        if let url = preview.currentURL {
-            FilePreviewView(preview: preview, url: url, onClose: { preview.close() })
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-        } else {
-            FileTreeView(model: projects.fileTree(for: project), onSelectFile: { url in
-                preview.open(url)
-            })
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
+        ProjectCenterContent(
+            preview: projects.preview(for: project),
+            fileTree: projects.fileTree(for: project)
+        )
+    }
+}
+
+/// `FilePreviewModel.currentURL` を観察してツリー / プレビューを切り替える。
+/// CenterPaneView 直下に書くと preview を観察できず切替が走らないため
+/// 専用の子 view にしている。
+private struct ProjectCenterContent: View {
+    @ObservedObject var preview: FilePreviewModel
+    @ObservedObject var fileTree: FileTreeModel
+
+    var body: some View {
+        Group {
+            if let url = preview.currentURL {
+                FilePreviewView(preview: preview, url: url, onClose: { preview.close() })
+            } else {
+                FileTreeView(model: fileTree, onSelectFile: { url in
+                    preview.open(url)
+                })
+            }
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 }
