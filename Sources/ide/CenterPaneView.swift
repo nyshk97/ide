@@ -47,18 +47,23 @@ struct CenterPaneView: View {
 /// `FilePreviewModel.currentURL` を観察してツリー / プレビューを切り替える。
 /// CenterPaneView 直下に書くと preview を観察できず切替が走らないため
 /// 専用の子 view にしている。
+///
+/// HSplitView は内部 view を if/else で差し替えると user drag した divider 位置を
+/// 失うため、両方を ZStack で常駐させて opacity で切替（右ペインの workspace 切替と同じ手法）。
 private struct ProjectCenterContent: View {
     @ObservedObject var preview: FilePreviewModel
     @ObservedObject var fileTree: FileTreeModel
 
     var body: some View {
-        Group {
+        ZStack {
+            FileTreeView(model: fileTree, onSelectFile: { url in
+                preview.open(url)
+            })
+            .opacity(preview.currentURL == nil ? 1 : 0)
+            .allowsHitTesting(preview.currentURL == nil)
+
             if let url = preview.currentURL {
                 FilePreviewView(preview: preview, url: url, onClose: { preview.close() })
-            } else {
-                FileTreeView(model: fileTree, onSelectFile: { url in
-                    preview.open(url)
-                })
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)

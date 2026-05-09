@@ -8,12 +8,14 @@ struct RootLayoutView: View {
 
     var body: some View {
         // SwiftUI の HSplitView は idealWidth を尊重せず初期は均等分割になりがちなので、
-        // maxWidth で起動時の幅レンジを絞り、右ペイン（ターミナル）だけ無限に伸びるようにする。
+        // 左サイドバーだけ maxWidth で抑える。中央ペインは maxWidth を付けると、
+        // プレビュー ↔ ツリー切替時の再レイアウトでドラッグ拡大が snap back されるため
+        // 上限なしにしてユーザーの拡張を維持する。
         HSplitView {
             LeftSidebarView()
                 .frame(minWidth: 160, idealWidth: 200, maxWidth: 240)
             CenterPaneView()
-                .frame(minWidth: 200, idealWidth: 320, maxWidth: 480)
+                .frame(minWidth: 200, idealWidth: 320)
             rightArea
                 .frame(minWidth: 400)
         }
