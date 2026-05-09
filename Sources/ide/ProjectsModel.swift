@@ -88,17 +88,26 @@ final class ProjectsModel: ObservableObject {
     /// `IDE_TEST_AUTO_PREVIEW` 環境変数が active project からの相対パスを指していたら
     /// その file を preview に開く。VERIFY 用デバッグ機能。
     private func applyTestAutoPreview() {
-        guard let relPath = ProcessInfo.processInfo.environment["IDE_TEST_AUTO_PREVIEW"],
-              let active = activeProject else { return }
-        let target = active.path.appendingPathComponent(relPath)
-        guard FileManager.default.fileExists(atPath: target.path) else { return }
-        preview(for: active).open(target)
-        PocLog.write("[projects] test-auto-preview \(relPath)")
+        let env = ProcessInfo.processInfo.environment
 
-        if let query = ProcessInfo.processInfo.environment["IDE_TEST_AUTO_FULLSEARCH"] {
+        if let relPath = env["IDE_TEST_AUTO_PREVIEW"],
+           let active = activeProject {
+            let target = active.path.appendingPathComponent(relPath)
+            if FileManager.default.fileExists(atPath: target.path) {
+                preview(for: active).open(target)
+                PocLog.write("[projects] test-auto-preview \(relPath)")
+            }
+        }
+
+        if let query = env["IDE_TEST_AUTO_FULLSEARCH"] {
             openFullSearch()
             fullSearchQuery = query
             runFullSearch()
+        }
+
+        if let toast = env["IDE_TEST_TOAST"] {
+            // ErrorBus は MainActor、init からの呼び出しは MainActor 隔離なので OK
+            ErrorBus.shared.notify(toast, kind: .error)
         }
     }
 

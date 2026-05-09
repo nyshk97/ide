@@ -74,6 +74,9 @@ struct ProjectsStore: Sendable {
             try atomicWrite(data: data, to: storageURL)
         } catch {
             PocLog.write("[projects] save failed: \(error)")
+            DispatchQueue.main.async {
+                ErrorBus.shared.notify("プロジェクト一覧の保存に失敗しました: \(error.localizedDescription)")
+            }
         }
     }
 

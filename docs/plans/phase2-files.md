@@ -272,9 +272,9 @@ Phase 1 で踏んだ罠を Phase 2 でも同じ轍を踏まないように記録
 - [x] 既存の `PocLog.write` 内部で Logger.debug にも転送（PocLog は /tmp 用に並走）
 
 ### 13. エラー表示（半日）
-- [ ] 単発エラー toast 用の overlay コンポーネント
-- [ ] 継続状態異常用のサイドバー / ペイン内常駐表示（missing project, watcher 停止, PTY 異常等）
-- [ ] エラーソース（toast / 常駐）の使い分けポリシーをコードコメントで明示
+- [x] 単発エラー toast 用の overlay コンポーネント（ErrorBus + ToastStackView、4 秒で自動消滅）
+- [x] 継続状態異常用のサイドバー / ペイン内常駐表示（既存: missing project は LeftSidebarView の行内、PTY 異常は ExitedOverlayView）
+- [x] エラーソース（toast / 常駐）の使い分けポリシーを ErrorBus.swift のコメントで明示
 
 ### 14. Phase 2 動作確認（半日）
 - [ ] VERIFY.md の Phase 2 項目を全部通す

@@ -63,6 +63,9 @@ struct RootLayoutView: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
             }
         }
+        .overlay {
+            ToastStackView()
+        }
     }
 
     /// 右ペイン: 一度開いた project の WorkspaceView を ZStack で重ねて opacity 切替。
