@@ -8,9 +8,13 @@ struct FileTreeView: View {
     @ObservedObject var gitStatus: GitStatusModel
     @ObservedObject var projects: ProjectsModel = .shared
 
-    init(model: FileTreeModel) {
+    /// ファイル（=ディレクトリ以外）をクリックしたときの callback（プレビュー切替用）。
+    let onSelectFile: (URL) -> Void
+
+    init(model: FileTreeModel, onSelectFile: @escaping (URL) -> Void = { _ in }) {
         self.model = model
         self.gitStatus = model.gitStatus
+        self.onSelectFile = onSelectFile
     }
 
     var body: some View {
@@ -144,8 +148,9 @@ struct FileTreeView: View {
         .onTapGesture {
             if node.isDirectory && !node.isSymlink {
                 model.toggleExpanded(node.url)
+            } else if !node.isDirectory {
+                onSelectFile(node.url)
             }
-            // ファイルクリック時のプレビューは step8 で実装
         }
         .contextMenu {
             Button("相対パスをコピー") { copyRelativePath(node) }

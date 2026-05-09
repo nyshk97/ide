@@ -688,3 +688,52 @@ rm -f "$HOME/Library/Application Support/ide/projects.json"*
 - ツリーには即時反映されない（FSEvents 未統合）
 - ツリー右上の 🔄 ボタンを押すと再スキャンされて新規ファイルが現れる
 - 新規ファイルなら `?` バッジが付く（次の git status polling サイクル後）
+
+### 25. ファイルプレビュー（自動）
+
+`IDE_TEST_AUTO_PREVIEW` 環境変数で起動時に project root からの相対パスを開ける。
+
+```bash
+mkdir -p "$HOME/Library/Application Support/ide"
+cat > "$HOME/Library/Application Support/ide/projects.json" <<'JSON'
+{"projects":[{"displayName":"ide","id":"11111111-1111-1111-1111-111111111111","isPinned":true,"lastOpenedAt":"2026-05-09T01:00:00Z","path":"/Users/d0ne1s/ide"}],"schemaVersion":1}
+JSON
+APP=/tmp/ide-build/Build/Products/Debug/ide.app
+
+# Markdown
+pkill -x ide 2>/dev/null; sleep 0.4
+IDE_TEST_AUTO_ACTIVATE_INDEX=0 IDE_TEST_AUTO_PREVIEW="REQUIREMENTS.md" "$APP/Contents/MacOS/ide" >/dev/null 2>&1 &
+sleep 3
+./scripts/ide-screenshot.sh /tmp/v-step8-md.png
+
+# Swift コード
+pkill -x ide 2>/dev/null; sleep 0.4
+IDE_TEST_AUTO_ACTIVATE_INDEX=0 IDE_TEST_AUTO_PREVIEW="Sources/ide/IdeApp.swift" "$APP/Contents/MacOS/ide" >/dev/null 2>&1 &
+sleep 3
+./scripts/ide-screenshot.sh /tmp/v-step8-swift.png
+
+# XML (Info.plist)
+pkill -x ide 2>/dev/null; sleep 0.4
+IDE_TEST_AUTO_ACTIVATE_INDEX=0 IDE_TEST_AUTO_PREVIEW="Resources/Info.plist" "$APP/Contents/MacOS/ide" >/dev/null 2>&1 &
+sleep 3
+./scripts/ide-screenshot.sh /tmp/v-step8-plist.png
+pkill -x ide 2>/dev/null
+rm -f "$HOME/Library/Application Support/ide/projects.json"*
+```
+
+期待:
+- 中央ペインがプレビューモードに切替（ツールバーに「← ツリーに戻る」「VSCode で開く」、ファイル名）
+- Markdown はインラインレンダリング（リンク・強調が効く、見出しはプレーン）
+- コード（.swift）はモノスペースで表示
+- XML はそのままプレーンテキスト
+
+### 26. プレビュー画像/PDF/バイナリ/大きいファイル（手動）
+
+実機で確認:
+- **画像**: ツリーから .png/.jpg などをクリック → ScrollView 内に画像が表示
+- **PDF**: .pdf をクリック → PDFKit で表示、ページめくり可
+- **バイナリ**: 実行可能ファイル等を選択 → 「バイナリファイルです（プレビュー非対応）」+「VSCode で開く」ボタン
+- **5MB 〜 50MB**: 「N MB のファイルです。読み込みますか？」確認 → 「読み込む」でテキスト表示
+- **50MB 超**: 自動的に「外部で開いてください」+「VSCode で開く」
+- **Cmd+Option+O**: VSCode が起動し、当該ファイルが開く
+- **Esc / ツリーに戻るボタン**: ツリーに戻る

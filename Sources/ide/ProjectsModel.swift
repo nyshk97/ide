@@ -25,6 +25,9 @@ final class ProjectsModel: ObservableObject {
     /// プロジェクトごとのファイルツリーモデル。`fileTree(for:)` で遅延作成。
     @Published private(set) var fileTrees: [UUID: FileTreeModel] = [:]
 
+    /// プロジェクトごとのファイルプレビュー状態。
+    @Published private(set) var previews: [UUID: FilePreviewModel] = [:]
+
     /// 「最近使ったプロジェクト」MRU スタック。先頭が最新。確定したタイミングで先頭に push される。
     /// 最大 5 件保持。Ctrl+M オーバーレイの候補ソースに使う。
     @Published private(set) var mruStack: [UUID] = []
@@ -41,6 +44,7 @@ final class ProjectsModel: ObservableObject {
         self.store = store
         load()
         applyTestAutoActivate()
+        applyTestAutoPreview()
     }
 
     private func load() {
@@ -64,6 +68,17 @@ final class ProjectsModel: ObservableObject {
         let target = pinned[index]
         setActive(target)
         PocLog.write("[projects] test-auto-activate index=\(index) name=\(target.displayName)")
+    }
+
+    /// `IDE_TEST_AUTO_PREVIEW` 環境変数が active project からの相対パスを指していたら
+    /// その file を preview に開く。VERIFY 用デバッグ機能。
+    private func applyTestAutoPreview() {
+        guard let relPath = ProcessInfo.processInfo.environment["IDE_TEST_AUTO_PREVIEW"],
+              let active = activeProject else { return }
+        let target = active.path.appendingPathComponent(relPath)
+        guard FileManager.default.fileExists(atPath: target.path) else { return }
+        preview(for: active).open(target)
+        PocLog.write("[projects] test-auto-preview \(relPath)")
     }
 
     /// 表示順に並べた全プロジェクト（pinned + temporary）。
@@ -92,6 +107,7 @@ final class ProjectsModel: ObservableObject {
         temporary.removeAll { $0.id == project.id }
         workspaces.removeValue(forKey: project.id)
         fileTrees.removeValue(forKey: project.id)
+        previews.removeValue(forKey: project.id)
         if activeProject?.id == project.id {
             activeProject = allOrdered.first
         }
@@ -122,6 +138,14 @@ final class ProjectsModel: ObservableObject {
         if let existing = fileTrees[project.id] { return existing }
         let model = FileTreeModel(project: project)
         fileTrees[project.id] = model
+        return model
+    }
+
+    /// プロジェクトに紐付く FilePreviewModel を返す。なければ新規作成。
+    func preview(for project: Project) -> FilePreviewModel {
+        if let existing = previews[project.id] { return existing }
+        let model = FilePreviewModel()
+        previews[project.id] = model
         return model
     }
 

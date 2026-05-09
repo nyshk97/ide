@@ -228,17 +228,17 @@ Phase 1 で踏んだ罠を Phase 2 でも同じ轍を踏まないように記録
 - [x] **動作確認**: VERIFY.md を編集して保存 → 数秒後にツリーで青 M バッジ
 
 ### 8. ファイルプレビュー（1〜2日）
-- [ ] ツリーでファイルクリック → 中央ペインがプレビューに切替（左サイドバー・右ペインは不変）
-- [ ] コード: NSTextView + Highlightr（tree-sitter は Phase 3 で評価）
-- [ ] Markdown: 自前レンダラー or `Down` ライブラリ
-- [ ] 画像: NSImage + ScrollView
-- [ ] PDF: PDFKit
-- [ ] バイナリ判定（NUL 検査・UTF-8 デコード）→ 外部誘導
-- [ ] サイズしきい値（5MB 確認 / 50MB 外部）
-- [ ] 自動リロード（行番号基準）+ deleted 表示
-- [ ] Esc / 「ツリーに戻る」ボタンでツリー復帰
-- [ ] Cmd+Option+O で VSCode 起動
-- [ ] **動作確認**: .swift / .md / .png / .pdf / バイナリ / 巨大ファイルの 6 種類で挙動確認
+- [x] ツリーでファイルクリック → 中央ペインがプレビューに切替（左サイドバー・右ペインは不変）
+- [x] コード: NSTextView 単純表示（Highlightr は Phase 3 へ、要件「閉じてる位で見れれば OK」）
+- [x] Markdown: `AttributedString.init(markdown:)` の inlineOnly で簡易レンダリング
+- [x] 画像: NSImage + ScrollView
+- [x] PDF: PDFKit
+- [x] バイナリ判定（NUL 検査・UTF-8 デコード）→ 外部誘導
+- [x] サイズしきい値（5MB 確認 / 50MB 外部）
+- [ ] ~~自動リロード（行番号基準）+ deleted 表示~~（Phase 2.5 へ、FSEvents 統合と一緒に）
+- [x] Esc / 「ツリーに戻る」ボタンでツリー復帰
+- [x] Cmd+Option+O で VSCode 起動
+- [x] **動作確認**: .md / .swift / .plist で挙動確認、残り 3 種は VERIFY.md に手順
 
 ### 9. プレビュー履歴ナビ（半日）
 - [ ] 戻る/進む履歴を中央ペインのツールバーに ← → ボタンで実装
@@ -302,6 +302,17 @@ Phase 1 で踏んだ罠を Phase 2 でも同じ轍を踏まないように記録
 - 方針変更: `idealWidth` だけだと初期は均等分割になり左サイドバーが画面の 1/3 を占めた
 - 対応: `maxWidth` を サイドバー 240 / 中央 480 に絞り、右ペイン（ターミナル）だけ無限に伸びる構成に
 - ペイン比率はドラッグ可・保存しないという要件は変えていない（ユーザーが広げたければ広げられる）
+
+### step8: ファイルクリックを AppleScript で取れない問題の回避
+- onTapGesture が AppleScript の click を受けない問題は step5 から続く既知の制約
+- テスト用に `IDE_TEST_AUTO_PREVIEW` 環境変数を追加（active project からの相対パスでファイルを開く）
+- 動作確認は env で 3 種類（Markdown / Swift / XML）まで自動、画像 / PDF / バイナリ / 大きいファイルは VERIFY.md に手動手順
+
+### step8: NSViewRepresentable の updateNSView で string 比較
+- CodePreview の updateNSView で毎回 `textView.string = text` を代入するとパフォーマンス的に良くないが、
+  プレビューは別ファイルへの切替時に view ごと再生成されるので毎回の代入は実質 1 回。許容。
+- AttributedString.markdown は inlineOnly モードを採用。block レベル（見出し・リスト）は plain。
+  完全な markdown レンダリングは Phase 3 の Highlightr 検討と一緒に判断する。
 
 ### step7: FSEvents 統合でサイレントクラッシュ
 - 想定外の失敗: FileSystemWatcher（FSEvents）と GitStatusModel（DispatchQueue + Task { @MainActor }）を統合した版で、ide が起動直後にサイレント終了する（stderr 無音、DiagnosticReports なし、exit code 6）

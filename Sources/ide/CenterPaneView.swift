@@ -35,8 +35,17 @@ struct CenterPaneView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
+    @ViewBuilder
     private func placeholder(for project: Project) -> some View {
-        FileTreeView(model: projects.fileTree(for: project))
+        let preview = projects.preview(for: project)
+        if let url = preview.currentURL {
+            FilePreviewView(url: url, onClose: { preview.close() })
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+        } else {
+            FileTreeView(model: projects.fileTree(for: project), onSelectFile: { url in
+                preview.open(url)
+            })
             .frame(maxWidth: .infinity, maxHeight: .infinity)
+        }
     }
 }
