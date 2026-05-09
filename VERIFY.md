@@ -660,3 +660,31 @@ rm -f "$HOME/Library/Application Support/ide/projects.json"*
 実機で確認:
 - ディレクトリ symlink（例: `.refs/cmux` のような external clone）は中身を辿らず、矢印 → リンク先パスが表示される
 - ファイル symlink は通常のファイルとして表示、矢印で target も併記
+
+### 23. git status バッジ（自動）
+
+```bash
+mkdir -p "$HOME/Library/Application Support/ide"
+cat > "$HOME/Library/Application Support/ide/projects.json" <<'JSON'
+{"projects":[{"displayName":"ide","id":"11111111-1111-1111-1111-111111111111","isPinned":true,"lastOpenedAt":"2026-05-09T01:00:00Z","path":"/Users/d0ne1s/ide"}],"schemaVersion":1}
+JSON
+echo "<!-- step7 test marker -->" >> /Users/d0ne1s/ide/VERIFY.md
+pkill -x ide 2>/dev/null; sleep 0.4
+APP=/tmp/ide-build/Build/Products/Debug/ide.app
+IDE_TEST_AUTO_ACTIVATE_INDEX=0 "$APP/Contents/MacOS/ide" >/tmp/ide-stdout.log 2>&1 &
+sleep 4
+./scripts/ide-screenshot.sh /tmp/v-step7-modified.png
+pkill -x ide 2>/dev/null
+git -C /Users/d0ne1s/ide checkout -- VERIFY.md
+rm -f "$HOME/Library/Application Support/ide/projects.json"*
+```
+
+期待: スクショで VERIFY.md の右端に青い `M` バッジが見える（modified ステータス、3 秒 polling で更新）。
+
+### 24. ファイルツリー差分反映（手動 / Phase 2.5）
+
+要件「fs watcher でツリー差分反映」は Phase 2.5 で導入予定。MVP では手動 reload で代替:
+- ターミナルで新規ファイル `touch newfile.txt` を作成
+- ツリーには即時反映されない（FSEvents 未統合）
+- ツリー右上の 🔄 ボタンを押すと再スキャンされて新規ファイルが現れる
+- 新規ファイルなら `?` バッジが付く（次の git status polling サイクル後）

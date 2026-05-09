@@ -5,7 +5,13 @@ import AppKit
 /// CenterPaneView 内で使う想定。閲覧専用、CRUD なし（要件 7）。
 struct FileTreeView: View {
     @ObservedObject var model: FileTreeModel
+    @ObservedObject var gitStatus: GitStatusModel
     @ObservedObject var projects: ProjectsModel = .shared
+
+    init(model: FileTreeModel) {
+        self.model = model
+        self.gitStatus = model.gitStatus
+    }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -122,6 +128,13 @@ struct FileTreeView: View {
             }
 
             Spacer(minLength: 0)
+
+            if let badge = gitStatus.badge(for: node.url) {
+                Text(badge.letter)
+                    .font(.system(size: 11, weight: .semibold, design: .monospaced))
+                    .foregroundStyle(badge.color)
+                    .padding(.trailing, 8)
+            }
         }
         .padding(.horizontal, 8)
         .padding(.vertical, 2)

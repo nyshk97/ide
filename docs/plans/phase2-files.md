@@ -221,11 +221,11 @@ Phase 1 で踏んだ罠を Phase 2 でも同じ轍を踏まないように記録
 - [x] **動作確認**: 自分のリポジトリを開いて構造が見える、トグル切替は手動確認
 
 ### 7. fs watcher + git status バッジ（1日）
-- [ ] FSEvents API でアクティブプロジェクトを監視 → ツリー差分反映
-- [ ] 60秒の差分再スキャン（fallback）+ 手動リロードボタン
-- [ ] `git status --porcelain=v1` の 200ms debounce 結果でファイル単体に M/A/D/?/!! バッジ
-- [ ] 10秒タイムアウト
-- [ ] **動作確認**: ターミナルで `touch newfile && git add -N newfile` するとツリーに `?` が出る
+- [ ] ~~FSEvents API でアクティブプロジェクトを監視 → ツリー差分反映~~（Phase 2.5 へ）
+- [x] ~~60秒の差分再スキャン（fallback）~~ + 手動リロードボタン（リロードボタンのみ実装）
+- [x] `git status --porcelain=v1` の 200ms debounce 結果でファイル単体に M/A/D/?/!! バッジ
+- [x] 10秒タイムアウト
+- [x] **動作確認**: VERIFY.md を編集して保存 → 数秒後にツリーで青 M バッジ
 
 ### 8. ファイルプレビュー（1〜2日）
 - [ ] ツリーでファイルクリック → 中央ペインがプレビューに切替（左サイドバー・右ペインは不変）
@@ -302,6 +302,20 @@ Phase 1 で踏んだ罠を Phase 2 でも同じ轍を踏まないように記録
 - 方針変更: `idealWidth` だけだと初期は均等分割になり左サイドバーが画面の 1/3 を占めた
 - 対応: `maxWidth` を サイドバー 240 / 中央 480 に絞り、右ペイン（ターミナル）だけ無限に伸びる構成に
 - ペイン比率はドラッグ可・保存しないという要件は変えていない（ユーザーが広げたければ広げられる）
+
+### step7: FSEvents 統合でサイレントクラッシュ
+- 想定外の失敗: FileSystemWatcher（FSEvents）と GitStatusModel（DispatchQueue + Task { @MainActor }）を統合した版で、ide が起動直後にサイレント終了する（stderr 無音、DiagnosticReports なし、exit code 6）
+- 切り分けでも特定できなかったため、Phase 2.5 へ FSEvents 統合は先送り
+- 代替: GitStatusModel を Timer.scheduledTimer ベースの 3 秒 polling に切り替え
+  - `Timer` プロパティは `nonisolated(unsafe)` で deinit から触れるようにする
+  - git status の `runGitStatus` / `parsePorcelainV1` 等の static は全部 `nonisolated`
+  - statuses は `[String: Badge]`（URL の == は scheme/baseURL 違いで一致しないので `URL.standardizedFileURL.path` をキーにする）
+- ファイルツリーの差分反映（新規/削除）は今回は手動 reload ボタン頼り、Phase 2.5 で FSEvents を再導入
+
+### step7: SwiftUI の @ObservedObject の場所
+- `.background(GitStatusObserver(model: gitStatus))` のような子 View に @ObservedObject を置いても、外側 body の再描画には伝播しない
+- `FileTreeView` 自身に `@ObservedObject var gitStatus: GitStatusModel` を持たせて init で代入することで解決
+- 子 View で監視していた objectWillChange が外側に伝わらないのは SwiftUI の View tree 評価のスコープ的な仕様
 
 ### step6: 全再帰スキャンが起動を固める
 - 想定外の失敗: 初期実装は project root から再帰的に全 scan → `.git` の数千ファイルでメインスレッドが固まり、起動 2.5 秒待ってもウィンドウが取れない

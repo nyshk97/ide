@@ -21,9 +21,13 @@ final class FileTreeModel: ObservableObject {
     /// 既に scan 済みのディレクトリ（再展開で重複 scan を防ぐ）。
     private var scannedDirs: Set<URL> = []
 
+    /// git status バッジ。3 秒 polling で自動更新。
+    let gitStatus: GitStatusModel
+
     init(project: Project) {
         self.project = project
         self.root = FileNode(url: project.path, isDirectory: true, isSymlink: false)
+        self.gitStatus = GitStatusModel(project: project)
         reload()
     }
 
@@ -34,6 +38,7 @@ final class FileTreeModel: ObservableObject {
         applyIgnored(in: children, parentDir: project.path)
         root.children = children
         scannedDirs.insert(project.path)
+        gitStatus.scheduleRefresh()
         objectWillChange.send()
     }
 
