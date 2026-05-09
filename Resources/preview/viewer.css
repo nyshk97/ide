@@ -1,0 +1,147 @@
+:root {
+  color-scheme: light dark;
+  --fg: #1f2328;
+  --fg-muted: #6e7781;
+  --bg: #ffffff;
+  --border: #d0d7de;
+  --code-bg: #f6f8fa;
+  --link: #0969da;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --fg: #e6edf3;
+    --fg-muted: #8b949e;
+    --bg: #0d1117;
+    --border: #30363d;
+    --code-bg: #161b22;
+    --link: #2f81f7;
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  background: var(--bg);
+  color: var(--fg);
+  font: 13px/1.55 -apple-system, "SF Pro Text", "Helvetica Neue", sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+main {
+  padding: 16px 20px 64px;
+  max-width: 100%;
+}
+
+main.code {
+  padding: 0;
+}
+
+main.code pre {
+  margin: 0;
+  padding: 12px 16px;
+  font: 12px/1.5 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  white-space: pre;
+  overflow-x: auto;
+  background: var(--bg);
+}
+
+/* Markdown 基本スタイル (GitHub に寄せた最小セット) */
+main.md {
+  font-size: 14px;
+}
+main.md h1,
+main.md h2,
+main.md h3,
+main.md h4,
+main.md h5,
+main.md h6 {
+  margin: 1.4em 0 0.6em;
+  font-weight: 600;
+  line-height: 1.25;
+}
+main.md h1 {
+  font-size: 1.8em;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 0.3em;
+}
+main.md h2 {
+  font-size: 1.4em;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 0.3em;
+}
+main.md h3 {
+  font-size: 1.2em;
+}
+main.md p,
+main.md ul,
+main.md ol,
+main.md blockquote,
+main.md pre,
+main.md table {
+  margin: 0.5em 0 1em;
+}
+main.md ul,
+main.md ol {
+  padding-left: 1.6em;
+}
+main.md li + li {
+  margin-top: 0.2em;
+}
+main.md a {
+  color: var(--link);
+  text-decoration: none;
+}
+main.md a:hover {
+  text-decoration: underline;
+}
+main.md code {
+  background: var(--code-bg);
+  padding: 0.15em 0.4em;
+  border-radius: 4px;
+  font: 0.9em/1.4 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+main.md pre {
+  background: var(--code-bg);
+  padding: 12px 14px;
+  border-radius: 6px;
+  overflow-x: auto;
+  font: 12px/1.5 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+main.md pre code {
+  background: transparent;
+  padding: 0;
+  font-size: 1em;
+}
+main.md blockquote {
+  margin-left: 0;
+  padding: 0.2em 0.9em;
+  color: var(--fg-muted);
+  border-left: 3px solid var(--border);
+}
+main.md table {
+  border-collapse: collapse;
+}
+main.md th,
+main.md td {
+  border: 1px solid var(--border);
+  padding: 6px 10px;
+}
+main.md hr {
+  border: none;
+  border-top: 1px solid var(--border);
+  margin: 1.6em 0;
+}
+main.md img {
+  max-width: 100%;
+}
+
+main.error {
+  padding: 24px;
+  color: var(--fg-muted);
+}

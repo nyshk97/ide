@@ -9,8 +9,13 @@ struct FilePreviewView: View {
     let url: URL
     let onClose: () -> Void
 
-    /// 5MB 超を「読み込む」ボタンで明示確認するための state。
+    /// 5MB 超を「読み込む」ボタンで明示確認するための state。url が変わるたびリセット。
     @State private var forceLoadLarge = false
+
+    /// 非同期で分類した結果。url 変更直後は nil で、その間は前の表示を維持して
+    /// 「真っ白な瞬間」を作らない（小さいファイルなら 1〜2 frame で確定する）。
+    @State private var kind: FilePreviewKind?
+    @State private var loadedURL: URL?
 
     var body: some View {
         VStack(spacing: 0) {
@@ -20,6 +25,18 @@ struct FilePreviewView: View {
                 content
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
+        }
+        .task(id: url) {
+            forceLoadLarge = false
+            // 同じ url が連続で渡る（履歴で同ファイルに戻る等）はスキップ
+            if loadedURL == url, kind != nil { return }
+            let target = url
+            let result = await Task.detached(priority: .userInitiated) {
+                FilePreviewClassifier.classify(target)
+            }.value
+            if Task.isCancelled { return }
+            self.kind = result
+            self.loadedURL = target
         }
     }
 
@@ -72,33 +89,47 @@ struct FilePreviewView: View {
 
     @ViewBuilder
     private var content: some View {
-        let kind = FilePreviewClassifier.classify(url)
-        switch kind {
-        case .code(let data, _):
-            CodePreview(data: data)
-        case .markdown(let text):
-            MarkdownPreview(text: text)
-        case .image:
-            ImagePreview(url: url)
-        case .pdf:
-            PDFPreview(url: url)
-        case .binary:
-            externalPrompt(message: "バイナリファイルです（プレビュー非対応）")
-        case .tooLarge(let bytes):
-            if forceLoadLarge {
-                CodePreview(data: (try? Data(contentsOf: url)) ?? Data())
-            } else {
-                largeFilePrompt(bytes: bytes)
+        // 分類待ちの一瞬は前回の WebView 表示をそのまま見せたいので、
+        // 何も描画しない（透明）。SwiftUI が前 frame を保持する。
+        if let kind = (loadedURL == url) ? kind : nil {
+            switch kind {
+            case .code(let data, _):
+                webPreview(payload: codePayload(data: data))
+            case .markdown(let text):
+                webPreview(payload: PreviewPayload(kind: .markdown, text: text, lang: ""))
+            case .image:
+                ImagePreview(url: url)
+            case .pdf:
+                PDFPreview(url: url)
+            case .binary:
+                externalPrompt(message: "バイナリファイルです（プレビュー非対応）")
+            case .tooLarge(let bytes):
+                if forceLoadLarge {
+                    webPreview(payload: codePayload(data: (try? Data(contentsOf: url)) ?? Data()))
+                } else {
+                    largeFilePrompt(bytes: bytes)
+                }
+            case .external:
+                externalPrompt(message: "ファイルサイズが大きいか UTF-8 でないため外部で開いてください")
+            case .error(let msg):
+                VStack {
+                    Spacer()
+                    Text(msg).foregroundStyle(.secondary)
+                    Spacer()
+                }
             }
-        case .external:
-            externalPrompt(message: "ファイルサイズが大きいか UTF-8 でないため外部で開いてください")
-        case .error(let msg):
-            VStack {
-                Spacer()
-                Text(msg).foregroundStyle(.secondary)
-                Spacer()
-            }
+        } else {
+            Color.clear
         }
+    }
+
+    private func webPreview(payload: PreviewPayload) -> some View {
+        PreviewWebView(payload: payload)
+    }
+
+    private func codePayload(data: Data) -> PreviewPayload {
+        let text = String(data: data, encoding: .utf8) ?? "(decode failed)"
+        return PreviewPayload(kind: .code, text: text, lang: PreviewLanguage.guess(from: url))
     }
 
     private func externalPrompt(message: String) -> some View {
@@ -147,53 +178,57 @@ struct FilePreviewView: View {
     }
 }
 
+// MARK: - 拡張子から highlight.js 用の言語名を推定
+
+enum PreviewLanguage {
+    static func guess(from url: URL) -> String {
+        let ext = url.pathExtension.lowercased()
+        if let v = byExt[ext] { return v }
+        // 拡張子のない有名ファイル
+        switch url.lastPathComponent {
+        case "Dockerfile": return "dockerfile"
+        case "Makefile": return "makefile"
+        case "Brewfile", "Gemfile", "Rakefile", "Podfile": return "ruby"
+        default: return ""
+        }
+    }
+
+    private static let byExt: [String: String] = [
+        "swift": "swift",
+        "py": "python",
+        "js": "javascript", "mjs": "javascript", "cjs": "javascript", "jsx": "javascript",
+        "ts": "typescript", "tsx": "typescript",
+        "go": "go",
+        "rs": "rust",
+        "rb": "ruby",
+        "yml": "yaml", "yaml": "yaml",
+        "json": "json", "json5": "json",
+        "toml": "toml",
+        "sh": "bash", "bash": "bash", "zsh": "bash",
+        "html": "xml", "htm": "xml",
+        "xml": "xml", "plist": "xml", "svg": "xml",
+        "css": "css",
+        "scss": "scss", "sass": "scss", "less": "less",
+        "c": "c", "h": "c",
+        "cpp": "cpp", "cc": "cpp", "cxx": "cpp", "hpp": "cpp", "hh": "cpp", "hxx": "cpp",
+        "m": "objectivec", "mm": "objectivec",
+        "java": "java",
+        "kt": "kotlin", "kts": "kotlin",
+        "php": "php",
+        "sql": "sql",
+        "lua": "lua",
+        "pl": "perl",
+        "dart": "dart",
+        "zig": "zig",
+        "ini": "ini", "conf": "ini",
+        "diff": "diff", "patch": "diff",
+        "dockerfile": "dockerfile",
+        "graphql": "graphql", "gql": "graphql",
+        "tf": "hcl", "hcl": "hcl",
+    ]
+}
+
 // MARK: - 種別ごとのレンダリング
-
-private struct CodePreview: NSViewRepresentable {
-    let data: Data
-
-    func makeNSView(context: Context) -> NSScrollView {
-        let scrollView = NSTextView.scrollableTextView()
-        if let textView = scrollView.documentView as? NSTextView {
-            textView.isEditable = false
-            textView.isSelectable = true
-            textView.font = .monospacedSystemFont(ofSize: 12, weight: .regular)
-            textView.drawsBackground = false
-            textView.textContainerInset = NSSize(width: 8, height: 8)
-        }
-        return scrollView
-    }
-
-    func updateNSView(_ scrollView: NSScrollView, context: Context) {
-        guard let textView = scrollView.documentView as? NSTextView else { return }
-        let text = String(data: data, encoding: .utf8) ?? "(decode failed)"
-        textView.string = text
-    }
-}
-
-private struct MarkdownPreview: View {
-    let text: String
-
-    var body: some View {
-        ScrollView {
-            // AttributedString.init(markdown:) は inline のみだが MVP として十分。
-            // ブロック（見出し、リスト等）は素朴にプレーン表示でいく。
-            if let attributed = try? AttributedString(
-                markdown: text,
-                options: AttributedString.MarkdownParsingOptions(interpretedSyntax: .inlineOnlyPreservingWhitespace)
-            ) {
-                Text(attributed)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .textSelection(.enabled)
-            } else {
-                Text(text)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .textSelection(.enabled)
-            }
-        }
-        .padding(12)
-    }
-}
 
 private struct ImagePreview: View {
     let url: URL

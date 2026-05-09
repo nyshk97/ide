@@ -7,6 +7,9 @@ struct IdeApp: App {
         PocLog.reset()
         GhosttyManager.shared.start()
         MRUKeyMonitor.install()
+        // ファイルプレビュー用 WKWebView を pre-warm。起動時に
+        // 1 度ロードしておくと、最初のクリックから表示までを短縮できる。
+        PreviewWebController.shared.prewarm()
     }
 
     var body: some Scene {

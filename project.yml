@@ -23,6 +23,9 @@ targets:
     sources:
       - Sources/ide
       - Resources/Assets.xcassets
+      - path: Resources/preview
+        type: folder
+        buildPhase: resources
     dependencies:
       - framework: GhosttyKit.xcframework
         embed: false

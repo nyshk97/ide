@@ -1,0 +1,140 @@
+(function () {
+  "use strict";
+
+  const root = document.getElementById("root");
+  let pending = null;
+  let ready = false;
+
+  function escapeHtml(s) {
+    return s
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#39;");
+  }
+
+  function setTheme(theme) {
+    // theme: "light" | "dark" | "auto"
+    const light = document.getElementById("hl-light");
+    const dark = document.getElementById("hl-dark");
+    if (!light || !dark) return;
+    const useDark =
+      theme === "dark" ||
+      (theme !== "light" &&
+        window.matchMedia("(prefers-color-scheme: dark)").matches);
+    light.disabled = useDark;
+    dark.disabled = !useDark;
+  }
+
+  function renderCode(text, lang) {
+    root.className = "code";
+    let html;
+    try {
+      if (lang && window.hljs && window.hljs.getLanguage(lang)) {
+        html = window.hljs.highlight(text, { language: lang, ignoreIllegals: true }).value;
+      } else if (window.hljs) {
+        html = window.hljs.highlightAuto(text).value;
+      } else {
+        html = escapeHtml(text);
+      }
+    } catch (e) {
+      html = escapeHtml(text);
+    }
+    root.innerHTML = '<pre class="hljs"><code>' + html + "</code></pre>";
+    window.scrollTo(0, 0);
+  }
+
+  function renderMarkdown(text) {
+    root.className = "md";
+    let html;
+    try {
+      if (window.marked) {
+        window.marked.setOptions({
+          gfm: true,
+          breaks: false,
+          highlight: function (code, lang) {
+            try {
+              if (lang && window.hljs && window.hljs.getLanguage(lang)) {
+                return window.hljs.highlight(code, { language: lang, ignoreIllegals: true }).value;
+              }
+              if (window.hljs) {
+                return window.hljs.highlightAuto(code).value;
+              }
+            } catch (e) {}
+            return escapeHtml(code);
+          },
+        });
+        html = window.marked.parse(text);
+      } else {
+        html = "<pre>" + escapeHtml(text) + "</pre>";
+      }
+    } catch (e) {
+      html = "<pre>" + escapeHtml(text) + "</pre>";
+    }
+    root.innerHTML = html;
+    // marked v12 の highlight オプションは廃止予定なので、念のためフォールバックで再ハイライト
+    if (window.hljs) {
+      root.querySelectorAll("pre code").forEach(function (el) {
+        if (!el.dataset.highlighted) {
+          try {
+            window.hljs.highlightElement(el);
+          } catch (e) {}
+          el.dataset.highlighted = "yes";
+        }
+      });
+    }
+    window.scrollTo(0, 0);
+  }
+
+  function renderError(message) {
+    root.className = "error";
+    root.textContent = message || "(error)";
+  }
+
+  function apply(payload) {
+    if (!payload) return;
+    if (payload.theme) setTheme(payload.theme);
+    switch (payload.kind) {
+      case "markdown":
+        renderMarkdown(payload.text || "");
+        break;
+      case "code":
+        renderCode(payload.text || "", payload.lang || "");
+        break;
+      case "error":
+        renderError(payload.text || "");
+        break;
+      default:
+        renderError("unknown kind: " + payload.kind);
+    }
+  }
+
+  window.viewer = {
+    set: function (payload) {
+      if (!ready) {
+        pending = payload;
+        return;
+      }
+      apply(payload);
+    },
+    isReady: function () {
+      return ready;
+    },
+  };
+
+  // marked / hljs は defer なので DOMContentLoaded を待つ
+  document.addEventListener("DOMContentLoaded", function () {
+    ready = true;
+    if (pending) {
+      const p = pending;
+      pending = null;
+      apply(p);
+    }
+    if (window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.viewerReady) {
+      try {
+        window.webkit.messageHandlers.viewerReady.postMessage("ready");
+      } catch (e) {}
+    }
+  });
+})();
