@@ -1,5 +1,6 @@
 import AppKit
 import GhosttyKit
+import UniformTypeIdentifiers
 
 // MARK: - 書き込み（コピー）
 
@@ -47,7 +48,19 @@ func ghosttyReadClipboardCallback(
     state: UnsafeMutableRawPointer?
 ) -> Bool {
     let pb = pasteboard(for: location)
-    let content = pb.string(forType: .string) ?? ""
+
+    // テキストが入っていればそれを優先（通常のペースト）。
+    // 空文字列ではなく nil の場合だけ画像にフォールバックする。
+    let content: String
+    if let text = pb.string(forType: .string), !text.isEmpty {
+        content = text
+    } else if let imagePath = saveClipboardImageIfNeeded(from: pb) {
+        // 画像がクリップボードにあれば一時ファイルに保存し、シェルエスケープしたパスを返す。
+        // Claude Code はパスを画像として認識してくれる。
+        content = imagePath
+    } else {
+        content = ""
+    }
 
     // TODO step5（複数タブ）: 現在はグローバル surface を使う雑実装。
     //                       本来は userdata or state から該当 surface を解決する。
@@ -81,4 +94,81 @@ private func pasteboard(for location: ghostty_clipboard_e) -> NSPasteboard {
     // macOS には X11 風の "selection" クリップボードはないため一般 PB に集約。
     // 必要なら NSPasteboard(name: .find) 等への切替も検討可。
     return .general
+}
+
+// MARK: - 画像ペースト対応
+
+/// クリップボードに画像があれば一時ファイルに書き出してシェルエスケープ済みのパスを返す。
+/// Claude Code は `/tmp/clipboard-...png` のようなパスを画像として認識する。
+private func saveClipboardImageIfNeeded(from pb: NSPasteboard) -> String? {
+    guard let (data, ext) = clipboardImageRepresentation(in: pb) else { return nil }
+
+    let formatter = DateFormatter()
+    formatter.dateFormat = "yyyy-MM-dd-HHmmss"
+    formatter.locale = Locale(identifier: "en_US_POSIX")
+    let timestamp = formatter.string(from: Date())
+    let filename = "clipboard-\(timestamp)-\(UUID().uuidString.prefix(8)).\(ext)"
+    let url = FileManager.default.temporaryDirectory.appendingPathComponent(filename)
+
+    do {
+        try data.write(to: url)
+    } catch {
+        PocLog.write("[clipboard] image write failed: \(error.localizedDescription)")
+        return nil
+    }
+
+    return shellEscape(url.path)
+}
+
+/// クリップボードから画像データと拡張子を取り出す。
+/// PNG をそのまま使えるならそれを優先し、ダメなら NSImage 経由で PNG に変換する。
+private func clipboardImageRepresentation(in pb: NSPasteboard) -> (Data, String)? {
+    let types = pb.types ?? []
+
+    if let pngData = pb.data(forType: .png) {
+        return (pngData, "png")
+    }
+
+    for type in types {
+        guard type != .png, type != .tiff,
+              let utType = UTType(type.rawValue),
+              utType.conforms(to: .image),
+              let data = pb.data(forType: type),
+              let ext = utType.preferredFilenameExtension,
+              !ext.isEmpty else { continue }
+        return (data, ext)
+    }
+
+    // TIFF / その他のフォーマットを NSImage で読み直して PNG にする
+    guard hasImageData(in: pb),
+          let image = NSImage(pasteboard: pb),
+          let tiff = image.tiffRepresentation,
+          let bitmap = NSBitmapImageRep(data: tiff),
+          let png = bitmap.representation(using: .png, properties: [:]) else {
+        return nil
+    }
+    return (png, "png")
+}
+
+private func hasImageData(in pb: NSPasteboard) -> Bool {
+    let types = pb.types ?? []
+    if types.contains(.tiff) || types.contains(.png) { return true }
+    return types.contains { type in
+        guard let utType = UTType(type.rawValue) else { return false }
+        return utType.conforms(to: .image)
+    }
+}
+
+/// シェルにそのまま貼り付けても 1 引数として解釈されるようにエスケープする。
+private func shellEscape(_ value: String) -> String {
+    if value.contains(where: { $0 == "\n" || $0 == "\r" }) {
+        let escaped = value.replacingOccurrences(of: "'", with: "'\\''")
+        return "'\(escaped)'"
+    }
+    let charsToEscape = "\\ ()[]{}<>\"'`!#$&;|*?\t"
+    var result = value
+    for ch in charsToEscape {
+        result = result.replacingOccurrences(of: String(ch), with: "\\\(ch)")
+    }
+    return result
 }
