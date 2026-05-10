@@ -10,6 +10,7 @@ import AppKit
 /// 永続化と missing 表示は step3、ドラッグ並び替えは step3 以降。
 struct LeftSidebarView: View {
     @ObservedObject var projects: ProjectsModel = .shared
+    @State private var editingProject: Project?
 
     var body: some View {
         VStack(spacing: 0) {
@@ -19,6 +20,16 @@ struct LeftSidebarView: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .background(Color(nsColor: .underPageBackgroundColor))
+        .sheet(item: $editingProject) { project in
+            ProjectEditSheet(
+                project: project,
+                onSave: { name, colorKey in
+                    projects.update(project, displayName: name, colorKey: colorKey)
+                    editingProject = nil
+                },
+                onCancel: { editingProject = nil }
+            )
+        }
     }
 
     private var header: some View {
@@ -73,7 +84,8 @@ struct LeftSidebarView: View {
             ProjectAvatarView(
                 name: project.displayName,
                 colorKey: project.colorKey,
-                isMissing: missing
+                isMissing: missing,
+                size: 18
             )
             Text(project.displayName)
                 .font(.system(size: 12, weight: project.isPinned ? .semibold : .regular))
@@ -87,7 +99,7 @@ struct LeftSidebarView: View {
             }
         }
         .padding(.horizontal, 8)
-        .padding(.vertical, 3)
+        .padding(.vertical, 5)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(isActive ? Color.accentColor.opacity(0.25) : Color.clear)
         .opacity(missing ? 0.55 : 1.0)
@@ -101,12 +113,8 @@ struct LeftSidebarView: View {
             Button(project.isPinned ? "ピン解除" : "ピン留め") {
                 projects.togglePin(project)
             }
-            Menu("色を変更") {
-                Button("自動") { projects.setColorKey(nil, for: project) }
-                Divider()
-                ForEach(ProjectColor.allCases) { c in
-                    Button(c.label) { projects.setColorKey(c.rawValue, for: project) }
-                }
+            Button("編集…") {
+                editingProject = project
             }
             if missing {
                 Button("再選択…") {

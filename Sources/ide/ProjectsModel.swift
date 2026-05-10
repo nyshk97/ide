@@ -295,20 +295,29 @@ final class ProjectsModel: ObservableObject {
         if activeProject?.id == p.id { activeProject = p }
     }
 
-    // MARK: - 色変更
+    // MARK: - メタ情報の編集（名前・色）
 
-    /// プロジェクトのアバター色を変更する。`key` が nil なら自動色に戻す。
+    /// プロジェクトの表示名と色をまとめて更新する。
     /// pinned に含まれていれば persist する（temporary は閉じれば消えるので保存しない）。
-    func setColorKey(_ key: String?, for project: Project) {
+    /// `displayName` が空白のみの場合は path の lastPathComponent にフォールバック。
+    func update(_ project: Project, displayName: String, colorKey: String?) {
+        let trimmed = displayName.trimmingCharacters(in: .whitespacesAndNewlines)
+        let resolvedName = trimmed.isEmpty ? project.path.lastPathComponent : trimmed
+
+        let apply: (inout Project) -> Void = { p in
+            p.displayName = resolvedName
+            p.colorKey = colorKey
+        }
+
         if let idx = pinned.firstIndex(where: { $0.id == project.id }) {
-            pinned[idx].colorKey = key
-            if activeProject?.id == project.id { activeProject?.colorKey = key }
+            apply(&pinned[idx])
+            if activeProject?.id == project.id { apply(&activeProject!) }
             persist()
             return
         }
         if let idx = temporary.firstIndex(where: { $0.id == project.id }) {
-            temporary[idx].colorKey = key
-            if activeProject?.id == project.id { activeProject?.colorKey = key }
+            apply(&temporary[idx])
+            if activeProject?.id == project.id { apply(&activeProject!) }
         }
     }
 
