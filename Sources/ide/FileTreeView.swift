@@ -11,6 +11,9 @@ struct FileTreeView: View {
     /// ファイル（=ディレクトリ以外）をクリックしたときの callback（プレビュー切替用）。
     let onSelectFile: (URL) -> Void
 
+    /// マウスオーバー中のノード。背景色強調に使う。
+    @State private var hoveredNodeID: FileNode.ID?
+
     init(model: FileTreeModel, onSelectFile: @escaping (URL) -> Void = { _ in }) {
         self.model = model
         self.gitStatus = model.gitStatus
@@ -93,7 +96,9 @@ struct FileTreeView: View {
     }
 
     private func rowView(node: FileNode, depth: Int, isExpanded: Bool) -> some View {
-        HStack(spacing: 4) {
+        let isHovered = hoveredNodeID == node.id
+        let isSelected = model.selectedURL?.standardizedFileURL == node.url.standardizedFileURL
+        return HStack(spacing: 4) {
             // インデント
             Spacer().frame(width: CGFloat(depth) * 14)
 
@@ -145,6 +150,14 @@ struct FileTreeView: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .opacity(node.isIgnored ? 0.45 : 1.0)
         .contentShape(Rectangle())
+        .background(rowBackground(isHovered: isHovered, isSelected: isSelected))
+        .onHover { hovering in
+            if hovering {
+                hoveredNodeID = node.id
+            } else if hoveredNodeID == node.id {
+                hoveredNodeID = nil
+            }
+        }
         .onTapGesture {
             if node.isDirectory && !node.isSymlink {
                 model.toggleExpanded(node.url)
@@ -155,6 +168,21 @@ struct FileTreeView: View {
         .contextMenu {
             Button("相対パスをコピー") { copyRelativePath(node) }
             Button("ターミナルで開く") { openInTerminal(node) }
+        }
+    }
+
+    /// ホバー / 選択中の背景色。VS Code の Explorer 風に薄グレーで全幅塗る。
+    /// 選択中は少し濃く、ホバーと重なる場合はさらに濃くする。
+    @ViewBuilder
+    private func rowBackground(isHovered: Bool, isSelected: Bool) -> some View {
+        if isSelected && isHovered {
+            Color.primary.opacity(0.14)
+        } else if isSelected {
+            Color.primary.opacity(0.10)
+        } else if isHovered {
+            Color.primary.opacity(0.06)
+        } else {
+            Color.clear
         }
     }
 

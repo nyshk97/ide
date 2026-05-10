@@ -18,6 +18,9 @@ final class FileTreeModel: ObservableObject {
     /// `.gitignore` 対象を完全に隠すかどうか。デフォルトは false（薄表示で見せる）。
     @Published var hideIgnored: Bool = false
 
+    /// 最後にプレビューで開いた URL。プレビューを閉じても残し、ツリー行を薄く強調する。
+    @Published var selectedURL: URL?
+
     /// 既に scan 済みのディレクトリ（再展開で重複 scan を防ぐ）。
     private var scannedDirs: Set<URL> = []
 
