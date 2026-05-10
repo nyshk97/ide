@@ -4,19 +4,19 @@
 set -euo pipefail
 
 WAIT="${1:-3}"
-APP=/tmp/ide-build/Build/Products/Debug/ide.app
+APP=/tmp/ide-build/Build/Products/Debug/IDE.app
 
 if [[ ! -d "$APP" ]]; then
   echo "error: $APP がない。先に mise run build を実行する" >&2
   exit 1
 fi
 
-pkill -x ide >/dev/null 2>&1 || true
+pkill -x IDE >/dev/null 2>&1 || true
 sleep 0.5
 open -n "$APP"
 sleep "$WAIT"
 
-if ! pgrep -f "ide.app/Contents/MacOS/ide" >/dev/null 2>&1; then
-  echo "error: ide が起動していない" >&2
+if ! pgrep -f "IDE.app/Contents/MacOS/IDE" >/dev/null 2>&1; then
+  echo "error: IDE が起動していない" >&2
   exit 1
 fi

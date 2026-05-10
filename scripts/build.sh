@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Release 版 ide.app をアーカイブして build/ide.zip に出力する。
+# Release 版 IDE.app をアーカイブして build/ide.zip に出力する。
 # brew cask 配布用。ad-hoc 署名（Apple Developer Program なし）。
 set -euo pipefail
 
@@ -36,7 +36,7 @@ echo "==> Packaging..."
 mkdir -p "$OUTPUT_DIR"
 rm -f "$OUTPUT_DIR/ide.zip"
 cd "$EXPORT_PATH"
-zip -r -q "$OUTPUT_DIR/ide.zip" ide.app
+zip -r -q "$OUTPUT_DIR/ide.zip" IDE.app
 
 echo "==> Done: $OUTPUT_DIR/ide.zip"
 shasum -a 256 "$OUTPUT_DIR/ide.zip"

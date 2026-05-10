@@ -14,9 +14,9 @@ fi
 
 echo "==> Installing to /Applications..."
 cd /tmp
-rm -rf ide.app
+rm -rf IDE.app
 unzip -q -o "$ZIP_PATH"
-rm -rf /Applications/ide.app
-mv ide.app /Applications/
+rm -rf /Applications/IDE.app
+mv IDE.app /Applications/
 
-echo "==> Done: /Applications/ide.app"
+echo "==> Done: /Applications/IDE.app"

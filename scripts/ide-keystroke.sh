@@ -20,7 +20,7 @@ done
 
 osascript <<EOF
 tell application "System Events"
-  tell process "ide"
+  tell process "IDE"
     set frontmost to true
   end tell
   delay 0.2
