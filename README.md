@@ -1,6 +1,10 @@
-# ide
+# IDE
 
 **cmux + Ghostty + yazi + git-watch + Claude Code** を 1 つのアプリにまとめた macOS 用 IDE。
+
+![IDE の画面](./docs/images/overview.png)
+
+左から **プロジェクトサイドバー** / **ファイルツリー + プレビュー** / **Ghostty 統合ターミナル**（上下 2 ペイン × 複数タブ）の 3 カラム構成。
 
 主に自分（[@d0ne1s](https://github.com/d0ne1s)）が日常で使うために作っているツールです。気になる人は自由に使ったり改造したりして OK ですが、issue / PR は基本的に対応しないので fork 推奨です。
 
@@ -9,11 +13,7 @@
 
 ---
 
-## 何ができるのか
-
-![ide の画面](./docs/images/overview.png)
-
-左から **プロジェクトサイドバー** / **ファイルツリー + プレビュー** / **Ghostty 統合ターミナル**（上下 2 ペイン × 複数タブ）の 3 カラム構成。
+## 主な機能
 
 - **Ghostty 統合ターミナル** — 上下 2 ペイン × 複数タブ。`~/.config/ghostty/config` をそのまま継承。IME・URL リンク化・AI 種別バッジ（Claude / Codex 検知）・BEL 通知付き
 - **プロジェクト管理** — ピン留め永続化 / 一時プロジェクト / `Ctrl+M` で MRU 切替（vim や claude の中でも握る）/ アバター + 色タグ / missing 検知
