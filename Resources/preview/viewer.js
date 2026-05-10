@@ -27,6 +27,35 @@
     dark.disabled = !useDark;
   }
 
+  // ハイライト済み HTML を行単位で <span class="line"> ラップする。
+  // 複数行 span（多行コメント・ヒアドキュメント等）にまたがる場合は
+  // 行末で開いている span を一旦閉じ、次の行で同じ属性の span を開き直して整合を保つ。
+  function wrapLines(html) {
+    const lines = html.split("\n");
+    const out = [];
+    let openTags = []; // 例: ['<span class="hljs-comment">']
+    const tagRE = /<span\b[^>]*>|<\/span>/g;
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+      const prefix = openTags.join("");
+      let cur = openTags.slice();
+      let m;
+      tagRE.lastIndex = 0;
+      while ((m = tagRE.exec(line)) !== null) {
+        if (m[0] === "</span>") {
+          cur.pop();
+        } else {
+          cur.push(m[0]);
+        }
+      }
+      const suffix = "</span>".repeat(cur.length);
+      out.push('<span class="line">' + prefix + line + suffix + "</span>");
+      openTags = cur;
+    }
+    // 各 .line は display:block で改行を作るため、\n は入れない（入れると二重改行になる）
+    return out.join("");
+  }
+
   function renderCode(text, lang) {
     root.className = "code";
     let html;
@@ -41,7 +70,12 @@
     } catch (e) {
       html = escapeHtml(text);
     }
-    root.innerHTML = '<pre class="hljs"><code>' + html + "</code></pre>";
+    const wrapped = wrapLines(html);
+    // 行番号カラム幅を桁数に応じて可変。ファイル末尾の改行で 1 行余分に数えないよう調整。
+    const lineCount = Math.max(1, html.split("\n").length - (html.endsWith("\n") ? 1 : 0));
+    const digits = Math.max(2, String(lineCount).length);
+    root.innerHTML =
+      '<pre class="hljs" style="--ln-digits:' + digits + '"><code>' + wrapped + "</code></pre>";
     window.scrollTo(0, 0);
   }
 

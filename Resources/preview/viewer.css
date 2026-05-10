@@ -44,11 +44,44 @@ main.code {
 
 main.code pre {
   margin: 0;
-  padding: 12px 16px;
+  padding: 12px 0;
   font: 12px/1.5 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   white-space: pre;
   overflow-x: auto;
   background: var(--bg);
+  /* --ln-digits は viewer.js が行数桁数に応じて埋め込む */
+  --ln-digits: 3;
+  --ln-gutter: calc(var(--ln-digits) * 1ch + 1em);
+  --ln-gap: 0.9em;
+  counter-reset: line;
+  tab-size: 4;
+}
+
+main.code pre code {
+  display: block;
+}
+
+main.code pre code .line {
+  display: block;
+  counter-increment: line;
+  padding-left: calc(var(--ln-gutter) + var(--ln-gap));
+  padding-right: 16px;
+  position: relative;
+}
+
+main.code pre code .line::before {
+  content: counter(line);
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: var(--ln-gutter);
+  padding-right: 0.5em;
+  text-align: right;
+  color: var(--fg-muted);
+  opacity: 0.5;
+  border-right: 1px solid var(--border);
+  user-select: none;
+  -webkit-user-select: none;
 }
 
 /* Markdown 基本スタイル (GitHub に寄せた最小セット) */
