@@ -24,12 +24,17 @@ struct MRUOverlayView: View {
     }
 
     private func row(project: Project, isSelected: Bool) -> some View {
-        HStack(spacing: 8) {
-            Image(systemName: project.isPinned ? "pin.fill" : "folder")
-                .foregroundStyle(project.isPinned ? .orange : .secondary)
-                .frame(width: 16)
+        let missing = project.isMissing
+        return HStack(spacing: 8) {
+            ProjectAvatarView(
+                name: project.displayName,
+                colorKey: project.colorKey,
+                isMissing: missing,
+                size: 22
+            )
             VStack(alignment: .leading, spacing: 2) {
                 Text(project.displayName)
+                    .font(.system(size: 13, weight: project.isPinned ? .semibold : .regular))
                     .lineLimit(1)
                 Text(project.path.path)
                     .font(.caption)
@@ -38,10 +43,16 @@ struct MRUOverlayView: View {
                     .truncationMode(.middle)
             }
             Spacer(minLength: 0)
+            if missing {
+                Image(systemName: "exclamationmark.triangle.fill")
+                    .font(.system(size: 10))
+                    .foregroundStyle(.yellow)
+            }
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 8)
         .background(isSelected ? Color.accentColor.opacity(0.30) : Color.clear)
         .clipShape(RoundedRectangle(cornerRadius: 6))
+        .opacity(missing ? 0.55 : 1.0)
     }
 }
