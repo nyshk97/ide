@@ -4,16 +4,14 @@
 
 現状の開発環境（cmux + Ghostty + yazi + git-watch + Claude Code）から、自作のオリジナル開発環境に移行したい。Mac でだけ使えればいい。
 
-**自分専用ツール**として作る。配布・署名・自動更新・他ユーザー対応は考慮しない（ローカルビルドのみで運用）。
+**主に自分が使うためのツール**として作る。配布は ad-hoc 署名で homebrew tap 経由（[nyshk97/homebrew-tap](https://github.com/nyshk97/homebrew-tap)）に置くが、自動更新・他ユーザー向けの動作保証はしない。
 
-### 想定スタック（PoC 通過前提）
+### 採用スタック
 - **Swift + libghostty + SwiftUI**
 - ターミナル: **libghostty** を組み込んで Ghostty 設定（`~/.config/ghostty/config`）を継承
 - ファイル系UI（ツリー・検索・プレビュー）: SwiftUI
-- シンタックスハイライト: NSTextView + tree-sitter（または Highlightr）
+- シンタックスハイライト: WKWebView + highlight.js（Phase 2 で NSTextView から置換）
 - 参考実装: [cmux](https://github.com/manaflow-ai/cmux) のソース
-
-PoC で libghostty 統合が詰まった場合は **Tauri + xterm.js + CodeMirror 6 + portable-pty** にフォールバック。
 
 参考: [Cursorからcmux/Claude Codeへの移行構成](https://zenn.dev/d0ne1s/articles/7adbd3a3d54b1d)
 
@@ -58,20 +56,20 @@ PoC で libghostty 統合が詰まった場合は **Tauri + xterm.js + CodeMirro
 
 ```
 ┌─────────────────┐
-│ ＋ 新規追加     │
-├─────────────────┤
 │ 📌 project-A    │  ← ピン留め（手動並び替え）
 │ 📌 project-B    │
 │ 📌 project-C    │
 ├─────────────────┤
-│    tmp-D        │  ← 一時プロジェクト（MRU順）
+│    tmp-D        │  ← 一時プロジェクト（追加順 / 手動並び替え）
 │    tmp-E        │
+├─────────────────┤
+│ ＋ 新規追加     │  ← 下部に固定
 └─────────────────┘
 ```
 
 ### プロジェクトを追加する
-- サイドバー上部の **「＋」ボタン → フォルダ選択ダイアログ** で追加
-- 追加直後は**一時プロジェクト**としてサイドバー下部に表示される
+- サイドバー下部の **「＋」ボタン → フォルダ選択ダイアログ** で追加
+- 追加直後は**一時プロジェクト**として一時セクションの末尾に表示され、自動でアクティブになる
 - ユーザーが**ピン留め**するとピン留めセクションへ移動して手動並び替え可能になる
 
 ### ピン留め
@@ -80,7 +78,7 @@ PoC で libghostty 統合が詰まった場合は **Tauri + xterm.js + CodeMirro
 
 ### 一時プロジェクト
 - 明示的に「閉じる」操作（右クリックメニュー等）をしない限りサイドバーに残る
-- 再起動後も MRU 順を保ったまま復元される
+- 再起動後も並び順を保ったまま復元される（ピン留めと一時の双方を永続化）
 
 ### 永続化対象
 - **pinned / temporary 両方を永続化する**。明示的に閉じない限り消えない
@@ -118,7 +116,7 @@ PoC で libghostty 統合が詰まった場合は **Tauri + xterm.js + CodeMirro
 ### 初回起動 UX
 保存済みプロジェクトがゼロのときの状態：
 
-- サイドバーは**空状態**で、上部の「+」ボタンを**目立たせる**
+- サイドバーは**空状態**で、下部の「+」ボタンを**目立たせる**
 - 中央ペインに「フォルダを追加して始めよう」程度の**案内テキスト**を表示
 - 一度プロジェクトを追加したら案内は消える
 
@@ -300,7 +298,7 @@ VSCode の Cmd+P 同等の挙動。
 
 ### 6.2 Cmd+Shift+F 全文検索（grep）
 
-VSCode と同等。**ripgrep** を内部で使用。
+VSCode と同等。現状は macOS 標準の `grep` を使用。バンドルされた `ripgrep` への切替は Phase 2.5 で対応予定。
 
 - スコープ: アクティブプロジェクト内のみ
 - 検索ポリシーは Cmd+P と同じ（隠しファイル含める／`.gitignore` 対象は除外、トグルで切替可）
@@ -340,7 +338,7 @@ VSCode と同等。**ripgrep** を内部で使用。
 #### 各形式の表示
 | 形式 | 表示方法 |
 |---|---|
-| コード（汎用） | **NSTextView + tree-sitter**（または Highlightr）でシンタックスハイライト付き読込専用表示 |
+| コード（汎用） | **WKWebView + highlight.js** で読込専用のシンタックスハイライト表示（Phase 2 で NSTextView から置換、起動高速化のため pre-warm 済み） |
 | Markdown | **レンダリング済みプレビューのみ**（grip/mo の代替） |
 | 画像（png/jpg/gif/svg/webp） | 標準ビューワー |
 | PDF | 標準ビューワー（あるいは外部アプリ起動） |
@@ -472,15 +470,7 @@ Dropbox 配下のディレクトリをプロジェクトとして扱うことが
 
 ---
 
-## 9. 未確定事項（次に詰める論点）
-
-| カテゴリ | 論点 |
-|---|---|
-| 実装プラットフォーム | **Swift + libghostty + SwiftUI に確定**（PoC 通過前提）。ターミナルは libghostty 組み込みで Ghostty 設定継承、ファイル系UIは SwiftUI、シンタックスハイライトは tree-sitter / Highlightr。PoC が詰まった場合は Tauri + xterm.js + CodeMirror 6 にフォールバック |
-
----
-
-## 10. 既存資産との関係（参考）
+## 9. 既存資産との関係（参考）
 
 | 既存資産 | 扱い |
 |---|---|

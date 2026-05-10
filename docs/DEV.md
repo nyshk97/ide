@@ -135,13 +135,17 @@ ide/
 
 ```
 Sources/ide/
-├─ IdeApp.swift / ContentView.swift / RootLayoutView.swift  アプリ全体
+├─ IdeApp.swift / ContentView.swift / RootLayoutView.swift / CenterPaneView.swift  アプリ全体
 ├─ Project.swift / ProjectsModel.swift / ProjectsStore.swift  プロジェクト管理
-├─ WorkspaceModel.swift / PaneState.swift / TerminalTab.swift  ターミナル
+├─ ProjectColor.swift / ProjectAvatarView.swift / ProjectEditSheet.swift  アバター・色・編集シート
+├─ LeftSidebarView.swift  左サイドバー（D&D 並び替え + 下部「+」ボタン）
+├─ WorkspaceView.swift / WorkspaceModel.swift / PaneState.swift / TerminalTab.swift / TabsView.swift  ターミナル
 ├─ GhosttyManager.swift / GhosttyTerminalView.swift / +Mouse / +TextInput  Ghostty ラッパ
+├─ ExitedOverlayView.swift / ForegroundProcessInspector.swift  shell 終了 / AI 種別検知
+├─ ClipboardSupport.swift  クリップボード（画像 → 一時ファイル）
 ├─ FileTreeModel.swift / FileNode.swift / FileTreeView.swift  ファイルツリー
 ├─ GitIgnoreChecker.swift / GitStatusModel.swift  git 連携
-├─ FilePreviewModel.swift / FilePreviewView.swift  プレビュー
+├─ FilePreviewModel.swift / FilePreviewView.swift / PreviewWebView.swift  プレビュー（WKWebView + highlight.js）
 ├─ FileIndex.swift / QuickSearchView.swift  Cmd+P
 ├─ FullTextSearcher.swift / FullSearchView.swift  Cmd+Shift+F
 ├─ MRUKeyMonitor.swift / MRUOverlayState.swift / MRUOverlayView.swift  Ctrl+M
