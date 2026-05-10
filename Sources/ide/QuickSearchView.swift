@@ -71,8 +71,13 @@ struct QuickSearchView: View {
         )
         .shadow(color: .black.opacity(0.4), radius: 20, x: 0, y: 8)
         .onAppear {
-            fieldFocused = true
             selection = 0
+            // ターミナル(Ghostty NSView) が AppKit の first responder を握っているので
+            // 一度リセットしてから SwiftUI の @FocusState を立てる。1 tick 遅延が必要。
+            NSApp.keyWindow?.makeFirstResponder(nil)
+            DispatchQueue.main.async {
+                fieldFocused = true
+            }
         }
         .onChange(of: query) { _, _ in
             // クエリが変わったら選択を先頭にリセット

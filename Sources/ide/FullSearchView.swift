@@ -58,7 +58,12 @@ struct FullSearchView: View {
         )
         .shadow(color: .black.opacity(0.4), radius: 20, x: 0, y: 8)
         .onAppear {
-            fieldFocused = true
+            // ターミナル(Ghostty NSView) が AppKit の first responder を握っているので
+            // 一度リセットしてから SwiftUI の @FocusState を立てる。1 tick 遅延が必要。
+            NSApp.keyWindow?.makeFirstResponder(nil)
+            DispatchQueue.main.async {
+                fieldFocused = true
+            }
         }
     }
 
