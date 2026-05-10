@@ -17,6 +17,9 @@ struct FilePreviewView: View {
     @State private var kind: FilePreviewKind?
     @State private var loadedURL: URL?
 
+    /// 「ツリー」パンくずリンクのホバー状態。clickable であることを示すため underline に使う。
+    @State private var treeHovered = false
+
     var body: some View {
         VStack(spacing: 0) {
             toolbar
@@ -42,12 +45,25 @@ struct FilePreviewView: View {
 
     private var toolbar: some View {
         HStack(spacing: 8) {
-            Button(action: onClose) {
-                Image(systemName: "chevron.left")
-                Text("ツリーに戻る")
+            // パンくず: 📁 / filename
+            HStack(spacing: 4) {
+                Button(action: onClose) {
+                    Image(systemName: "folder")
+                        .foregroundStyle(treeHovered ? Color.primary : Color.secondary)
+                }
+                .buttonStyle(.plain)
+                .keyboardShortcut(.escape, modifiers: [])
+                .help("Esc でツリーに戻る")
+                .onHover { treeHovered = $0 }
+
+                Text("/")
+                    .foregroundStyle(.tertiary)
+
+                Text(url.lastPathComponent)
+                    .font(.system(size: 12, weight: .semibold))
+                    .lineLimit(1)
+                    .truncationMode(.middle)
             }
-            .buttonStyle(.plain)
-            .keyboardShortcut(.escape, modifiers: [])
 
             // 履歴ナビ
             Button { preview.goBack() } label: {
@@ -63,13 +79,6 @@ struct FilePreviewView: View {
             .buttonStyle(.plain)
             .disabled(!preview.canGoForward)
             .help("次のファイル")
-
-            Spacer()
-
-            Text(url.lastPathComponent)
-                .font(.system(size: 12, weight: .semibold))
-                .lineLimit(1)
-                .truncationMode(.middle)
 
             Spacer()
 

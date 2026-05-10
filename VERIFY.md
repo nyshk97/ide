@@ -753,7 +753,7 @@ rm -f "$HOME/Library/Application Support/ide/projects.json"*
 ```
 
 期待:
-- 中央ペインがプレビューモードに切替（ツールバーに「← ツリーに戻る」「VSCode で開く」、ファイル名）
+- 中央ペインがプレビューモードに切替（ツールバー左に `folder` アイコン + `/` + ファイル名のパンくず、続いて履歴ナビ ← →、右端に「VSCode で開く」）
 - Markdown はインラインレンダリング（リンク・強調が効く、見出しはプレーン）
 - コード（.swift）はモノスペースで表示
 - XML はそのままプレーンテキスト
@@ -767,7 +767,7 @@ rm -f "$HOME/Library/Application Support/ide/projects.json"*
 - **5MB 〜 50MB**: 「N MB のファイルです。読み込みますか？」確認 → 「読み込む」でテキスト表示
 - **50MB 超**: 自動的に「外部で開いてください」+「VSCode で開く」
 - **Cmd+Option+O**: VSCode が起動し、当該ファイルが開く
-- **Esc / ツリーに戻るボタン**: ツリーに戻る
+- **Esc / `folder` アイコンパンくず**: ツリーに戻る（ホバーで primary 色に変化）
 
 ### 27. プレビュー履歴ナビ（手動）
 
