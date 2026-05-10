@@ -199,6 +199,11 @@ final class ProjectsModel: ObservableObject {
 
     func closeQuickSearch() {
         quickSearchVisible = false
+        // 閉じたら ignored トグルは OFF に戻す（次回 Cmd+P で常に OFF から始まる）。
+        // OFF→OFF は didSet の比較で no-op になるので無駄な rebuild は走らない。
+        if let active = activeProject {
+            fileIndex(for: active).includeIgnored = false
+        }
     }
 
     func quickSearchMoveSelection(_ delta: Int) {

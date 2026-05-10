@@ -13,6 +13,14 @@ final class FileIndex: ObservableObject {
     @Published private(set) var entries: [Entry] = []
     @Published private(set) var isBuilding: Bool = false
 
+    /// `.gitignore` 対象を検索結果に含めるか。トグル切替で再スキャン。
+    /// 起動時はプロジェクトを問わず false（要件 6.1: デフォルトで除外）。
+    @Published var includeIgnored: Bool = false {
+        didSet {
+            if oldValue != includeIgnored { rebuild() }
+        }
+    }
+
     /// 直近開いたファイルの URL → 開いた時刻。スコアリング上位に効かせる。
     var recents: [URL: Date] = [:]
 
@@ -34,8 +42,9 @@ final class FileIndex: ObservableObject {
     func rebuild() {
         isBuilding = true
         let root = project.path
+        let includeIgnored = self.includeIgnored
         Task.detached { [weak self] in
-            let entries = Self.scan(root: root)
+            let entries = Self.scan(root: root, includeIgnored: includeIgnored)
             await MainActor.run {
                 self?.entries = entries
                 self?.isBuilding = false
@@ -126,21 +135,22 @@ final class FileIndex: ObservableObject {
     ///
     /// 要件 6.1:
     /// - 隠しファイル（.gitignore, .mise.toml 等）は含める
-    /// - `.gitignore` 対象のディレクトリは降下スキップ＋インデックスからも除外
+    /// - `.gitignore` 対象のディレクトリは `includeIgnored=false` のとき降下スキップ＋除外
     ///   （ファイル単位の ignore は無視するので `.env` 等はヒットする）
+    /// - `includeIgnored=true` のときは git check-ignore を呼ばず全部含める
     ///
     /// BFS でレベルごとに処理し、各レベルのディレクトリ群を `git check-ignore` に
     /// 一括投入する（プロセス起動コストを 1 レベル 1 回にまとめる）。
-    nonisolated private static func scan(root: URL) -> [Entry] {
+    nonisolated private static func scan(root: URL, includeIgnored: Bool) -> [Entry] {
         let fm = FileManager.default
         let resourceKeys: [URLResourceKey] = [.isDirectoryKey, .isSymbolicLinkKey]
         let resourceKeySet = Set(resourceKeys)
         let rootPath = root.standardizedFileURL.path
 
-        // 名前ベースで即降下スキップする巨大ディレクトリ。
-        // `.git` は git check-ignore でも報告されないことがあるため、ここで弾いておく。
-        // それ以外もよくある巨大物として check-ignore より先にショートカット。
-        let alwaysSkipDirNames: Set<String> = [".git", "node_modules", "DerivedData", ".build"]
+        // .git は何が起きても降下しない（巨大かつ検索結果にも出すべきでない）。
+        // それ以外の典型的な巨大物 (node_modules 等) は includeIgnored=false の高速ショートカット。
+        let alwaysSkipDirNames: Set<String> = [".git"]
+        let cheapSkipDirNames: Set<String> = ["node_modules", "DerivedData", ".build"]
 
         var result: [Entry] = []
         var queue: [URL] = [root]
@@ -164,7 +174,9 @@ final class FileIndex: ObservableObject {
                     if values?.isSymbolicLink == true { continue }
                     let isDir = values?.isDirectory ?? false
                     if isDir {
-                        if alwaysSkipDirNames.contains(url.lastPathComponent) { continue }
+                        let name = url.lastPathComponent
+                        if alwaysSkipDirNames.contains(name) { continue }
+                        if !includeIgnored, cheapSkipDirNames.contains(name) { continue }
                         dirsForCheck.append(url)
                     } else {
                         filesToAdd.append(url)
@@ -172,11 +184,13 @@ final class FileIndex: ObservableObject {
                 }
             }
 
-            // .gitignore 対象のディレクトリは降下も Entry 追加もしない。
-            let ignored = GitIgnoreChecker.check(in: root, paths: dirsForCheck)
+            // includeIgnored=true のときは check-ignore を呼ばず全降下。
+            let ignored: Set<URL> = includeIgnored
+                ? []
+                : GitIgnoreChecker.check(in: root, paths: dirsForCheck)
 
             for url in dirsForCheck {
-                if ignored.contains(url) { continue }
+                if !includeIgnored, ignored.contains(url) { continue }
                 appendEntry(&result, url: url, isDir: true, rootPath: rootPath)
                 queue.append(url)
                 if result.count > 50000 { break outer }

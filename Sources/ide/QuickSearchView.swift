@@ -28,6 +28,18 @@ struct QuickSearchView: View {
                             onSelect(results[selection])
                         }
                     }
+                Button {
+                    index.includeIgnored.toggle()
+                } label: {
+                    Image(systemName: index.includeIgnored ? "eye" : "eye.slash")
+                        .foregroundStyle(index.includeIgnored ? Color.accentColor : .secondary)
+                        .frame(width: 18, height: 18)
+                }
+                .buttonStyle(.plain)
+                .focusable(false)
+                .help(index.includeIgnored
+                      ? "ignored を検索結果から除く"
+                      : "ignored も検索結果に含める")
             }
             .padding(.horizontal, 12)
             .frame(height: 36)
