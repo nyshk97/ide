@@ -11,6 +11,10 @@
 
 ## 何ができるのか
 
+![ide の画面](./docs/images/overview.png)
+
+左から **プロジェクトサイドバー** / **ファイルツリー + プレビュー** / **Ghostty 統合ターミナル**（上下 2 ペイン × 複数タブ）の 3 カラム構成。
+
 - **Ghostty 統合ターミナル** — 上下 2 ペイン × 複数タブ。`~/.config/ghostty/config` をそのまま継承。IME・URL リンク化・AI 種別バッジ（Claude / Codex 検知）・BEL 通知付き
 - **プロジェクト管理** — ピン留め永続化 / 一時プロジェクト / `Ctrl+M` で MRU 切替（vim や claude の中でも握る）/ アバター + 色タグ / missing 検知
 - **ファイルツリー** — フォルダ先・アルファベット順 / `.gitignore` 薄表示 / git status バッジ（M/A/D/?）
@@ -20,11 +24,9 @@
 - **エラー toast** — 単発エラーと継続的な状態異常を出し分け
 - **ログ** — `~/Library/Logs/ide/`（日次ローテーション）
 
-未実装の項目は [docs/BACKLOG.md](./docs/BACKLOG.md) を見てください。
-
 ---
 
-## インストール（バイナリ配布）
+## ユーザー向け：Homebrew でインストール
 
 ```bash
 brew install nyshk97/tap/ide
@@ -41,7 +43,7 @@ brew install nyshk97/tap/ide
 
 ---
 
-## ソースから動かす
+## 開発者向け：ソースからビルド
 
 ### 必要なもの
 
@@ -88,15 +90,6 @@ mise run clean   # /tmp/ide-build と ide.xcodeproj を消す
 | [docs/BACKLOG.md](./docs/BACKLOG.md) | 残タスク・将来アイデア |
 | [docs/plans/](./docs/plans) | フェーズ単位の実装計画 |
 | [CLAUDE.md](./CLAUDE.md) | Claude Code（AI）向けの作業ガイド |
-
----
-
-## ステータス
-
-- **Phase 1** ターミナル基盤 ✅
-- **Phase 2** プロジェクト管理 + ファイル系 UI ✅
-- **Phase 2.5** FSEvents 統合 / プレビュー自動リロード / ripgrep バンドリング ⏳ dogfooding しながら必要になり次第着手
-- **Phase 3** AI 関連機能 — 未計画
 
 ---
 
