@@ -62,6 +62,7 @@ struct TabsView: View {
 
     private func tabButton(index: Int, tab: TerminalTab) -> some View {
         let active = index == pane.activeIndex
+        let focused = active && paneIsActive
         return TabObserver(tab: tab) { tab in
             Button(action: {
                 self.pane.selectTab(at: index)
@@ -84,7 +85,13 @@ struct TabsView: View {
                 }
                 .padding(.horizontal, 10)
                 .frame(height: 22)
-                .background(active ? Color.accentColor.opacity(0.25) : Color.clear)
+                .background(active ? Color.accentColor.opacity(focused ? 0.30 : 0.12) : Color.clear)
+                .overlay(alignment: .leading) {
+                    if focused {
+                        Color.accentColor
+                            .frame(width: 3)
+                    }
+                }
                 .clipShape(RoundedRectangle(cornerRadius: 4))
             }
             .buttonStyle(.plain)
