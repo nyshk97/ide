@@ -2,9 +2,10 @@ import SwiftUI
 
 /// プロジェクト一覧と active project を保持する singleton。
 ///
-/// - ピン留めプロジェクトは `~/Library/Application Support/ide/projects.json` に永続化
-/// - 一時プロジェクトはプロセス内のみ。アプリ終了で消える
-/// - active 切替時のターミナル切替は step4 で実装する
+/// - pinned / temporary 両方を `~/Library/Application Support/ide/projects.json` に永続化
+///   （明示的に「閉じる」しない限りサイドバーから消えない）
+/// - pinned は手動並び替えされうる順序、temporary は MRU 順（先頭が最近開いた）
+/// - active project は永続化しない（再起動時はリセット）
 @MainActor
 final class ProjectsModel: ObservableObject {
     static let shared = ProjectsModel()
@@ -63,24 +64,24 @@ final class ProjectsModel: ObservableObject {
     }
 
     private func load() {
-        let restored = store.load().map { project -> Project in
-            // 復元時点では isPinned は必ず true（pinned のみ保存しているので）。
-            // 念のため正規化しておく。
-            var p = project
-            p.isPinned = true
-            return p
-        }
-        self.pinned = restored
+        let restored = store.load()
+        // pinned は保存時の順序を尊重。
+        self.pinned = restored.filter { $0.isPinned }
+        // temporary は MRU の意味を保つために lastOpenedAt 降順で復元する。
+        self.temporary = restored
+            .filter { !$0.isPinned }
+            .sorted { $0.lastOpenedAt > $1.lastOpenedAt }
     }
 
     /// `IDE_TEST_AUTO_ACTIVATE_INDEX` 環境変数が設定されている場合、起動時に
-    /// 指定インデックスのピン留めプロジェクトをアクティブにする。VERIFY 用デバッグ機能。
-    /// 通常は要件通り「再起動時は active を復元しない」挙動。
+    /// 指定インデックスのプロジェクト（allOrdered = pinned + temporary）をアクティブにする。
+    /// VERIFY 用デバッグ機能。通常は要件通り「再起動時は active を復元しない」挙動。
     private func applyTestAutoActivate() {
         guard let envValue = ProcessInfo.processInfo.environment["IDE_TEST_AUTO_ACTIVATE_INDEX"],
-              let index = Int(envValue),
-              pinned.indices.contains(index) else { return }
-        let target = pinned[index]
+              let index = Int(envValue) else { return }
+        let ordered = allOrdered
+        guard ordered.indices.contains(index) else { return }
+        let target = ordered[index]
         setActive(target)
         PocLog.write("[projects] test-auto-activate index=\(index) name=\(target.displayName)")
     }
@@ -125,14 +126,13 @@ final class ProjectsModel: ObservableObject {
         }
         let project = Project(path: path)
         temporary.insert(project, at: 0)
-        setActive(project)
+        setActive(project)  // setActive 内で persist される
         return project
     }
 
     /// プロジェクトを閉じる（一覧から除去）。一時もピン留めも対象。
     /// 開いていた workspace は破棄する（shell プロセスも一緒に解放される）。
     func close(_ project: Project) {
-        let wasPinned = project.isPinned
         pinned.removeAll { $0.id == project.id }
         temporary.removeAll { $0.id == project.id }
         workspaces.removeValue(forKey: project.id)
@@ -142,7 +142,7 @@ final class ProjectsModel: ObservableObject {
         if activeProject?.id == project.id {
             activeProject = allOrdered.first
         }
-        if wasPinned { persist() }
+        persist()
     }
 
     // MARK: - Workspace 管理
@@ -298,7 +298,6 @@ final class ProjectsModel: ObservableObject {
     // MARK: - メタ情報の編集（名前・色）
 
     /// プロジェクトの表示名と色をまとめて更新する。
-    /// pinned に含まれていれば persist する（temporary は閉じれば消えるので保存しない）。
     /// `displayName` が空白のみの場合は path の lastPathComponent にフォールバック。
     func update(_ project: Project, displayName: String, colorKey: String?) {
         let trimmed = displayName.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -318,6 +317,7 @@ final class ProjectsModel: ObservableObject {
         if let idx = temporary.firstIndex(where: { $0.id == project.id }) {
             apply(&temporary[idx])
             if activeProject?.id == project.id { apply(&activeProject!) }
+            persist()
         }
     }
 
@@ -333,6 +333,8 @@ final class ProjectsModel: ObservableObject {
         } else if let idx = temporary.firstIndex(where: { $0.id == project.id }) {
             temporary.remove(at: idx)
             temporary.insert(updated, at: 0)
+            // temporary 内の MRU 順も永続化する（再起動後に最近使った順を維持するため）
+            persist()
         }
         let didSwitch = activeProject?.id != updated.id
         activeProject = updated
@@ -417,6 +419,7 @@ final class ProjectsModel: ObservableObject {
             temporary[idx].path = standardized
             temporary[idx].displayName = standardized.lastPathComponent
             if activeProject?.id == project.id { activeProject = temporary[idx] }
+            persist()
         }
     }
 
@@ -431,6 +434,6 @@ final class ProjectsModel: ObservableObject {
     // MARK: - 永続化
 
     private func persist() {
-        store.save(pinned: pinned)
+        store.save(pinned + temporary)
     }
 }

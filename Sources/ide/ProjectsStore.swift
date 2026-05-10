@@ -5,7 +5,8 @@ import Foundation
 /// - schemaVersion: 1
 /// - アトミック書き込み（一時ファイル → rename）
 /// - バックアップ世代 .1 〜 .3 を保持（save 前にローテーション）
-/// - 一時プロジェクトは保存対象外（pin 済みのみ）
+/// - pinned / temporary 両方を保存（明示的に閉じない限り再起動後も残る）。
+///   pinned/temporary の区別は Project.isPinned で持っているため、配列としては 1 本にまとめる。
 struct ProjectsStore: Sendable {
     struct Snapshot: Codable {
         var schemaVersion: Int
@@ -62,11 +63,12 @@ struct ProjectsStore: Sendable {
 
     // MARK: - Save
 
-    /// pinned のみを保存対象に取る（一時プロジェクトは保存しない）。
-    func save(pinned: [Project]) {
+    /// 渡された全プロジェクトを保存する。pinned / temporary はモデル側で
+    /// `Project.isPinned` を見て振り分ける前提なので、ここでは区別しない。
+    func save(_ projects: [Project]) {
         do {
             try fileManager.createDirectory(at: storageDirectory, withIntermediateDirectories: true)
-            let snapshot = Snapshot(schemaVersion: 1, projects: pinned)
+            let snapshot = Snapshot(schemaVersion: 1, projects: projects)
             let encoder = JSONEncoder()
             encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
             encoder.dateEncodingStrategy = .iso8601

@@ -405,17 +405,18 @@ sleep 0.4
 
 ### 12. プロジェクト永続化（自動）
 
-ピン留めだけが `~/Library/Application Support/ide/projects.json` に保存され、再起動でサイドバーに復元される。一時プロジェクトは保存されない。
+`~/Library/Application Support/ide/projects.json` には pinned / temporary 両方が保存され、再起動でサイドバーに復元される（明示的に「閉じる」した時のみ消える）。
 
 ```bash
 pkill -x ide 2>/dev/null
 mkdir -p "$HOME/Library/Application Support/ide"
-mkdir -p /tmp/ide-step3-test/willmove
+mkdir -p /tmp/ide-step3-test/willmove /tmp/ide-step3-test/temp-proj
 cat > "$HOME/Library/Application Support/ide/projects.json" <<'JSON'
 {
   "projects" : [
     {"displayName":"ide","id":"11111111-1111-1111-1111-111111111111","isPinned":true,"lastOpenedAt":"2026-05-09T01:00:00Z","path":"/Users/d0ne1s/ide"},
-    {"displayName":"willmove","id":"22222222-2222-2222-2222-222222222222","isPinned":true,"lastOpenedAt":"2026-05-09T02:00:00Z","path":"/tmp/ide-step3-test/willmove"}
+    {"displayName":"willmove","id":"22222222-2222-2222-2222-222222222222","isPinned":true,"lastOpenedAt":"2026-05-09T02:00:00Z","path":"/tmp/ide-step3-test/willmove"},
+    {"displayName":"temp-proj","id":"33333333-3333-3333-3333-333333333333","isPinned":false,"lastOpenedAt":"2026-05-09T03:00:00Z","path":"/tmp/ide-step3-test/temp-proj"}
   ],
   "schemaVersion" : 1
 }
@@ -425,7 +426,21 @@ sleep 0.5
 ./scripts/ide-screenshot.sh /tmp/v-step3-restored.png
 ```
 
-期待: ピン留めセクションに ide / willmove が並ぶ（オレンジ 📌）、一時セクションは空、中央ペインに「左からプロジェクトを選択」。
+期待: ピン留めセクションに ide / willmove が並ぶ（ボールド表示）、その下に区切り線 → 一時セクションに temp-proj が出る（レギュラー表示）、中央ペインに「左からプロジェクトを選択」。
+
+temporary が永続化されている確認（自動）:
+```bash
+pkill -x ide 2>/dev/null
+sleep 0.5
+# allOrdered の index 2（pinned 2件 + temporary 1件目 = temp-proj）をアクティブ化
+IDE_TEST_AUTO_ACTIVATE_INDEX=2 /tmp/ide-build/Build/Products/Debug/ide.app/Contents/MacOS/ide >/tmp/ide-stdout.log 2>&1 &
+sleep 3
+# temp-proj の lastOpenedAt が更新されていれば temporary も永続化されている
+python3 -c "import json; d=json.load(open('$HOME/Library/Application Support/ide/projects.json')); [print(f\"{p['displayName']}: {p['lastOpenedAt']}\") for p in d['projects']]"
+pkill -x ide 2>/dev/null
+```
+
+期待: temp-proj の lastOpenedAt が `2026-05-09T03:00:00Z` から起動時刻に更新されている。
 
 ### 13. missing 状態（自動）
 
