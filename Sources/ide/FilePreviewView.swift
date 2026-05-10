@@ -83,14 +83,14 @@ struct FilePreviewView: View {
             Spacer()
 
             Button {
-                openInVSCode(url)
+                openInCursor(url)
             } label: {
                 Image(systemName: "arrow.up.forward.app")
-                Text("VSCode で開く")
+                Text("Cursor で開く")
             }
             .buttonStyle(.plain)
             .keyboardShortcut("o", modifiers: [.command, .option])
-            .help("Cmd+Option+O で VSCode を起動")
+            .help("Cmd+Option+O で Cursor を起動")
         }
         .padding(.horizontal, 10)
         .frame(height: 30)
@@ -148,7 +148,7 @@ struct FilePreviewView: View {
                 .font(.system(size: 36))
                 .foregroundStyle(.tertiary)
             Text(message).foregroundStyle(.secondary)
-            Button("VSCode で開く") { openInVSCode(url) }
+            Button("Cursor で開く") { openInCursor(url) }
             Spacer()
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -165,23 +165,23 @@ struct FilePreviewView: View {
                 .foregroundStyle(.secondary)
             HStack(spacing: 10) {
                 Button("読み込む") { forceLoadLarge = true }
-                Button("VSCode で開く") { openInVSCode(url) }
+                Button("Cursor で開く") { openInCursor(url) }
             }
             Spacer()
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
-    private func openInVSCode(_ url: URL) {
+    private func openInCursor(_ url: URL) {
         let process = Process()
-        // `code` コマンドが PATH 配下にある想定。argv 配列で起動（要件 8.1）。
-        let candidates = ["/usr/local/bin/code", "/opt/homebrew/bin/code"]
-        guard let codePath = candidates.first(where: { FileManager.default.isExecutableFile(atPath: $0) }) else {
+        // `cursor` コマンドが PATH 配下にある想定。argv 配列で起動（要件 8.1）。
+        let candidates = ["/opt/homebrew/bin/cursor", "/usr/local/bin/cursor"]
+        guard let cursorPath = candidates.first(where: { FileManager.default.isExecutableFile(atPath: $0) }) else {
             // フォールバック: NSWorkspace で開く
             NSWorkspace.shared.open(url)
             return
         }
-        process.executableURL = URL(fileURLWithPath: codePath)
+        process.executableURL = URL(fileURLWithPath: cursorPath)
         process.arguments = [url.path]
         try? process.run()
     }

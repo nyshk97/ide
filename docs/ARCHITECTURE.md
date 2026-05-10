@@ -135,7 +135,7 @@ NSEvent.addLocalMonitorForEvents (MRUKeyMonitor)
   → Ctrl+M / Cmd+P / Cmd+Shift+F / overlay 中の Esc/↑/↓ を握って終了
   ↓
 SwiftUI の View 階層
-  → SwiftUI Button の keyboardShortcut（プレビューの「← ツリーに戻る」「VSCode で開く」 等）
+  → SwiftUI Button の keyboardShortcut（プレビューの「← ツリーに戻る」「Cursor で開く」 等）
   ↓
 NSWindow の標準 menu chain
   → メニューバーの Cmd+T / Cmd+W / Cmd+Q / Help > 最近のログを開く（Cmd+Shift+L）

@@ -33,7 +33,7 @@ brew install nyshk97/tap/ide
 - ✅ **Ghostty 統合ターミナル** + 上下 2 ペイン × 複数タブ + IME + URL リンク化 + AI 種別バッジ + BEL 通知
 - ✅ **プロジェクト管理** — ピン留め永続化 / 一時 / Ctrl+M MRU 切替 / missing 検知
 - ✅ **ファイルツリー** — フォルダ先・アルファベット順 / `.gitignore` 薄表示 / git status バッジ（M/A/D/?）
-- ✅ **ファイルプレビュー** — コード / Markdown / 画像 / PDF / バイナリ判定 / サイズしきい値 / 履歴ナビ / Cmd+Option+O で VSCode
+- ✅ **ファイルプレビュー** — コード / Markdown / 画像 / PDF / バイナリ判定 / サイズしきい値 / 履歴ナビ / Cmd+Option+O で Cursor
 - ✅ **Cmd+P クイック検索** — ファジーマッチ + recents 優先
 - ✅ **Cmd+Shift+F 全文検索** — grep ベース（ripgrep バンドリングは Phase 2.5）
 - ✅ **ログ** — `~/Library/Logs/ide/`（日次ローテーション）、Help > 最近のログを開く
