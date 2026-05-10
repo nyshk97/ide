@@ -204,13 +204,24 @@ final class GhosttyTerminalNSView: NSView {
     /// Cmd+V や Cmd+C などのメニューショートカットは AppKit が menu chain で先に消費する。
     /// Ghostty 側のキーバインドにマッチする場合はこちらで捕捉して surface に流す。
     override func performKeyEquivalent(with event: NSEvent) -> Bool {
+        let mods = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
+        let chars = event.charactersIgnoringModifiers ?? ""
+
+        // macOS 標準のアプリケーションメニュー系ショートカット（Cmd+Q/Cmd+H/Cmd+M、
+        // Cmd+Opt+H）は Ghostty に渡さずメニューチェーンに通す。Ghostty 内部で
+        // Cmd+Q を quit バインドとして握ってしまい、アプリ側の terminate に届かない
+        // 現象の対策。
+        if mods == .command, chars == "q" || chars == "h" || chars == "m" {
+            return false
+        }
+        if mods == [.command, .option], chars == "h" {
+            return false
+        }
+
         // ide 側のショートカットを Ghostty より先に捕まえる。
         // 操作対象は WorkspaceModel.activePane（フォーカス中のペイン）。
-        if event.modifierFlags.contains(.command),
-           !event.modifierFlags.contains(.shift),
-           !event.modifierFlags.contains(.option),
-           !event.modifierFlags.contains(.control) {
-            switch event.charactersIgnoringModifiers {
+        if mods == .command {
+            switch chars {
             case "t":
                 ProjectsModel.shared.activeWorkspace?.activePane.addTab()
                 return true
@@ -237,9 +248,9 @@ final class GhosttyTerminalNSView: NSView {
             return false
         }
 
-        let chars = event.characters ?? ""
-        return chars.withCString { ptr in
-            keyEvent.text = chars.isEmpty ? nil : ptr
+        let textChars = event.characters ?? ""
+        return textChars.withCString { ptr in
+            keyEvent.text = textChars.isEmpty ? nil : ptr
             return ghostty_surface_key(s, keyEvent)
         }
     }
