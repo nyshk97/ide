@@ -126,9 +126,26 @@
     root.textContent = message || "(error)";
   }
 
+  function setBaseHref(href) {
+    // マークダウン内の `./foo.md` 等を、元ファイルのディレクトリ基準で解決させる。
+    // 切り替え時に古い base が残らないよう、毎回入れ替える。
+    let base = document.getElementById("md-base");
+    if (href) {
+      if (!base) {
+        base = document.createElement("base");
+        base.id = "md-base";
+        document.head.appendChild(base);
+      }
+      base.setAttribute("href", href);
+    } else if (base) {
+      base.parentNode.removeChild(base);
+    }
+  }
+
   function apply(payload) {
     if (!payload) return;
     if (payload.theme) setTheme(payload.theme);
+    setBaseHref(payload.kind === "markdown" ? payload.baseHref || "" : "");
     switch (payload.kind) {
       case "markdown":
         renderMarkdown(payload.text || "");

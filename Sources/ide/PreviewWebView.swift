@@ -9,6 +9,9 @@ struct PreviewPayload: Equatable {
     let text: String
     /// highlight.js に渡す言語名（拡張子から推定）。空文字なら auto detect。
     let lang: String
+    /// マークダウン内の相対リンクを解決するための基点ディレクトリ。
+    /// JS 側で <base href> として注入することで、`./foo.md` 等が file://<dir>/foo.md に展開される。
+    var baseURL: URL? = nil
 }
 
 /// WKWebView を 1 つだけ生成し、初回 viewer.html ロード後は
@@ -22,6 +25,11 @@ final class PreviewWebController: NSObject, ObservableObject {
     private var isReady = false
     private var pending: PreviewPayload?
     private var lastApplied: PreviewPayload?
+
+    /// マークダウン内のローカルファイルリンクをクリックされたとき、
+    /// 同じプレビューに別ファイルを描画するためのフック。
+    /// シングルトンなので、現在表示中の FilePreviewModel を都度差し替える。
+    var onNavigateToFile: ((URL) -> Void)?
 
     /// viewer.html / vendor/* を含む blue folder reference のルート URL。
     /// `loadFileURL(_:allowingReadAccessTo:)` で sandbox を絞る用。
@@ -53,6 +61,7 @@ final class PreviewWebController: NSObject, ObservableObject {
         super.init()
 
         userController.add(MessageHandler(owner: self), name: "viewerReady")
+        view.navigationDelegate = self
 
         loadTemplate()
     }
@@ -94,12 +103,18 @@ final class PreviewWebController: NSObject, ObservableObject {
 
     private func applyNow(_ payload: PreviewPayload) {
         lastApplied = payload
-        let dict: [String: Any] = [
+        var dict: [String: Any] = [
             "kind": payload.kind.rawValue,
             "text": payload.text,
             "lang": payload.lang,
             "theme": "auto",
         ]
+        if let base = payload.baseURL {
+            // 末尾スラッシュが無いと <base> が「ファイル」扱いになるので必ず付与
+            var s = base.absoluteString
+            if !s.hasSuffix("/") { s += "/" }
+            dict["baseHref"] = s
+        }
         guard
             let data = try? JSONSerialization.data(withJSONObject: dict, options: []),
             let json = String(data: data, encoding: .utf8)
@@ -115,6 +130,31 @@ final class PreviewWebController: NSObject, ObservableObject {
         lastApplied = nil
         guard isReady else { return }
         webView.evaluateJavaScript("document.getElementById('root').innerHTML = '';", completionHandler: nil)
+    }
+
+    /// マークダウン内のリンクが踏まれたときの分岐:
+    ///   - `#section` 等の同一文書フラグメント: WebView 側にそのまま流す
+    ///   - file:// のローカルパス: cancel して `onNavigateToFile` にディスパッチ
+    ///   - http/https/mailto/その他: cancel してクリップボードコピー + info トースト
+    fileprivate func handleLinkActivation(_ url: URL) -> WKNavigationActionPolicy {
+        // 同一ページ内アンカー (#... のみ) は WebView に任せる
+        if url.scheme == "file",
+           let viewer = viewerURL,
+           url.path == viewer.path,
+           url.fragment != nil
+        {
+            return .allow
+        }
+
+        if url.isFileURL {
+            onNavigateToFile?(url)
+        } else {
+            let pb = NSPasteboard.general
+            pb.clearContents()
+            pb.setString(url.absoluteString, forType: .string)
+            ErrorBus.shared.notify("URLをコピーしました: \(url.absoluteString)", kind: .info)
+        }
+        return .cancel
     }
 
     /// JS から ready 通知を受け取るための薄いブリッジ。
@@ -133,18 +173,39 @@ final class PreviewWebController: NSObject, ObservableObject {
     }
 }
 
+extension PreviewWebController: WKNavigationDelegate {
+    // WK_SWIFT_UI_ACTOR void (^)(WKNavigationActionPolicy) → @MainActor 付きでないと
+    // Optional プロトコル要件に「適合」したと認識されず、実行時に呼ばれない。
+    func webView(
+        _ webView: WKWebView,
+        decidePolicyFor navigationAction: WKNavigationAction,
+        decisionHandler: @escaping @MainActor (WKNavigationActionPolicy) -> Void
+    ) {
+        guard navigationAction.navigationType == .linkActivated,
+              let url = navigationAction.request.url
+        else {
+            decisionHandler(.allow)
+            return
+        }
+        decisionHandler(handleLinkActivation(url))
+    }
+}
+
 /// シングルトンの WKWebView を SwiftUI に流す薄い NSViewRepresentable。
 /// 中身は controller が保持し、view 自体はそれを表示するだけ。
 struct PreviewWebView: NSViewRepresentable {
     let payload: PreviewPayload
+    var onLinkToFile: ((URL) -> Void)? = nil
     var controller: PreviewWebController = .shared
 
     func makeNSView(context: Context) -> WKWebView {
+        controller.onNavigateToFile = onLinkToFile
         controller.set(payload)
         return controller.webView
     }
 
     func updateNSView(_ nsView: WKWebView, context: Context) {
+        controller.onNavigateToFile = onLinkToFile
         controller.set(payload)
     }
 

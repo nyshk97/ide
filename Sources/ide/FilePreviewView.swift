@@ -105,7 +105,12 @@ struct FilePreviewView: View {
             case .code(let data, _):
                 webPreview(payload: codePayload(data: data))
             case .markdown(let text):
-                webPreview(payload: PreviewPayload(kind: .markdown, text: text, lang: ""))
+                webPreview(payload: PreviewPayload(
+                    kind: .markdown,
+                    text: text,
+                    lang: "",
+                    baseURL: url.deletingLastPathComponent()
+                ))
             case .image:
                 ImagePreview(url: url)
             case .pdf:
@@ -133,7 +138,11 @@ struct FilePreviewView: View {
     }
 
     private func webPreview(payload: PreviewPayload) -> some View {
-        PreviewWebView(payload: payload)
+        // マークダウン内のローカルリンクは preview のスタックに乗せて開く。
+        // コードプレビューでも害はないので一律で配線しておく。
+        PreviewWebView(payload: payload, onLinkToFile: { linked in
+            preview.open(linked.standardizedFileURL)
+        })
     }
 
     private func codePayload(data: Data) -> PreviewPayload {
