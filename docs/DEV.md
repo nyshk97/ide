@@ -86,6 +86,7 @@ IDE_TEST_AUTO_PREVIEW="REQUIREMENTS.md" \
 - **`Timer.scheduledTimer` の closure**: nonisolated なので `Task { @MainActor in ... }` でメインに戻す
 - **`MainActor.assumeIsolated` を background queue から呼ぶとサイレントクラッシュ**: 値は MainActor 上で先に capture する
 - **`@unchecked Sendable` で struct を fix**: ただし non-Sendable な stored property（`FileManager` 等）は computed property で逃がす
+- **`WKScriptMessageHandler` は weak ref で渡す**: `userContentController.add(self, name:)` で controller 自身を渡すと WKWebView → handler → controller の強参照になり、controller が singleton でない場合リークする。`weak var owner` を持つ薄い nested class でラップして渡す（[PreviewWebView.swift](../Sources/ide/PreviewWebView.swift) の `MessageHandler`）
 
 ---
 
