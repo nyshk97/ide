@@ -17,10 +17,8 @@ fi
 VERSION="$1"
 TAG="v$VERSION"
 
-if [ ! -f "$ZIP_PATH" ]; then
-  echo "==> build/ide.zip not found. Running build first..."
-  "$SCRIPT_DIR/build.sh"
-fi
+echo "==> Running fresh build (always rebuild to avoid uploading stale zip)..."
+"$SCRIPT_DIR/build.sh"
 
 echo "==> Creating GitHub release $TAG..."
 gh release create "$TAG" \
