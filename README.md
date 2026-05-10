@@ -1,15 +1,14 @@
 # IDE
-
-**cmux + Ghostty + yazi + git-watch + Claude Code** を 1 つのアプリにまとめた macOS 用 IDE。
+macOS 用 IDE。
 
 ![IDE の画面](./docs/images/overview.png)
 
 左から **プロジェクトサイドバー** / **ファイルツリー + プレビュー** / **Ghostty 統合ターミナル**（上下 2 ペイン × 複数タブ）の 3 カラム構成。
 
-主に自分（[@d0ne1s](https://github.com/d0ne1s)）が日常で使うために作っているツールです。気になる人は自由に使ったり改造したりして OK ですが、issue / PR は基本的に対応しないので fork 推奨です。
+主に自分（[@d0ne1s](https://github.com/nyshk97)）が日常で使うために作っているツールです。気になる人は自由に使ったり改造したりして OK ですが、issue / PR は基本的に対応しないので fork 推奨です。
 
 > [!NOTE]
-> 個人用ツールなので ad-hoc 署名のみで配布しています（Apple Developer ID 署名・公証はしていません）。初回起動時に Gatekeeper の警告が出るので、下記の解除手順を 1 回だけ実行してください。
+> 個人用ツールなので ad-hoc 署名のみで配布しています（Apple Developer ID 署名・公証はしていません）。
 
 ---
 
