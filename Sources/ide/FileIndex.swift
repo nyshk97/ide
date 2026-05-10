@@ -123,51 +123,89 @@ final class FileIndex: ObservableObject {
     }
 
     /// project root から再帰スキャン。シンボリックリンクは辿らない。
+    ///
+    /// 要件 6.1:
+    /// - 隠しファイル（.gitignore, .mise.toml 等）は含める
+    /// - `.gitignore` 対象のディレクトリは降下スキップ＋インデックスからも除外
+    ///   （ファイル単位の ignore は無視するので `.env` 等はヒットする）
+    ///
+    /// BFS でレベルごとに処理し、各レベルのディレクトリ群を `git check-ignore` に
+    /// 一括投入する（プロセス起動コストを 1 レベル 1 回にまとめる）。
     nonisolated private static func scan(root: URL) -> [Entry] {
         let fm = FileManager.default
         let resourceKeys: [URLResourceKey] = [.isDirectoryKey, .isSymbolicLinkKey]
+        let resourceKeySet = Set(resourceKeys)
         let rootPath = root.standardizedFileURL.path
 
-        guard let enumerator = fm.enumerator(
-            at: root,
-            includingPropertiesForKeys: resourceKeys,
-            options: [.skipsHiddenFiles, .skipsPackageDescendants]
-        ) else { return [] }
+        // 名前ベースで即降下スキップする巨大ディレクトリ。
+        // `.git` は git check-ignore でも報告されないことがあるため、ここで弾いておく。
+        // それ以外もよくある巨大物として check-ignore より先にショートカット。
+        let alwaysSkipDirNames: Set<String> = [".git", "node_modules", "DerivedData", ".build"]
 
         var result: [Entry] = []
-        for case let url as URL in enumerator {
-            let values = try? url.resourceValues(forKeys: Set(resourceKeys))
-            let isSymlink = values?.isSymbolicLink ?? false
-            if isSymlink {
-                enumerator.skipDescendants()
-                continue
-            }
-            let isDir = values?.isDirectory ?? false
-            // 巨大なディレクトリ系は降りない（インデックス膨張を避ける）
-            if isDir {
-                let name = url.lastPathComponent
-                if name == ".git" || name == "node_modules" || name == "DerivedData" || name == ".build" {
-                    enumerator.skipDescendants()
-                    continue
+        var queue: [URL] = [root]
+
+        outer: while !queue.isEmpty {
+            let currentLevel = queue
+            queue.removeAll(keepingCapacity: true)
+
+            var dirsForCheck: [URL] = []
+            var filesToAdd: [URL] = []
+
+            for parent in currentLevel {
+                guard let children = try? fm.contentsOfDirectory(
+                    at: parent,
+                    includingPropertiesForKeys: resourceKeys,
+                    options: [.skipsPackageDescendants]
+                ) else { continue }
+
+                for url in children {
+                    let values = try? url.resourceValues(forKeys: resourceKeySet)
+                    if values?.isSymbolicLink == true { continue }
+                    let isDir = values?.isDirectory ?? false
+                    if isDir {
+                        if alwaysSkipDirNames.contains(url.lastPathComponent) { continue }
+                        dirsForCheck.append(url)
+                    } else {
+                        filesToAdd.append(url)
+                    }
                 }
             }
 
-            let absolute = url.standardizedFileURL.path
-            let relative: String
-            if absolute.hasPrefix(rootPath + "/") {
-                relative = String(absolute.dropFirst(rootPath.count + 1))
-            } else {
-                relative = absolute
+            // .gitignore 対象のディレクトリは降下も Entry 追加もしない。
+            let ignored = GitIgnoreChecker.check(in: root, paths: dirsForCheck)
+
+            for url in dirsForCheck {
+                if ignored.contains(url) { continue }
+                appendEntry(&result, url: url, isDir: true, rootPath: rootPath)
+                queue.append(url)
+                if result.count > 50000 { break outer }
             }
-            result.append(Entry(
-                url: url,
-                isDirectory: isDir,
-                relativePath: relative,
-                lowercaseRelativePath: relative.lowercased(),
-                lowercaseName: url.lastPathComponent.lowercased()
-            ))
-            if result.count > 50000 { break }  // 安全装置
+
+            for url in filesToAdd {
+                appendEntry(&result, url: url, isDir: false, rootPath: rootPath)
+                if result.count > 50000 { break outer }
+            }
         }
+
         return result
+    }
+
+    nonisolated private static func appendEntry(
+        _ result: inout [Entry],
+        url: URL,
+        isDir: Bool,
+        rootPath: String
+    ) {
+        let absolute = url.standardizedFileURL.path
+        guard absolute.hasPrefix(rootPath + "/") else { return }
+        let relative = String(absolute.dropFirst(rootPath.count + 1))
+        result.append(Entry(
+            url: url,
+            isDirectory: isDir,
+            relativePath: relative,
+            lowercaseRelativePath: relative.lowercased(),
+            lowercaseName: url.lastPathComponent.lowercased()
+        ))
     }
 }
