@@ -295,8 +295,18 @@ final class GhosttyTerminalNSView: NSView {
             return
         }
 
-        let chars = event.characters ?? ""
-        if !chars.isEmpty, !event.modifierFlags.contains(.command) {
+        // Ctrl のみ修飾のときは text に "\u{06}" のような制御文字を渡すと、
+        // Ghostty が CSI-u 形式（"\e[102;5u"）でエンコードしてしまう。zsh-autosuggestions の
+        // `bindkey '^F' autosuggest-accept` を効かせるため、unshifted 文字（"f"）を渡して
+        // Ghostty に legacy ASCII (^F=0x06) でエンコードさせる。
+        let mods = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
+        let chars: String = {
+            if mods.contains(.control), !mods.contains(.command), !mods.contains(.option) {
+                return event.charactersIgnoringModifiers ?? event.characters ?? ""
+            }
+            return event.characters ?? ""
+        }()
+        if !chars.isEmpty, !mods.contains(.command) {
             chars.withCString { ptr in
                 keyEvent.text = ptr
                 _ = ghostty_surface_key(s, keyEvent)
