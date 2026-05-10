@@ -295,6 +295,23 @@ final class ProjectsModel: ObservableObject {
         if activeProject?.id == p.id { activeProject = p }
     }
 
+    // MARK: - 色変更
+
+    /// プロジェクトのアバター色を変更する。`key` が nil なら自動色に戻す。
+    /// pinned に含まれていれば persist する（temporary は閉じれば消えるので保存しない）。
+    func setColorKey(_ key: String?, for project: Project) {
+        if let idx = pinned.firstIndex(where: { $0.id == project.id }) {
+            pinned[idx].colorKey = key
+            if activeProject?.id == project.id { activeProject?.colorKey = key }
+            persist()
+            return
+        }
+        if let idx = temporary.firstIndex(where: { $0.id == project.id }) {
+            temporary[idx].colorKey = key
+            if activeProject?.id == project.id { activeProject?.colorKey = key }
+        }
+    }
+
     // MARK: - アクティブ切替
 
     func setActive(_ project: Project) {

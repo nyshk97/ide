@@ -69,23 +69,25 @@ struct LeftSidebarView: View {
     private func row(_ project: Project) -> some View {
         let isActive = projects.activeProject?.id == project.id
         let missing = project.isMissing
-        return HStack(spacing: 6) {
-            if missing {
-                Image(systemName: "exclamationmark.triangle.fill")
-                    .foregroundStyle(.yellow)
-                    .frame(width: 14)
-            } else {
-                Image(systemName: project.isPinned ? "pin.fill" : "folder")
-                    .foregroundStyle(project.isPinned ? .orange : .secondary)
-                    .frame(width: 14)
-            }
+        return HStack(spacing: 8) {
+            ProjectAvatarView(
+                name: project.displayName,
+                colorKey: project.colorKey,
+                isMissing: missing
+            )
             Text(project.displayName)
+                .font(.system(size: 12, weight: project.isPinned ? .semibold : .regular))
                 .lineLimit(1)
                 .truncationMode(.middle)
             Spacer(minLength: 0)
+            if missing {
+                Image(systemName: "exclamationmark.triangle.fill")
+                    .font(.system(size: 10))
+                    .foregroundStyle(.yellow)
+            }
         }
-        .padding(.horizontal, 10)
-        .padding(.vertical, 4)
+        .padding(.horizontal, 8)
+        .padding(.vertical, 3)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(isActive ? Color.accentColor.opacity(0.25) : Color.clear)
         .opacity(missing ? 0.55 : 1.0)
@@ -98,6 +100,13 @@ struct LeftSidebarView: View {
         .contextMenu {
             Button(project.isPinned ? "ピン解除" : "ピン留め") {
                 projects.togglePin(project)
+            }
+            Menu("色を変更") {
+                Button("自動") { projects.setColorKey(nil, for: project) }
+                Divider()
+                ForEach(ProjectColor.allCases) { c in
+                    Button(c.label) { projects.setColorKey(c.rawValue, for: project) }
+                }
             }
             if missing {
                 Button("再選択…") {

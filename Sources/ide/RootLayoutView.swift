@@ -13,7 +13,7 @@ struct RootLayoutView: View {
         // 上限なしにしてユーザーの拡張を維持する。
         HSplitView {
             LeftSidebarView()
-                .frame(minWidth: 160, idealWidth: 200, maxWidth: 240)
+                .frame(minWidth: 120, idealWidth: 140, maxWidth: 180)
             CenterPaneView()
                 .frame(minWidth: 200, idealWidth: 320)
             rightArea

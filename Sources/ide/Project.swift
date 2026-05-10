@@ -7,19 +7,23 @@ struct Project: Identifiable, Hashable, Codable {
     var displayName: String
     var isPinned: Bool
     var lastOpenedAt: Date
+    /// アバターの色 (`ProjectColor.rawValue`)。nil なら名前から自動決定。
+    var colorKey: String?
 
     init(
         id: UUID = UUID(),
         path: URL,
         displayName: String? = nil,
         isPinned: Bool = false,
-        lastOpenedAt: Date = .now
+        lastOpenedAt: Date = .now,
+        colorKey: String? = nil
     ) {
         self.id = id
         self.path = path
         self.displayName = displayName ?? path.lastPathComponent
         self.isPinned = isPinned
         self.lastOpenedAt = lastOpenedAt
+        self.colorKey = colorKey
     }
 
     /// path がファイルシステム上に存在しないか、ディレクトリでない場合 true。
@@ -34,7 +38,7 @@ struct Project: Identifiable, Hashable, Codable {
     // URL を path 文字列として保存（フルパス、標準化済み）
 
     private enum CodingKeys: String, CodingKey {
-        case id, path, displayName, isPinned, lastOpenedAt
+        case id, path, displayName, isPinned, lastOpenedAt, colorKey
     }
 
     init(from decoder: Decoder) throws {
@@ -45,6 +49,7 @@ struct Project: Identifiable, Hashable, Codable {
         self.displayName = try c.decode(String.self, forKey: .displayName)
         self.isPinned = try c.decode(Bool.self, forKey: .isPinned)
         self.lastOpenedAt = try c.decode(Date.self, forKey: .lastOpenedAt)
+        self.colorKey = try c.decodeIfPresent(String.self, forKey: .colorKey)
     }
 
     func encode(to encoder: Encoder) throws {
@@ -54,5 +59,6 @@ struct Project: Identifiable, Hashable, Codable {
         try c.encode(displayName, forKey: .displayName)
         try c.encode(isPinned, forKey: .isPinned)
         try c.encode(lastOpenedAt, forKey: .lastOpenedAt)
+        try c.encodeIfPresent(colorKey, forKey: .colorKey)
     }
 }
