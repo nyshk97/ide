@@ -31,7 +31,9 @@ struct QuickSearchView: View {
                 Button {
                     index.includeIgnored.toggle()
                 } label: {
-                    Image(systemName: index.includeIgnored ? "eye" : "eye.slash")
+                    Image(systemName: index.includeIgnored
+                          ? "circle.fill"
+                          : "circle.lefthalf.filled")
                         .foregroundStyle(index.includeIgnored ? Color.accentColor : .secondary)
                         .frame(width: 18, height: 18)
                 }
