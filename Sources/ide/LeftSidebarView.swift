@@ -4,8 +4,8 @@ import UniformTypeIdentifiers
 
 /// プロジェクト一覧サイドバー。
 ///
-/// - 上部: 「+」ボタン → NSOpenPanel でフォルダ追加（一時プロジェクト）
 /// - 中央: ピン留めセクション + 一時セクション（cmux 風）
+/// - 下部: 「+」ボタン → NSOpenPanel でフォルダ追加（一時プロジェクトの末尾に追加）
 /// - 行右クリック: ピン留め切替・閉じる・編集
 /// - ドラッグ&ドロップで並び替え可能（pinned/temporary 横断で auto pin/unpin）
 struct LeftSidebarView: View {
@@ -26,9 +26,9 @@ struct LeftSidebarView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            header
-            Divider()
             list
+            Divider()
+            footer
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .background(Color(nsColor: .underPageBackgroundColor))
@@ -44,7 +44,7 @@ struct LeftSidebarView: View {
         }
     }
 
-    private var header: some View {
+    private var footer: some View {
         HStack {
             Button(action: addProject) {
                 Image(systemName: "plus")

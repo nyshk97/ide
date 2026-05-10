@@ -124,7 +124,7 @@ final class ProjectsModel: ObservableObject {
             return existing
         }
         let project = Project(path: path)
-        temporary.insert(project, at: 0)
+        temporary.append(project)
         setActive(project)  // setActive 内で persist される
         return project
     }
