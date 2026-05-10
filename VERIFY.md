@@ -844,3 +844,122 @@ rm -f "$HOME/Library/Application Support/ide/projects.json"*
 - 文字を入力して Enter で検索実行（AppleScript 経由では onSubmit が効かないので手動必須）
 - ↑↓ で結果選択、Enter / クリックで preview 切替
 - Esc でキャンセル
+
+### 32. プロジェクト一覧のドラッグ並び替え（手動 / 半自動）
+
+要件: pinned / temporary とも手動で並び替え可能、両方とも順序が永続化される。pinned↔temporary を跨いだら自動で pin/unpin される。
+
+#### 32-A. 手動
+
+実機で確認:
+- 行を上下にドラッグ → 別の行に重ねた状態で離すと、その行の上半分なら「前に挿入」、下半分なら「後ろに挿入」
+- ドラッグ中、対象行の上 or 下に青いバーが出る（drop indicator）
+- セクション末尾の隙間にドロップ → そのセクションの末尾に追加
+- pinned から temporary 区切りの下にドロップ → 自動で unpin（regular weight に変わる）
+- temporary から pinned 区切りの上にドロップ → 自動で pin（semibold に変わる）
+- 並び替え後にアプリ再起動 → 順序が維持される
+- pinned で active にしている行を unpin にドラッグしてもアクティブのまま（中央/右ペインは不変）
+
+#### 32-B. 半自動（CGEvent でドラッグを合成）
+
+`.draggable` / `.dropDestination` は AppleScript の click では発火しないが、`CGEvent` でマウスダウン → 数十ステップの drag → アップを合成すれば動く。
+
+```bash
+# ドラッグ合成 CLI を一時的にコンパイル
+cat > /tmp/simulate-drag.swift <<'SWIFT'
+import Cocoa
+import CoreGraphics
+let args = CommandLine.arguments.dropFirst().compactMap { Double($0) }
+let from = CGPoint(x: args[0], y: args[1])
+let to = CGPoint(x: args[2], y: args[3])
+func post(_ t: CGEventType, at p: CGPoint) {
+    CGEvent(mouseEventSource: nil, mouseType: t, mouseCursorPosition: p, mouseButton: .left)?.post(tap: .cghidEventTap)
+}
+post(.mouseMoved, at: from); usleep(200_000)
+post(.leftMouseDown, at: from); usleep(300_000)
+let prefix = CGPoint(x: from.x + 5, y: from.y + 5)
+post(.leftMouseDragged, at: prefix); usleep(100_000)
+for i in 1...40 {
+    let t = Double(i) / 40
+    post(.leftMouseDragged, at: CGPoint(x: prefix.x + (to.x-prefix.x)*t, y: prefix.y + (to.y-prefix.y)*t))
+    usleep(20_000)
+}
+usleep(300_000); post(.leftMouseUp, at: to)
+SWIFT
+swiftc -o /tmp/simulate-drag /tmp/simulate-drag.swift
+
+# テスト fixture（5 件、alpha/bravo を pinned）
+pkill -x ide 2>/dev/null; sleep 0.4
+mkdir -p "$HOME/Library/Application Support/ide" /tmp/ide-dnd-test/{alpha,bravo,charlie,delta,echo}
+cat > "$HOME/Library/Application Support/ide/projects.json" <<'JSON'
+{
+  "projects" : [
+    {"displayName":"alpha","id":"AAAAAAAA-1111-1111-1111-111111111111","isPinned":true,"lastOpenedAt":"2026-05-09T01:00:00Z","path":"/tmp/ide-dnd-test/alpha"},
+    {"displayName":"bravo","id":"BBBBBBBB-1111-1111-1111-111111111111","isPinned":true,"lastOpenedAt":"2026-05-09T02:00:00Z","path":"/tmp/ide-dnd-test/bravo"},
+    {"displayName":"charlie","id":"CCCCCCCC-1111-1111-1111-111111111111","isPinned":false,"lastOpenedAt":"2026-05-09T03:00:00Z","path":"/tmp/ide-dnd-test/charlie"},
+    {"displayName":"delta","id":"DDDDDDDD-1111-1111-1111-111111111111","isPinned":false,"lastOpenedAt":"2026-05-09T04:00:00Z","path":"/tmp/ide-dnd-test/delta"},
+    {"displayName":"echo","id":"EEEEEEEE-1111-1111-1111-111111111111","isPinned":false,"lastOpenedAt":"2026-05-09T05:00:00Z","path":"/tmp/ide-dnd-test/echo"}
+  ],
+  "schemaVersion" : 1
+}
+JSON
+./scripts/ide-launch.sh
+sleep 0.8
+
+# 座標は launch 後の osascript "position of front window" で取得した window 左上が (179, 154) のときのもの。
+# alpha 中心 ≈ (249, 246)、echo 中心 ≈ (249, 371)、echo 下半分 ≈ (249, 385)
+# alpha → echo 下半分にドラッグ = 自動で unpin、temp 末尾に移動
+/tmp/simulate-drag 249 246 249 385
+sleep 0.6
+python3 -c "
+import json
+d = json.load(open('$HOME/Library/Application Support/ide/projects.json'))
+for p in d['projects']: print(f\"  {p['displayName']}: pinned={p['isPinned']}\")
+"
+
+pkill -x ide 2>/dev/null
+rm -f /tmp/simulate-drag /tmp/simulate-drag.swift
+rm -rf /tmp/ide-dnd-test
+rm -f "$HOME/Library/Application Support/ide/projects.json"*
+```
+
+期待出力:
+```
+  bravo: pinned=True
+  charlie: pinned=False
+  delta: pinned=False
+  echo: pinned=False
+  alpha: pinned=False
+```
+
+座標は実機のウィンドウ位置によって変わる。`./scripts/ide-launch.sh` 後に AppleScript で取得した window 位置 + 行高さ 28pt を加算して計算する。
+
+#### 32-C. setActive で MRU 並び替えしないことの確認（自動）
+
+旧仕様では temporary を active 化すると先頭に移動していたが、ドラッグ並び替え導入で廃止した（手動順序を尊重）。
+
+```bash
+mkdir -p "$HOME/Library/Application Support/ide" /tmp/ide-dnd-test/{a,b,c}
+cat > "$HOME/Library/Application Support/ide/projects.json" <<'JSON'
+{"projects":[
+  {"displayName":"a","id":"AAAAAAAA-1111-1111-1111-111111111111","isPinned":false,"lastOpenedAt":"2026-05-09T01:00:00Z","path":"/tmp/ide-dnd-test/a"},
+  {"displayName":"b","id":"BBBBBBBB-1111-1111-1111-111111111111","isPinned":false,"lastOpenedAt":"2026-05-09T02:00:00Z","path":"/tmp/ide-dnd-test/b"},
+  {"displayName":"c","id":"CCCCCCCC-1111-1111-1111-111111111111","isPinned":false,"lastOpenedAt":"2026-05-09T03:00:00Z","path":"/tmp/ide-dnd-test/c"}
+],"schemaVersion":1}
+JSON
+pkill -x ide 2>/dev/null; sleep 0.4
+APP=/tmp/ide-build/Build/Products/Debug/ide.app
+# 末尾の c を active 化しても順序は a, b, c のまま（旧仕様だと c が先頭になる）
+IDE_TEST_AUTO_ACTIVATE_INDEX=2 "$APP/Contents/MacOS/ide" >/dev/null 2>&1 &
+sleep 2
+pkill -x ide 2>/dev/null; sleep 0.4
+python3 -c "
+import json
+d = json.load(open('$HOME/Library/Application Support/ide/projects.json'))
+print(','.join(p['displayName'] for p in d['projects']))
+"
+rm -rf /tmp/ide-dnd-test
+rm -f "$HOME/Library/Application Support/ide/projects.json"*
+```
+
+期待出力: `a,b,c`（c が先頭に移動していない）。

@@ -65,12 +65,11 @@ final class ProjectsModel: ObservableObject {
 
     private func load() {
         let restored = store.load()
-        // pinned は保存時の順序を尊重。
+        // pinned / temporary とも保存時の順序をそのまま復元する。
+        // temporary はかつて lastOpenedAt 降順で並べていたが、ドラッグ並び替えを導入した
+        // タイミングで「ユーザーが手で決めた順を尊重」する方針に変更した（mruStack は別管理）。
         self.pinned = restored.filter { $0.isPinned }
-        // temporary は MRU の意味を保つために lastOpenedAt 降順で復元する。
-        self.temporary = restored
-            .filter { !$0.isPinned }
-            .sorted { $0.lastOpenedAt > $1.lastOpenedAt }
+        self.temporary = restored.filter { !$0.isPinned }
     }
 
     /// `IDE_TEST_AUTO_ACTIVATE_INDEX` 環境変数が設定されている場合、起動時に
@@ -331,9 +330,8 @@ final class ProjectsModel: ObservableObject {
             pinned[idx] = updated
             persist()
         } else if let idx = temporary.firstIndex(where: { $0.id == project.id }) {
-            temporary.remove(at: idx)
-            temporary.insert(updated, at: 0)
-            // temporary 内の MRU 順も永続化する（再起動後に最近使った順を維持するため）
+            // 並び替えを手動順序に変更したので、temporary 内での位置は変えず lastOpenedAt のみ更新。
+            temporary[idx] = updated
             persist()
         }
         let didSwitch = activeProject?.id != updated.id
@@ -403,6 +401,86 @@ final class ProjectsModel: ObservableObject {
     /// Esc キャンセル: MRU は不変、active も変えない。
     func cancelMRUOverlay() {
         mruOverlay = nil
+    }
+
+    // MARK: - ドラッグ並び替え
+
+    /// ドロップ先の位置指定。
+    enum DropPosition: Equatable {
+        /// 指定 ID の前に挿入
+        case beforeProject(UUID)
+        /// 指定 ID の後ろに挿入
+        case afterProject(UUID)
+        /// pinned セクションの末尾に追加（必要なら自動で pin する）
+        case endOfPinned
+        /// temporary セクションの末尾に追加（必要なら自動で unpin する）
+        case endOfTemporary
+    }
+
+    /// プロジェクトを別の位置に移動する。pinned ↔ temporary を跨いだ場合は
+    /// `isPinned` を自動更新し、配列間で付け替える。
+    /// 自分自身への drop は no-op。
+    func move(_ sourceID: UUID, to position: DropPosition) {
+        // 自分の前 / 後ろに drop した場合は no-op
+        switch position {
+        case .beforeProject(let target), .afterProject(let target):
+            if target == sourceID { return }
+        case .endOfPinned, .endOfTemporary:
+            break
+        }
+
+        // 一旦取り出す
+        var moved: Project
+        if let idx = pinned.firstIndex(where: { $0.id == sourceID }) {
+            moved = pinned.remove(at: idx)
+        } else if let idx = temporary.firstIndex(where: { $0.id == sourceID }) {
+            moved = temporary.remove(at: idx)
+        } else {
+            return
+        }
+
+        // 挿入先を決めて反映（途中で target が消えた場合の保険として元のセクション末尾へ append）
+        switch position {
+        case .beforeProject(let targetID):
+            if let idx = pinned.firstIndex(where: { $0.id == targetID }) {
+                moved.isPinned = true
+                pinned.insert(moved, at: idx)
+            } else if let idx = temporary.firstIndex(where: { $0.id == targetID }) {
+                moved.isPinned = false
+                temporary.insert(moved, at: idx)
+            } else {
+                appendBack(moved)
+                return
+            }
+        case .afterProject(let targetID):
+            if let idx = pinned.firstIndex(where: { $0.id == targetID }) {
+                moved.isPinned = true
+                pinned.insert(moved, at: idx + 1)
+            } else if let idx = temporary.firstIndex(where: { $0.id == targetID }) {
+                moved.isPinned = false
+                temporary.insert(moved, at: idx + 1)
+            } else {
+                appendBack(moved)
+                return
+            }
+        case .endOfPinned:
+            moved.isPinned = true
+            pinned.append(moved)
+        case .endOfTemporary:
+            moved.isPinned = false
+            temporary.append(moved)
+        }
+
+        if activeProject?.id == sourceID { activeProject = moved }
+        persist()
+    }
+
+    private func appendBack(_ project: Project) {
+        if project.isPinned {
+            pinned.append(project)
+        } else {
+            temporary.append(project)
+        }
     }
 
     // MARK: - 再選択（missing 復旧用）

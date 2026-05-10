@@ -1,16 +1,28 @@
 import SwiftUI
 import AppKit
+import UniformTypeIdentifiers
 
 /// プロジェクト一覧サイドバー。
 ///
 /// - 上部: 「+」ボタン → NSOpenPanel でフォルダ追加（一時プロジェクト）
 /// - 中央: ピン留めセクション + 一時セクション（cmux 風）
-/// - 行右クリック: ピン留め切替・閉じる
-///
-/// 永続化と missing 表示は step3、ドラッグ並び替えは step3 以降。
+/// - 行右クリック: ピン留め切替・閉じる・編集
+/// - ドラッグ&ドロップで並び替え可能（pinned/temporary 横断で auto pin/unpin）
 struct LeftSidebarView: View {
     @ObservedObject var projects: ProjectsModel = .shared
     @State private var editingProject: Project?
+    /// drop hover 中の対象。`.before(id)` か `.after(id)`、または `.endOf(...)`。
+    @State private var dropIndicator: DropIndicator?
+
+    /// 行内での drop 位置の視覚化用。
+    enum DropIndicator: Equatable {
+        case beforeRow(UUID)
+        case afterRow(UUID)
+        case endOfPinned
+        case endOfTemporary
+    }
+
+    private static let rowHeight: CGFloat = 28
 
     var body: some View {
         VStack(spacing: 0) {
@@ -66,11 +78,17 @@ struct LeftSidebarView: View {
                         ForEach(projects.pinned) { project in
                             row(project)
                         }
-                        Divider().padding(.vertical, 4)
+                        // pinned セクション末尾の drop zone（divider と兼用、太め目）
+                        sectionEndDropZone(.endOfPinned)
+                        Divider().padding(.vertical, 2)
+                    } else {
+                        // pinned が空でもピン留めセクションへ drop できるよう薄い zone を置く
+                        emptyPinnedDropZone
                     }
                     ForEach(projects.temporary) { project in
                         row(project)
                     }
+                    sectionEndDropZone(.endOfTemporary)
                 }
                 .padding(.vertical, 4)
             }
@@ -100,9 +118,23 @@ struct LeftSidebarView: View {
         }
         .padding(.horizontal, 8)
         .padding(.vertical, 5)
-        .frame(maxWidth: .infinity, alignment: .leading)
+        .frame(maxWidth: .infinity, minHeight: Self.rowHeight, alignment: .leading)
         .background(isActive ? Color.accentColor.opacity(0.25) : Color.clear)
         .opacity(missing ? 0.55 : 1.0)
+        .overlay(alignment: .top) {
+            if dropIndicator == .beforeRow(project.id) {
+                Rectangle()
+                    .fill(Color.accentColor)
+                    .frame(height: 2)
+            }
+        }
+        .overlay(alignment: .bottom) {
+            if dropIndicator == .afterRow(project.id) {
+                Rectangle()
+                    .fill(Color.accentColor)
+                    .frame(height: 2)
+            }
+        }
         .help(missing ? "パスが見つかりません: \(project.path.path)" : project.path.path)
         .contentShape(Rectangle())
         .onTapGesture {
@@ -125,6 +157,85 @@ struct LeftSidebarView: View {
                 projects.close(project)
             }
         }
+        .draggable(project.id.uuidString) {
+            // ドラッグ中のプレビュー
+            HStack(spacing: 6) {
+                ProjectAvatarView(
+                    name: project.displayName,
+                    colorKey: project.colorKey,
+                    isMissing: missing,
+                    size: 16
+                )
+                Text(project.displayName)
+                    .font(.system(size: 12))
+            }
+            .padding(.horizontal, 8)
+            .padding(.vertical, 4)
+            .background(Color(nsColor: .controlBackgroundColor))
+            .cornerRadius(4)
+        }
+        .dropDestination(for: String.self) { items, location in
+            handleRowDrop(items: items, target: project, location: location)
+        } isTargeted: { isTargeted in
+            if !isTargeted, case let .beforeRow(id) = dropIndicator, id == project.id {
+                dropIndicator = nil
+            } else if !isTargeted, case let .afterRow(id) = dropIndicator, id == project.id {
+                dropIndicator = nil
+            } else if isTargeted {
+                // 行に入った瞬間は before として仮表示。確定時に location で再判定する。
+                dropIndicator = .beforeRow(project.id)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var emptyPinnedDropZone: some View {
+        sectionEndDropZone(.endOfPinned)
+            .frame(height: 16)
+    }
+
+    @ViewBuilder
+    private func sectionEndDropZone(_ kind: DropIndicator) -> some View {
+        Rectangle()
+            .fill(Color.clear)
+            .frame(maxWidth: .infinity)
+            .frame(height: 8)
+            .contentShape(Rectangle())
+            .overlay(alignment: .top) {
+                if dropIndicator == kind {
+                    Rectangle().fill(Color.accentColor).frame(height: 2)
+                }
+            }
+            .dropDestination(for: String.self) { items, _ in
+                guard let sourceID = parseSourceID(items) else { return false }
+                let target: ProjectsModel.DropPosition = (kind == .endOfPinned) ? .endOfPinned : .endOfTemporary
+                projects.move(sourceID, to: target)
+                dropIndicator = nil
+                return true
+            } isTargeted: { isTargeted in
+                if isTargeted {
+                    dropIndicator = kind
+                } else if dropIndicator == kind {
+                    dropIndicator = nil
+                }
+            }
+    }
+
+    private func handleRowDrop(items: [String], target: Project, location: CGPoint) -> Bool {
+        guard let sourceID = parseSourceID(items) else { return false }
+        // location は行ローカル座標。上半分 → before、下半分 → after。
+        let isAfter = location.y > Self.rowHeight / 2
+        let position: ProjectsModel.DropPosition = isAfter
+            ? .afterProject(target.id)
+            : .beforeProject(target.id)
+        projects.move(sourceID, to: position)
+        dropIndicator = nil
+        return true
+    }
+
+    private func parseSourceID(_ items: [String]) -> UUID? {
+        guard let first = items.first else { return nil }
+        return UUID(uuidString: first)
     }
 
     // MARK: - 「+」ボタンの動作
