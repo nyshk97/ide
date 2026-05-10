@@ -56,7 +56,7 @@ private struct ProjectCenterContent: View {
 
     var body: some View {
         ZStack {
-            FileTreeView(model: fileTree, onSelectFile: { url in
+            FileTreeView(model: fileTree, preview: preview, onSelectFile: { url in
                 fileTree.selectedURL = url
                 preview.open(url)
             })

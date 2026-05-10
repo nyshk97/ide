@@ -53,6 +53,12 @@ enum MRUKeyMonitor {
             return true
         }
 
+        // Cmd+J: 中央ペインを ツリー ↔ プレビュー でトグル。
+        if mods == .command, event.keyCode == 38 {  // 38 = J
+            model.togglePreview()
+            return true
+        }
+
         // クイック検索表示中のキー操作
         if model.quickSearchVisible {
             switch event.keyCode {

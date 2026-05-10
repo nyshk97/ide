@@ -179,6 +179,13 @@ final class ProjectsModel: ObservableObject {
         return model
     }
 
+    /// アクティブプロジェクトの中央ペインを ツリー ↔ プレビュー でトグル。
+    /// Cmd+J（MRUKeyMonitor）と toolbar アイコンが共通で呼ぶ。
+    func togglePreview() {
+        guard let active = activeProject else { return }
+        preview(for: active).toggle()
+    }
+
     /// プロジェクトに紐付く FileIndex を返す。なければ新規作成（バックグラウンドで再帰スキャン開始）。
     func fileIndex(for project: Project) -> FileIndex {
         if let existing = fileIndexes[project.id] { return existing }

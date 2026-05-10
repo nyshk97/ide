@@ -778,6 +778,42 @@ rm -f "$HOME/Library/Application Support/ide/projects.json"*
 - → をクリック → B に進む
 - 同じファイルを連続でクリックしても履歴は重複しない（A → A → B → A の操作で履歴は A → B → A の 3 件）
 
+### 27.5 ツリー ↔ プレビュー トグル（Cmd+J / 自動）
+
+```bash
+mkdir -p "$HOME/Library/Application Support/ide"
+cat > "$HOME/Library/Application Support/ide/projects.json" <<'JSON'
+{"projects":[{"displayName":"ide","id":"11111111-1111-1111-1111-111111111111","isPinned":true,"lastOpenedAt":"2026-05-09T01:00:00Z","path":"/Users/d0ne1s/ide"}],"schemaVersion":1}
+JSON
+APP=/tmp/ide-build/Build/Products/Debug/ide.app
+pkill -x ide 2>/dev/null; sleep 0.4
+IDE_TEST_AUTO_ACTIVATE_INDEX=0 IDE_TEST_AUTO_PREVIEW="CLAUDE.md" "$APP/Contents/MacOS/ide" >/dev/null 2>&1 &
+sleep 3
+
+# 起動直後: プレビュー表示中
+./scripts/ide-screenshot.sh /tmp/v-toggle-1.png
+
+# Cmd+J でツリーへ
+osascript -e 'tell application "System Events" to tell process "ide" to keystroke "j" using {command down}'
+sleep 0.4
+./scripts/ide-screenshot.sh /tmp/v-toggle-2.png
+
+# Cmd+J で再度プレビューへ（最後に見たファイル = CLAUDE.md）
+osascript -e 'tell application "System Events" to tell process "ide" to keystroke "j" using {command down}'
+sleep 0.4
+./scripts/ide-screenshot.sh /tmp/v-toggle-3.png
+
+pkill -x ide 2>/dev/null
+rm -f "$HOME/Library/Application Support/ide/projects.json"*
+```
+
+期待:
+- `v-toggle-1`: プレビュー（パンくず `📁 / CLAUDE.md`）
+- `v-toggle-2`: ツリー表示。ヘッダ左の `doc.text` アイコンが secondary 色（履歴あり = enabled）
+- `v-toggle-3`: 再びプレビュー、CLAUDE.md が復元
+
+履歴ゼロ状態（一度もファイルを開いていない）では `doc.text` アイコンが tertiary 色 + disabled。Cmd+J を押しても無反応。
+
 ### 28. Cmd+P クイック検索（自動）
 
 ```bash

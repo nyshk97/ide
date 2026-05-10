@@ -46,6 +46,21 @@ final class FilePreviewModel: ObservableObject {
         historyIndex += 1
         currentURL = history[historyIndex]
     }
+
+    /// プレビュー中なら閉じる。ツリー表示中で履歴があれば、最後に見たファイルを再表示。
+    /// Cmd+J / トグルボタン両方が呼ぶ。
+    func toggle() {
+        if currentURL != nil {
+            currentURL = nil
+        } else if historyIndex >= 0 && historyIndex < history.count {
+            currentURL = history[historyIndex]
+        }
+    }
+
+    /// ツリー表示中で「最後に見たファイル」へ戻れるか。トグルボタンの enable 判定に使う。
+    var canRestorePreview: Bool {
+        currentURL == nil && historyIndex >= 0 && historyIndex < history.count
+    }
 }
 
 /// プレビューするファイル種別の判定結果。

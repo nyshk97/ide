@@ -6,6 +6,7 @@ import AppKit
 struct FileTreeView: View {
     @ObservedObject var model: FileTreeModel
     @ObservedObject var gitStatus: GitStatusModel
+    @ObservedObject var preview: FilePreviewModel
     @ObservedObject var projects: ProjectsModel = .shared
 
     /// ファイル（=ディレクトリ以外）をクリックしたときの callback（プレビュー切替用）。
@@ -14,9 +15,10 @@ struct FileTreeView: View {
     /// マウスオーバー中のノード。背景色強調に使う。
     @State private var hoveredNodeID: FileNode.ID?
 
-    init(model: FileTreeModel, onSelectFile: @escaping (URL) -> Void = { _ in }) {
+    init(model: FileTreeModel, preview: FilePreviewModel, onSelectFile: @escaping (URL) -> Void = { _ in }) {
         self.model = model
         self.gitStatus = model.gitStatus
+        self.preview = preview
         self.onSelectFile = onSelectFile
     }
 
@@ -58,9 +60,19 @@ struct FileTreeView: View {
     }
 
     private var toolbar: some View {
-        HStack(spacing: 6) {
-            Image(systemName: "tree")
-                .foregroundStyle(.secondary)
+        HStack(spacing: 8) {
+            // ツリー ↔ プレビュー トグル。プレビュー側の folder アイコンと同じ位置に置く。
+            // 履歴がない（一度もファイルを開いていない）ときは disabled。
+            Button {
+                preview.toggle()
+            } label: {
+                Image(systemName: "doc.text")
+                    .foregroundStyle(preview.canRestorePreview ? Color.secondary : Color(nsColor: .tertiaryLabelColor))
+            }
+            .buttonStyle(.plain)
+            .disabled(!preview.canRestorePreview)
+            .help("Cmd+J で最後に見たファイルを表示")
+
             Text(model.project.displayName)
                 .lineLimit(1)
                 .truncationMode(.middle)
@@ -84,7 +96,7 @@ struct FileTreeView: View {
             .help("再スキャン")
         }
         .padding(.horizontal, 10)
-        .frame(height: 28)
+        .frame(height: 30)
     }
 
     /// 表示するノード列。`hideIgnored` のときは ignored を完全除外。
