@@ -11,13 +11,21 @@ struct RootLayoutView: View {
         // 左サイドバーだけ maxWidth で抑える。中央ペインは maxWidth を付けると、
         // プレビュー ↔ ツリー切替時の再レイアウトでドラッグ拡大が snap back されるため
         // 上限なしにしてユーザーの拡張を維持する。
-        HSplitView {
-            LeftSidebarView()
-                .frame(minWidth: 120, idealWidth: 140, maxWidth: 180)
-            CenterPaneView()
-                .frame(minWidth: 200, idealWidth: 320)
-            rightArea
-                .frame(minWidth: 400)
+        // 中央(ファイルツリー):右(ターミナル) は約 2:3 になるよう idealWidth でナッジする。
+        GeometryReader { proxy in
+            let leftIdeal: CGFloat = 140
+            let remaining = max(600, proxy.size.width - leftIdeal)
+            let centerIdeal = remaining * 0.4
+            let rightIdeal = remaining * 0.6
+            HSplitView {
+                LeftSidebarView()
+                    .frame(minWidth: 120, idealWidth: leftIdeal, maxWidth: 180)
+                CenterPaneView()
+                    .frame(minWidth: 200, idealWidth: centerIdeal)
+                rightArea
+                    .frame(minWidth: 400, idealWidth: rightIdeal)
+            }
+            .frame(width: proxy.size.width, height: proxy.size.height)
         }
         .overlay(alignment: .center) {
             if let state = projects.mruOverlay {
