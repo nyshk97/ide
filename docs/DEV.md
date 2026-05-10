@@ -97,6 +97,8 @@ IDE_TEST_AUTO_PREVIEW="REQUIREMENTS.md" \
 - **`.background(Subview)` 内の `@ObservedObject`** は外側 body の再描画に伝播しない: 監視したい型は `body` を持つ View 自身に `@ObservedObject` で持たせる
 - **AppleScript の `click at {x, y}`** は SwiftUI の `onTapGesture` に届かないことがある: 動作確認は `IDE_TEST_*` 環境変数 or 座標連打で迂回、本格的な hit test は手動確認に倒す
 - **`URL` の `==` は scheme/baseURL の差で一致しないことがある**: 比較は `URL.standardizedFileURL.path`（String）で行う
+- **NSView の自動 `becomeFirstResponder` 時は `NSApp.currentEvent` が nil**: 起動時に SplitView が NSHostingController を組み立てる過程で、最初に追加された NSView が自動で firstResponder になる。`WorkspaceModel.init` で設定した初期 `activePane = bottomPane` を上書きされたくない場合は、`becomeFirstResponder` 内で `NSApp.currentEvent?.type` が `.leftMouseDown` / `.keyDown` 等のユーザー操作起因のときだけ `setActive` を呼ぶ（[GhosttyTerminalView.swift](../Sources/ide/GhosttyTerminalView.swift) の `isUserDrivenFirstResponderChange()`）
+- **SourceKit の `Cannot find type ...` 警告は基本無視**: xcodegen 構成では SourceKit が project.yml を読まずファイル単独で解析するため `PaneState` 等が見つからない警告を多数吐く。`mise run build` が `BUILD SUCCEEDED` なら実害なし
 
 ---
 
