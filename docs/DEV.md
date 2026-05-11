@@ -98,7 +98,7 @@ open -n "/tmp/ide-build/Build/Products/Debug/IDE Dev.app" \
 
 ## SwiftUI まわりのクセ
 
-- **`HSplitView` は `idealWidth` を尊重しない**: 初期は均等分割になりがち。`maxWidth` で起動時の幅を絞り、伸ばしたいペインだけ無限にする（[RootLayoutView.swift](../Sources/ide/RootLayoutView.swift)）
+- **`HSplitView` の初期幅は固定 `idealWidth` で決める**: 固定値の `idealWidth` は効くが、`GeometryReader` でウィンドウ幅に対する比率（中央=残り幅の 40% 等）で算出すると、起動直後・全画面遷移直後に `GeometryReader` が一瞬小さいサイズを返した時点でペイン幅が確定し、以降のリサイズ分は伸縮制約のないペイン（右）に吸われて狭いまま固定される。`maxWidth` で起動時の幅を絞り、伸ばしたいペインだけ無限にする（[RootLayoutView.swift](../Sources/ide/RootLayoutView.swift)）
 - **再帰的な `@ViewBuilder`**: opaque type 推論が壊れるので、データ側で flatten するか `AnyView` に逃がす（[FileTreeView.swift](../Sources/ide/FileTreeView.swift) の `flattenedNodes()`）
 - **`.background(Subview)` 内の `@ObservedObject`** は外側 body の再描画に伝播しない: 監視したい型は `body` を持つ View 自身に `@ObservedObject` で持たせる
 - **深くネストした `@Published` は親の `@ObservedObject` まで伝播しない**: `ProjectsModel`→`WorkspaceModel`→`PaneState`→`TerminalTab.@Published` の葉を変えても、`ProjectsModel` だけ `@ObservedObject` する View は再描画されない。監視対象の型に派生 `@Published`（`unreadProjectIDs` 等）を持ち、葉を変える全箇所から再計算メソッド（`refreshUnreadProjects()`）を呼ぶ。init で値を入れてから View 初描画なら通知不要だが、後から変わるなら必須
