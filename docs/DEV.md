@@ -38,6 +38,8 @@
 | `scripts/ide-keystroke.sh [--enter|--keycode N] "text"` | osascript でキー送信 |
 | `scripts/ide-screenshot.sh <path>` | フロントウィンドウだけを `screencapture -x -R` でキャプチャ |
 
+- **`ide-screenshot.sh` / `ide-keystroke.sh` は Claude Code の Bash 環境からは動かない**: `osascript` の補助アクセス権限・画面収録権限が無く、`osascript ... -25211` や `screencapture -x ... could not create image from display` で落ちる。エージェント側の検証は `/tmp/ide-poc.log`（PocLog）・起動ログ・テスト用環境変数に倒し、目視スクショが要るものはユーザーに依頼する
+
 詳しい確認手順は [VERIFY.md](../VERIFY.md)。
 
 ---
