@@ -50,22 +50,28 @@ final class GhosttyManager: @unchecked Sendable {
         surfaceToTab[surface]?.value
     }
 
-    /// 非アクティブタブに完了通知が来たとき鳴らすシステムサウンド名（`/System/Library/Sounds/*.aiff`）。
+    /// 通知音に使うシステムサウンド名（`/System/Library/Sounds/*.aiff`）。
     private static let notificationSoundName = NSSound.Name("Glass")
 
-    /// タブが「いまアクティブ（active pane の active tab）」でなければ未読を立て、通知音を鳴らす。
-    /// AI 完了シグナル（progress REMOVE / desktop notification / bell）から呼ぶ共通処理。
-    /// 音は未読フラグが false→true に変わったときだけ鳴らす（同じタブで連打しない）。
+    /// 通知音を鳴らす。AI ターン完了時はアクティブ/非アクティブ問わず、bell / desktop notification は
+    /// バックグラウンドで新たに未読が立ったときだけ呼ぶ。
     @MainActor
-    static func markUnreadIfBackgrounded(_ tab: TerminalTab, reason: String) {
+    static func playNotificationSound() {
+        NSSound(named: notificationSoundName)?.play()
+    }
+
+    /// タブが「いまアクティブ（active pane の active tab）」でなければ未読を立てる。
+    /// AI 完了シグナル（progress REMOVE / desktop notification / bell）から呼ぶ共通処理。
+    /// - Returns: 未読フラグを false→true に新たに立てたら `true`（既に未読 / アクティブなら `false`）。
+    @discardableResult
+    @MainActor
+    static func markUnreadIfBackgrounded(_ tab: TerminalTab, reason: String) -> Bool {
         let active = ProjectsModel.shared.activeWorkspace?.isCurrentlyActive(tab: tab) ?? false
-        guard !active else { return }
-        if !tab.hasUnreadNotification {
-            tab.hasUnreadNotification = true
-            ProjectsModel.shared.refreshUnreadProjects()
-            NSSound(named: notificationSoundName)?.play()
-            PocLog.write("[unread] tab=\(tab.title) reason=\(reason) unreadProjects=\(ProjectsModel.shared.unreadProjectIDs.count)")
-        }
+        guard !active, !tab.hasUnreadNotification else { return false }
+        tab.hasUnreadNotification = true
+        ProjectsModel.shared.refreshUnreadProjects()
+        PocLog.write("[unread] tab=\(tab.title) reason=\(reason) unreadProjects=\(ProjectsModel.shared.unreadProjectIDs.count)")
+        return true
     }
 
     /// 全 surface の foreground プロセスを 500ms ごとに識別し、変化があればタブに反映。
@@ -157,7 +163,9 @@ final class GhosttyManager: @unchecked Sendable {
                         case .claude, .codex: break
                         default: return
                         }
-                        GhosttyManager.markUnreadIfBackgrounded(tab, reason: "bell")
+                        if GhosttyManager.markUnreadIfBackgrounded(tab, reason: "bell") {
+                            GhosttyManager.playNotificationSound()
+                        }
                     }
                 }
             case GHOSTTY_ACTION_PROGRESS_REPORT:
@@ -178,6 +186,9 @@ final class GhosttyManager: @unchecked Sendable {
                         if isRemove {
                             if tab.aiTurnInProgress {
                                 tab.aiTurnInProgress = false
+                                // AI ターン完了は見ているタブでも知らせたい（離席して別作業している想定）。
+                                // アクティブ/非アクティブ問わず鳴らし、非アクティブならサイドバー未読も立てる。
+                                GhosttyManager.playNotificationSound()
                                 GhosttyManager.markUnreadIfBackgrounded(tab, reason: "ai-turn-done")
                             }
                             // aiTurnInProgress が false の REMOVE（起動直後の空 remove 等）は無視
@@ -191,7 +202,9 @@ final class GhosttyManager: @unchecked Sendable {
                 if target.tag == GHOSTTY_TARGET_SURFACE, let surface = target.target.surface {
                     DispatchQueue.main.async {
                         guard let tab = GhosttyManager.shared.tab(forSurface: surface) else { return }
-                        GhosttyManager.markUnreadIfBackgrounded(tab, reason: "desktop-notification")
+                        if GhosttyManager.markUnreadIfBackgrounded(tab, reason: "desktop-notification") {
+                            GhosttyManager.playNotificationSound()
+                        }
                     }
                 }
             case GHOSTTY_ACTION_OPEN_URL:
