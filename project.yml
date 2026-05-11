@@ -47,8 +47,9 @@ targets:
         # システムフレームワークは dependencies の sdk: 経由で追加される
         OTHER_LDFLAGS: -lc++
       configs:
-        # Debug は Brew 配布版（Release）と Bundle ID / 表示名を分けて、
-        # Application Support / Logs / Dock を完全に分離する。
+        # Debug は Brew 配布版（Release）と Bundle ID / 表示名 / アイコンを分けて、
+        # Application Support / Logs / Dock アイコンを完全に分離する。
         Debug:
           PRODUCT_BUNDLE_IDENTIFIER: local.d0ne1s.ide.dev
           PRODUCT_NAME: IDE Dev
+          ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon-Dev
