@@ -62,7 +62,17 @@ targets:
       configs:
         # Debug は Brew 配布版（Release）と Bundle ID / 表示名 / アイコンを分けて、
         # Application Support / Logs / Dock アイコンを完全に分離する。
+        # 署名は ad-hoc のまま（ローカル検証用なので notarize 不要。プロセス名も "IDE Dev"）。
         Debug:
           PRODUCT_BUNDLE_IDENTIFIER: local.d0ne1s.ide.dev
           PRODUCT_NAME: IDE Dev
           ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon-Dev
+        # Release は Developer ID 署名 + notarize（scripts/build.sh）。
+        # 安定した署名 ID にすることで、brew 更新でバイナリの cdhash が変わっても
+        # TCC（画面収録 / アクセシビリティ等）の許可が無効化されなくなる。
+        Release:
+          CODE_SIGN_STYLE: Manual
+          CODE_SIGN_IDENTITY: "Developer ID Application"
+          DEVELOPMENT_TEAM: U4WAHGGBR7
+          CODE_SIGN_ENTITLEMENTS: Resources/IDE.entitlements
+          OTHER_CODE_SIGN_FLAGS: --timestamp

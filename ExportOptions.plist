@@ -1,10 +1,14 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!-- scripts/build.sh の xcodebuild -exportArchive 用。Developer ID 署名で書き出し、
+     notarize / staple は build.sh が xcrun notarytool / stapler で行う。 -->
 <plist version="1.0">
 <dict>
     <key>method</key>
-    <string>mac-application</string>
-    <key>destination</key>
-    <string>export</string>
+    <string>developer-id</string>
+    <key>signingStyle</key>
+    <string>manual</string>
+    <key>teamID</key>
+    <string>U4WAHGGBR7</string>
 </dict>
 </plist>
