@@ -121,7 +121,7 @@ open -n "/tmp/ide-build/Build/Products/Debug/IDE Dev.app" \
 
 - **libghostty は子プロセスのシェルに必ず `TERM=xterm-ghostty` と `TERMINFO=<GHOSTTY_RESOURCES_DIR の隣>/terminfo`（= `<bundle>/Contents/Resources/terminfo`）をセットする**が、`GhosttyKit.xcframework` には terminfo 本体が同梱されていない（スタンドアロン Ghostty.app は `Contents/Resources/terminfo/` に持っている）。terminfo が引けないと `el` / `cuf1` / `hpa` 等が無く、**カーソル移動・行クリアのエスケープシーケンスが全滅して入力中の表示が崩れる**（`ls` と打つと `lssls` のように残骸が残る、`clear` が `'xterm-ghostty': unknown terminal type.` を出す）。以前は standalone Ghostty / `brew ghostty` がシステムに terminfo を入れてくれていたので顕在化しなかったが、それが無い環境では壊れる
 - **対策**: `scripts/fetch-ghostty-terminfo.sh` が ghostty 本体の `src/terminfo/ghostty.zig`（`GhosttyKit.xcframework/.ghostty_sha` で pin）から terminfo source を起こして `tic -x` でコンパイル → `Resources/terminfo/`（`{67/ghostty, 78/xterm-ghostty}`）に出力 → `project.yml` の folder reference で bundle。`<bundle>/Contents/Resources/terminfo/` に置けば libghostty が自動でそこを `TERMINFO` に向ける（コード変更不要）
-- **確認**: ビルド後 `find "<app>/Contents/Resources/terminfo" -type f` で2ファイル出る / アプリ内シェルで `infocmp xterm-ghostty` が成功し `clear` がエラーを出さない
+- **確認**: ビルド後 `find "<app>/Contents/Resources/terminfo" -type f` で2ファイル出る / アプリ内シェルで `infocmp xterm-ghostty` が成功し `clear` がエラーを出さず実際に画面がクリアされる。**※シェルは起動時に terminfo を読んでキャッシュするので、必ず新しいタブ（Cmd+T）で確認する** — terminfo 修正前に開いていたタブは壊れたまま見えるので「直ってない」と誤判定しやすい
 - xcframework を更新したら（`.ghostty_sha` が変わったら）`./scripts/fetch-ghostty-terminfo.sh` を再実行（差分は git で確認）
 
 ---
