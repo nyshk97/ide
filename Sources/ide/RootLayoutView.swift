@@ -7,25 +7,22 @@ struct RootLayoutView: View {
     @ObservedObject var projects: ProjectsModel = .shared
 
     var body: some View {
-        // SwiftUI の HSplitView は idealWidth を尊重せず初期は均等分割になりがちなので、
         // 左サイドバーだけ maxWidth で抑える。中央ペインは maxWidth を付けると、
         // プレビュー ↔ ツリー切替時の再レイアウトでドラッグ拡大が snap back されるため
         // 上限なしにしてユーザーの拡張を維持する。
-        // 中央(ファイルツリー):右(ターミナル) は約 2:3 になるよう idealWidth でナッジする。
-        GeometryReader { proxy in
-            let leftIdeal: CGFloat = 140
-            let remaining = max(600, proxy.size.width - leftIdeal)
-            let centerIdeal = remaining * 0.4
-            let rightIdeal = remaining * 0.6
-            HSplitView {
-                LeftSidebarView()
-                    .frame(minWidth: 120, idealWidth: leftIdeal, maxWidth: 180)
-                CenterPaneView()
-                    .frame(minWidth: 200, idealWidth: centerIdeal)
-                rightArea
-                    .frame(minWidth: 400, idealWidth: rightIdeal)
-            }
-            .frame(width: proxy.size.width, height: proxy.size.height)
+        //
+        // 初期幅は固定の idealWidth で決める。以前は GeometryReader でウィンドウ幅に対する
+        // 比率（中央 40%）で算出していたが、起動直後やフルスクリーン遷移直後は
+        // GeometryReader が一時的に小さいサイズを返し、その時点で HSplitView が
+        // 各ペインの幅を確定してしまう（以降のリサイズ分は右ペインに吸われる）ため、
+        // どの画面でもファイルツリーが狭いまま固定されていた。固定値なら確実に効く。
+        HSplitView {
+            LeftSidebarView()
+                .frame(minWidth: 120, idealWidth: 140, maxWidth: 180)
+            CenterPaneView()
+                .frame(minWidth: 240, idealWidth: 540)
+            rightArea
+                .frame(minWidth: 400)
         }
         .overlay(alignment: .center) {
             if let state = projects.mruOverlay {
