@@ -83,6 +83,7 @@ mv "$BACKUP_DIR/ide-dev-backup" "$HOME/Library/Application Support/ide-dev" 2>/d
 - AppleScript の `click at {x, y}` は SwiftUI の `onTapGesture` に届かないことがある → `IDE_TEST_*` で迂回
 - `Ctrl+M` の判定は `keyCode == 46`（characters は CR にマップされる）
 - `URL` の `==` は scheme/baseURL の差で一致しないことがある → `URL.standardizedFileURL.path` を String キーに
+- Debug ビルドは PRODUCT_NAME=`IDE Dev` なので `.app` / プロセス / バイナリすべてに空白を含む。動作確認スクリプトでは `pkill -x "IDE Dev"` / `pgrep -f "IDE Dev.app/Contents/MacOS/IDE Dev"` / AppleScript の `tell process "IDE Dev"` のように毎回クオートする
 
 ---
 
@@ -93,6 +94,12 @@ mv "$BACKUP_DIR/ide-dev-backup" "$HOME/Library/Application Support/ide-dev" 2>/d
 - 現在 `PocLog.write` 内部で `Logger.debug` にも転送している。Phase 2.5 で `PocLog` を撤去予定
 
 エラー toast を出したいときは `ErrorBus.shared.notify(_:kind:)`。継続的な状態異常は各 View 内に常駐表示する（要件 8.3）。
+
+---
+
+## アプリのデータパスは `AppPaths.subdirName` 経由で参照する
+
+`~/Library/Application Support/`、`~/Library/Logs/`、将来追加する Preferences / cache / state 等のサブディレクトリ名は `"ide"` をハードコードせず `AppPaths.subdirName` を経由する（`ProjectsStore` / `Logger` が参考）。Debug ビルドは Bundle ID `local.d0ne1s.ide.dev` を見て自動的に `ide-dev/` に振り分けられる。これを忘れると Brew 配布版データを上書きする経路が復活する。
 
 ---
 
