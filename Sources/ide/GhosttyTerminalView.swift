@@ -314,10 +314,21 @@ final class GhosttyTerminalNSView: NSView {
         // Ghostty に legacy ASCII (^F=0x06) でエンコードさせる。
         let mods = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
         let chars: String = {
+            let raw: String
             if mods.contains(.control), !mods.contains(.command), !mods.contains(.option) {
-                return event.charactersIgnoringModifiers ?? event.characters ?? ""
+                raw = event.charactersIgnoringModifiers ?? event.characters ?? ""
+            } else {
+                raw = event.characters ?? ""
             }
-            return event.characters ?? ""
+            // 矢印キーや F キーは event.characters が NSUpArrowFunctionKey 等の
+            // Private Use Area (U+F700〜U+F8FF) を返す。これを text として Ghostty に
+            // 渡すと keycode の ESC シーケンス encode が抑止されて PUA がそのまま
+            // PTY に流れる。keycode だけ送って Ghostty 内部で encode させる。
+            if raw.count == 1, let scalar = raw.unicodeScalars.first,
+               scalar.value >= 0xF700, scalar.value <= 0xF8FF {
+                return ""
+            }
+            return raw
         }()
         if !chars.isEmpty, !mods.contains(.command) {
             chars.withCString { ptr in
@@ -354,7 +365,11 @@ final class GhosttyTerminalNSView: NSView {
 // extension からも使うので fileprivate ではなく internal
 func unshiftedCodepoint(from event: NSEvent) -> UInt32 {
     let chars = event.charactersIgnoringModifiers ?? ""
-    return chars.unicodeScalars.first?.value ?? 0
+    guard let value = chars.unicodeScalars.first?.value else { return 0 }
+    // 矢印キー等の Private Use Area (U+F700〜U+F8FF) は unshifted codepoint としても
+    // 渡さない（Ghostty 側の encoding がおかしくなる）。
+    if value >= 0xF700, value <= 0xF8FF { return 0 }
+    return value
 }
 
 func modsFromEvent(_ event: NSEvent) -> ghostty_input_mods_e {
