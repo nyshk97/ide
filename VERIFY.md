@@ -5,7 +5,7 @@
 ## 前提
 
 - 開発ビルドは `mise run build`（XcodeGen による `regen` を内包）
-- `.app` の出力先は `/tmp/ide-build/Build/Products/Debug/ide.app`
+- `.app` の出力先は `/tmp/ide-build/Build/Products/Debug/IDE Dev.app`（Debug は Bundle ID `local.d0ne1s.ide.dev` / PRODUCT_NAME `IDE Dev` で Release と完全分離）
 - 動作確認用ヘルパは `scripts/` 配下:
   - `scripts/ide-launch.sh [wait_seconds]` — kill + open + 起動待ち
   - `scripts/ide-keystroke.sh [--enter|--keycode N] "text"` — `osascript` でキーストローク送信
@@ -13,19 +13,21 @@
 
 ログは `/tmp/ide-poc.log`（init() で reset）に書き出される。`tail -f /tmp/ide-poc.log` で追える。
 
-## ⚠️ projects.json を触る検証は事前バックアップ必須
+## ⚠️ projects.json を触る検証は事前バックアップを推奨
 
-以下のセクションは `~/Library/Application Support/ide/projects.json` をテスト用フィクスチャで上書きし、最後に `rm -f` で消します。**ユーザーがピン留めしているデータが入っているので、検証前に必ずバックアップを取り、検証後に復元してください。**
+以下のセクションは `~/Library/Application Support/ide-dev/projects.json` をテスト用フィクスチャで上書きし、最後に `rm -f` で消します。Debug ビルドの Bundle ID は `.dev` suffix で分離されており、Brew 配布版が使う `~/Library/Application Support/ide/projects.json` には触らない設計です。とはいえ Dev 版でも普段からピン留めしているデータがあるなら、念のためバックアップを取っておくのが安全:
 
 ```bash
 # 検証開始前
 BACKUP_DIR=$(mktemp -d)
-cp -a "$HOME/Library/Application Support/ide/" "$BACKUP_DIR/ide-backup" 2>/dev/null || true
+cp -a "$HOME/Library/Application Support/ide-dev/" "$BACKUP_DIR/ide-dev-backup" 2>/dev/null || true
 
 # 検証完了後
-rm -rf "$HOME/Library/Application Support/ide"
-mv "$BACKUP_DIR/ide-backup" "$HOME/Library/Application Support/ide" 2>/dev/null || true
+rm -rf "$HOME/Library/Application Support/ide-dev"
+mv "$BACKUP_DIR/ide-dev-backup" "$HOME/Library/Application Support/ide-dev" 2>/dev/null || true
 ```
+
+**Release configuration で起動して検証するケース**（`build.sh` 経由の `.app` を `/Applications/` に入れて確認するなど）では `ide/projects.json` を直接扱うので、その場合は退避先を `ide-backup` にして `ide/` 配下を保護してください。
 
 対象セクション: 13, 14, 16, 17, 19, 23, 25, 28, 30 など `cat > .../projects.json` を含む全節。
 
@@ -405,13 +407,13 @@ sleep 0.4
 
 ### 12. プロジェクト永続化（自動）
 
-`~/Library/Application Support/ide/projects.json` には pinned / temporary 両方が保存され、再起動でサイドバーに復元される（明示的に「閉じる」した時のみ消える）。
+`~/Library/Application Support/ide-dev/projects.json` には pinned / temporary 両方が保存され、再起動でサイドバーに復元される（明示的に「閉じる」した時のみ消える）。
 
 ```bash
 pkill -x ide 2>/dev/null
-mkdir -p "$HOME/Library/Application Support/ide"
+mkdir -p "$HOME/Library/Application Support/ide-dev"
 mkdir -p /tmp/ide-step3-test/willmove /tmp/ide-step3-test/temp-proj
-cat > "$HOME/Library/Application Support/ide/projects.json" <<'JSON'
+cat > "$HOME/Library/Application Support/ide-dev/projects.json" <<'JSON'
 {
   "projects" : [
     {"displayName":"ide","id":"11111111-1111-1111-1111-111111111111","isPinned":true,"lastOpenedAt":"2026-05-09T01:00:00Z","path":"/Users/d0ne1s/ide"},
@@ -436,7 +438,7 @@ sleep 0.5
 IDE_TEST_AUTO_ACTIVATE_INDEX=2 /tmp/ide-build/Build/Products/Debug/ide.app/Contents/MacOS/ide >/tmp/ide-stdout.log 2>&1 &
 sleep 3
 # temp-proj の lastOpenedAt が更新されていれば temporary も永続化されている
-python3 -c "import json; d=json.load(open('$HOME/Library/Application Support/ide/projects.json')); [print(f\"{p['displayName']}: {p['lastOpenedAt']}\") for p in d['projects']]"
+python3 -c "import json; d=json.load(open('$HOME/Library/Application Support/ide-dev/projects.json')); [print(f\"{p['displayName']}: {p['lastOpenedAt']}\") for p in d['projects']]"
 pkill -x ide 2>/dev/null
 ```
 
@@ -458,14 +460,14 @@ sleep 0.5
 ```bash
 pkill -x ide 2>/dev/null
 rm -rf /tmp/ide-step3-test
-rm -f "$HOME/Library/Application Support/ide/projects.json"*
+rm -f "$HOME/Library/Application Support/ide-dev/projects.json"*
 ```
 
 ### 14. アトミック書き込み・バックアップ世代（手動）
 
 実機で確認:
 - ピン留めを 4 回切り替える
-- `ls "$HOME/Library/Application Support/ide/"` で `projects.json` `.1` `.2` `.3` が並ぶ
+- `ls "$HOME/Library/Application Support/ide-dev/"` で `projects.json` `.1` `.2` `.3` が並ぶ
 - ピン留め中に強制終了させても `projects.json` か `.1` が読み取れること
 
 ### 15. 「再選択」メニュー（手動）
@@ -482,8 +484,8 @@ rm -f "$HOME/Library/Application Support/ide/projects.json"*
 
 ```bash
 pkill -x ide 2>/dev/null
-mkdir -p "$HOME/Library/Application Support/ide"
-cat > "$HOME/Library/Application Support/ide/projects.json" <<'JSON'
+mkdir -p "$HOME/Library/Application Support/ide-dev"
+cat > "$HOME/Library/Application Support/ide-dev/projects.json" <<'JSON'
 {
   "projects" : [
     {"displayName":"ide","id":"11111111-1111-1111-1111-111111111111","isPinned":true,"lastOpenedAt":"2026-05-09T01:00:00Z","path":"/Users/d0ne1s/ide"},
@@ -517,7 +519,7 @@ grep "surface\] new" /tmp/ide-poc.log | tail -2
 クリーンアップ:
 ```bash
 pkill -x ide 2>/dev/null
-rm -f "$HOME/Library/Application Support/ide/projects.json"*
+rm -f "$HOME/Library/Application Support/ide-dev/projects.json"*
 ```
 
 ### 17. プロジェクト切替の状態保持（手動）
@@ -533,8 +535,8 @@ rm -f "$HOME/Library/Application Support/ide/projects.json"*
 要件: TUI（vim/claude）内でも例外なく IDE が捕捉。逃がし手段はなし。
 
 ```bash
-mkdir -p "$HOME/Library/Application Support/ide"
-cat > "$HOME/Library/Application Support/ide/projects.json" <<'JSON'
+mkdir -p "$HOME/Library/Application Support/ide-dev"
+cat > "$HOME/Library/Application Support/ide-dev/projects.json" <<'JSON'
 {
   "projects" : [
     {"displayName":"ide","id":"11111111-1111-1111-1111-111111111111","isPinned":true,"lastOpenedAt":"2026-05-09T01:00:00Z","path":"/Users/d0ne1s/ide"},
@@ -628,7 +630,7 @@ sleep 0.4
 クリーンアップ:
 ```bash
 pkill -x ide 2>/dev/null
-rm -f "$HOME/Library/Application Support/ide/projects.json"*
+rm -f "$HOME/Library/Application Support/ide-dev/projects.json"*
 ```
 
 ### 19. Ctrl+M 連打サイクル（手動）
@@ -644,8 +646,8 @@ rm -f "$HOME/Library/Application Support/ide/projects.json"*
 ### 20. ファイルツリー基本表示（自動）
 
 ```bash
-mkdir -p "$HOME/Library/Application Support/ide"
-cat > "$HOME/Library/Application Support/ide/projects.json" <<'JSON'
+mkdir -p "$HOME/Library/Application Support/ide-dev"
+cat > "$HOME/Library/Application Support/ide-dev/projects.json" <<'JSON'
 {
   "projects" : [
     {"displayName":"ide","id":"11111111-1111-1111-1111-111111111111","isPinned":true,"lastOpenedAt":"2026-05-09T01:00:00Z","path":"/Users/d0ne1s/ide"}
@@ -671,7 +673,7 @@ sleep 2.5
 クリーンアップ:
 ```bash
 pkill -x ide 2>/dev/null
-rm -f "$HOME/Library/Application Support/ide/projects.json"*
+rm -f "$HOME/Library/Application Support/ide-dev/projects.json"*
 ```
 
 ### 21. ファイルツリー展開・右クリック（手動）
@@ -695,8 +697,8 @@ rm -f "$HOME/Library/Application Support/ide/projects.json"*
 ### 23. git status バッジ（自動）
 
 ```bash
-mkdir -p "$HOME/Library/Application Support/ide"
-cat > "$HOME/Library/Application Support/ide/projects.json" <<'JSON'
+mkdir -p "$HOME/Library/Application Support/ide-dev"
+cat > "$HOME/Library/Application Support/ide-dev/projects.json" <<'JSON'
 {"projects":[{"displayName":"ide","id":"11111111-1111-1111-1111-111111111111","isPinned":true,"lastOpenedAt":"2026-05-09T01:00:00Z","path":"/Users/d0ne1s/ide"}],"schemaVersion":1}
 JSON
 echo "<!-- step7 test marker -->" >> /Users/d0ne1s/ide/VERIFY.md
@@ -707,7 +709,7 @@ sleep 4
 ./scripts/ide-screenshot.sh /tmp/v-step7-modified.png
 pkill -x ide 2>/dev/null
 git -C /Users/d0ne1s/ide checkout -- VERIFY.md
-rm -f "$HOME/Library/Application Support/ide/projects.json"*
+rm -f "$HOME/Library/Application Support/ide-dev/projects.json"*
 ```
 
 期待: スクショで VERIFY.md の右端に青い `M` バッジが見える（modified ステータス、3 秒 polling で更新）。
@@ -725,8 +727,8 @@ rm -f "$HOME/Library/Application Support/ide/projects.json"*
 `IDE_TEST_AUTO_PREVIEW` 環境変数で起動時に project root からの相対パスを開ける。
 
 ```bash
-mkdir -p "$HOME/Library/Application Support/ide"
-cat > "$HOME/Library/Application Support/ide/projects.json" <<'JSON'
+mkdir -p "$HOME/Library/Application Support/ide-dev"
+cat > "$HOME/Library/Application Support/ide-dev/projects.json" <<'JSON'
 {"projects":[{"displayName":"ide","id":"11111111-1111-1111-1111-111111111111","isPinned":true,"lastOpenedAt":"2026-05-09T01:00:00Z","path":"/Users/d0ne1s/ide"}],"schemaVersion":1}
 JSON
 APP=/tmp/ide-build/Build/Products/Debug/ide.app
@@ -749,7 +751,7 @@ IDE_TEST_AUTO_ACTIVATE_INDEX=0 IDE_TEST_AUTO_PREVIEW="Resources/Info.plist" "$AP
 sleep 3
 ./scripts/ide-screenshot.sh /tmp/v-step8-plist.png
 pkill -x ide 2>/dev/null
-rm -f "$HOME/Library/Application Support/ide/projects.json"*
+rm -f "$HOME/Library/Application Support/ide-dev/projects.json"*
 ```
 
 期待:
@@ -781,8 +783,8 @@ rm -f "$HOME/Library/Application Support/ide/projects.json"*
 ### 27.5 ツリー ↔ プレビュー トグル（Cmd+J / 自動）
 
 ```bash
-mkdir -p "$HOME/Library/Application Support/ide"
-cat > "$HOME/Library/Application Support/ide/projects.json" <<'JSON'
+mkdir -p "$HOME/Library/Application Support/ide-dev"
+cat > "$HOME/Library/Application Support/ide-dev/projects.json" <<'JSON'
 {"projects":[{"displayName":"ide","id":"11111111-1111-1111-1111-111111111111","isPinned":true,"lastOpenedAt":"2026-05-09T01:00:00Z","path":"/Users/d0ne1s/ide"}],"schemaVersion":1}
 JSON
 APP=/tmp/ide-build/Build/Products/Debug/ide.app
@@ -804,7 +806,7 @@ sleep 0.4
 ./scripts/ide-screenshot.sh /tmp/v-toggle-3.png
 
 pkill -x ide 2>/dev/null
-rm -f "$HOME/Library/Application Support/ide/projects.json"*
+rm -f "$HOME/Library/Application Support/ide-dev/projects.json"*
 ```
 
 期待:
@@ -817,8 +819,8 @@ rm -f "$HOME/Library/Application Support/ide/projects.json"*
 ### 28. Cmd+P クイック検索（自動）
 
 ```bash
-mkdir -p "$HOME/Library/Application Support/ide"
-cat > "$HOME/Library/Application Support/ide/projects.json" <<'JSON'
+mkdir -p "$HOME/Library/Application Support/ide-dev"
+cat > "$HOME/Library/Application Support/ide-dev/projects.json" <<'JSON'
 {"projects":[{"displayName":"ide","id":"11111111-1111-1111-1111-111111111111","isPinned":true,"lastOpenedAt":"2026-05-09T01:00:00Z","path":"/Users/d0ne1s/ide"}],"schemaVersion":1}
 JSON
 APP=/tmp/ide-build/Build/Products/Debug/ide.app
@@ -839,7 +841,7 @@ end tell
 OSA
 ./scripts/ide-screenshot.sh /tmp/v-step10-read.png
 pkill -x ide 2>/dev/null
-rm -f "$HOME/Library/Application Support/ide/projects.json"*
+rm -f "$HOME/Library/Application Support/ide-dev/projects.json"*
 ```
 
 期待: 中央上部にオーバーレイが表示され、検索結果の一番上に `REQUIREMENTS.md` が出る。
@@ -858,8 +860,8 @@ rm -f "$HOME/Library/Application Support/ide/projects.json"*
 `IDE_TEST_AUTO_FULLSEARCH` で起動時に grep を実行できる。
 
 ```bash
-mkdir -p "$HOME/Library/Application Support/ide"
-cat > "$HOME/Library/Application Support/ide/projects.json" <<'JSON'
+mkdir -p "$HOME/Library/Application Support/ide-dev"
+cat > "$HOME/Library/Application Support/ide-dev/projects.json" <<'JSON'
 {"projects":[{"displayName":"ide","id":"11111111-1111-1111-1111-111111111111","isPinned":true,"lastOpenedAt":"2026-05-09T01:00:00Z","path":"/Users/d0ne1s/ide"}],"schemaVersion":1}
 JSON
 APP=/tmp/ide-build/Build/Products/Debug/ide.app
@@ -868,7 +870,7 @@ IDE_TEST_AUTO_ACTIVATE_INDEX=0 IDE_TEST_AUTO_PREVIEW="REQUIREMENTS.md" IDE_TEST_
 sleep 4
 ./scripts/ide-screenshot.sh /tmp/v-step11-search.png
 pkill -x ide 2>/dev/null
-rm -f "$HOME/Library/Application Support/ide/projects.json"*
+rm -f "$HOME/Library/Application Support/ide-dev/projects.json"*
 ```
 
 期待: スクショで `Project` の検索結果が複数件並ぶ（VERIFY.md / phase2-files.md / MRUKeyMonitor.swift など）。各行にファイル名 + 行番号 + プレビュー。
@@ -926,8 +928,8 @@ swiftc -o /tmp/simulate-drag /tmp/simulate-drag.swift
 
 # テスト fixture（5 件、alpha/bravo を pinned）
 pkill -x ide 2>/dev/null; sleep 0.4
-mkdir -p "$HOME/Library/Application Support/ide" /tmp/ide-dnd-test/{alpha,bravo,charlie,delta,echo}
-cat > "$HOME/Library/Application Support/ide/projects.json" <<'JSON'
+mkdir -p "$HOME/Library/Application Support/ide-dev" /tmp/ide-dnd-test/{alpha,bravo,charlie,delta,echo}
+cat > "$HOME/Library/Application Support/ide-dev/projects.json" <<'JSON'
 {
   "projects" : [
     {"displayName":"alpha","id":"AAAAAAAA-1111-1111-1111-111111111111","isPinned":true,"lastOpenedAt":"2026-05-09T01:00:00Z","path":"/tmp/ide-dnd-test/alpha"},
@@ -949,14 +951,14 @@ sleep 0.8
 sleep 0.6
 python3 -c "
 import json
-d = json.load(open('$HOME/Library/Application Support/ide/projects.json'))
+d = json.load(open('$HOME/Library/Application Support/ide-dev/projects.json'))
 for p in d['projects']: print(f\"  {p['displayName']}: pinned={p['isPinned']}\")
 "
 
 pkill -x ide 2>/dev/null
 rm -f /tmp/simulate-drag /tmp/simulate-drag.swift
 rm -rf /tmp/ide-dnd-test
-rm -f "$HOME/Library/Application Support/ide/projects.json"*
+rm -f "$HOME/Library/Application Support/ide-dev/projects.json"*
 ```
 
 期待出力:
@@ -975,8 +977,8 @@ rm -f "$HOME/Library/Application Support/ide/projects.json"*
 旧仕様では temporary を active 化すると先頭に移動していたが、ドラッグ並び替え導入で廃止した（手動順序を尊重）。
 
 ```bash
-mkdir -p "$HOME/Library/Application Support/ide" /tmp/ide-dnd-test/{a,b,c}
-cat > "$HOME/Library/Application Support/ide/projects.json" <<'JSON'
+mkdir -p "$HOME/Library/Application Support/ide-dev" /tmp/ide-dnd-test/{a,b,c}
+cat > "$HOME/Library/Application Support/ide-dev/projects.json" <<'JSON'
 {"projects":[
   {"displayName":"a","id":"AAAAAAAA-1111-1111-1111-111111111111","isPinned":false,"lastOpenedAt":"2026-05-09T01:00:00Z","path":"/tmp/ide-dnd-test/a"},
   {"displayName":"b","id":"BBBBBBBB-1111-1111-1111-111111111111","isPinned":false,"lastOpenedAt":"2026-05-09T02:00:00Z","path":"/tmp/ide-dnd-test/b"},
@@ -991,11 +993,11 @@ sleep 2
 pkill -x ide 2>/dev/null; sleep 0.4
 python3 -c "
 import json
-d = json.load(open('$HOME/Library/Application Support/ide/projects.json'))
+d = json.load(open('$HOME/Library/Application Support/ide-dev/projects.json'))
 print(','.join(p['displayName'] for p in d['projects']))
 "
 rm -rf /tmp/ide-dnd-test
-rm -f "$HOME/Library/Application Support/ide/projects.json"*
+rm -f "$HOME/Library/Application Support/ide-dev/projects.json"*
 ```
 
 期待出力: `a,b,c`（c が先頭に移動していない）。

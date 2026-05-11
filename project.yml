@@ -46,3 +46,9 @@ targets:
         # ghostty-internal.a は C++ (glslang 等) を含むので libc++ をリンク
         # システムフレームワークは dependencies の sdk: 経由で追加される
         OTHER_LDFLAGS: -lc++
+      configs:
+        # Debug は Brew 配布版（Release）と Bundle ID / 表示名を分けて、
+        # Application Support / Logs / Dock を完全に分離する。
+        Debug:
+          PRODUCT_BUNDLE_IDENTIFIER: local.d0ne1s.ide.dev
+          PRODUCT_NAME: IDE Dev

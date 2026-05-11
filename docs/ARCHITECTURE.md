@@ -66,7 +66,7 @@ ProjectsModel
 - `ProjectColor`: アバターの色プリセット。プロジェクト追加時にパスのハッシュから自動割り当て、後から `ProjectEditSheet` で変更可能
 - `ProjectAvatarView`: プロジェクト名の頭文字 + `colorKey` の丸アバター。サイドバー / Ctrl+M overlay の両方で使用
 - `ProjectEditSheet`: 表示名と色をまとめて変更するモーダル
-- `ProjectsStore`: `~/Library/Application Support/ide/projects.json` への永続化。アトミック書き込み（temp → rename）+ バックアップ世代 `.1` 〜 `.3`。schemaVersion: 1
+- `ProjectsStore`: `~/Library/Application Support/{ide,ide-dev}/projects.json` への永続化。アトミック書き込み（temp → rename）+ バックアップ世代 `.1` 〜 `.3`。schemaVersion: 1。サブディレクトリ名は `AppPaths.subdirName` が Bundle ID の `.dev` suffix を見て振り分ける（Release=ide / Debug=ide-dev）。`Logger` も同じ規則で `~/Library/Logs/{ide,ide-dev}/` に出す
 - ピン留め・一時プロジェクトの双方を永続化（明示的に閉じるまで残る）
 
 ### WorkspaceView / WorkspaceModel / PaneState / TerminalTab / TabsView / ExitedOverlayView / ForegroundProcessInspector

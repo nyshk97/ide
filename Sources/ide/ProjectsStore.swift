@@ -18,9 +18,10 @@ struct ProjectsStore: Sendable {
     private var fileManager: FileManager { .default }
 
     /// 永続化先ディレクトリ。存在しなければ作成。
+    /// Debug ビルドは `ide-dev/` 配下に保存し、Release（Brew 配布版）と完全に分離する。
     var storageDirectory: URL {
         let appSupport = fileManager.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
-        return appSupport.appendingPathComponent("ide", isDirectory: true)
+        return appSupport.appendingPathComponent(AppPaths.subdirName, isDirectory: true)
     }
 
     var storageURL: URL { storageDirectory.appendingPathComponent("projects.json") }

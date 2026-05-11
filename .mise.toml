@@ -11,10 +11,10 @@ depends = ["regen"]
 run = "xcodebuild -project ide.xcodeproj -scheme ide -configuration Debug -destination 'platform=macOS' -derivedDataPath /tmp/ide-build build"
 
 [tasks.run]
-description = "ビルド済みアプリを再起動して開く（既存 IDE プロセスを kill してから）"
+description = "ビルド済みアプリを再起動して開く（既存 IDE Dev プロセスを kill してから。Brew 版の IDE は触らない）"
 run = """
-pkill -x IDE || true
-open -n /tmp/ide-build/Build/Products/Debug/IDE.app
+pkill -x "IDE Dev" || true
+open -n "/tmp/ide-build/Build/Products/Debug/IDE Dev.app"
 """
 depends = ["build"]
 

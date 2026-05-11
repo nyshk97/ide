@@ -43,13 +43,13 @@ final class Logger: @unchecked Sendable {
     var directory: URL {
         let logs = fileManager.urls(for: .libraryDirectory, in: .userDomainMask).first!
             .appendingPathComponent("Logs", isDirectory: true)
-            .appendingPathComponent("ide", isDirectory: true)
+            .appendingPathComponent(AppPaths.subdirName, isDirectory: true)
         return logs
     }
 
     private var currentFileURL: URL {
         let dateStr = dateFormatter.string(from: .now)
-        return directory.appendingPathComponent("ide-\(dateStr).log")
+        return directory.appendingPathComponent("\(AppPaths.subdirName)-\(dateStr).log")
     }
 
     func error(_ message: String) { write(.error, message) }

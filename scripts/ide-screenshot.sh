@@ -6,7 +6,7 @@ set -euo pipefail
 OUT="${1:-/tmp/ide-screenshot.png}"
 
 POS=$(osascript <<'AS'
-tell application "System Events" to tell process "IDE"
+tell application "System Events" to tell process "IDE Dev"
   if (count of windows) = 0 then return "0,0,0,0"
   set p to position of front window
   set s to size of front window
@@ -16,7 +16,7 @@ AS
 )
 
 if [[ "$POS" == "0,0,0,0" ]]; then
-  echo "error: IDE にウィンドウがない" >&2
+  echo "error: IDE Dev にウィンドウがない" >&2
   exit 1
 fi
 

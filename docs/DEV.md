@@ -45,7 +45,7 @@
 ## テスト用環境変数
 
 VERIFY 用に起動時の状態を仕込めるフラグ。**本番ユーザーは設定しない**前提。
-すべて `~/Library/Application Support/ide/projects.json` にピン留めが事前に書かれていることを前提にする。
+すべて `~/Library/Application Support/ide-dev/projects.json` にピン留めが事前に書かれていることを前提にする。
 
 | 環境変数 | 効果 |
 |---|---|
