@@ -107,7 +107,34 @@ final class GhosttyManager: @unchecked Sendable {
 
     private init() {}
 
+    /// libghostty にはテーマ集（`theme = "GitHub Dark"` 等）が同梱されていないため、
+    /// `GHOSTTY_RESOURCES_DIR` を bundle 内の `ghostty/`（`themes/` を含む）に向ける。
+    /// 既に env に設定済みなら尊重し、bundle に無ければ Ghostty.app があればそちらを使う。
+    /// 必ず `ghostty_init` より前に呼ぶこと。
+    private func configureResourcesDir() {
+        if let existing = ProcessInfo.processInfo.environment["GHOSTTY_RESOURCES_DIR"], !existing.isEmpty {
+            PocLog.write("[ghostty] GHOSTTY_RESOURCES_DIR already set: \(existing)")
+            return
+        }
+        let fm = FileManager.default
+        var candidates: [String] = []
+        if let bundled = Bundle.main.resourceURL?.appendingPathComponent("ghostty", isDirectory: true).path {
+            candidates.append(bundled)
+        }
+        candidates.append("/Applications/Ghostty.app/Contents/Resources/ghostty")
+        for dir in candidates {
+            var isDir: ObjCBool = false
+            guard fm.fileExists(atPath: dir, isDirectory: &isDir), isDir.boolValue else { continue }
+            guard fm.fileExists(atPath: (dir as NSString).appendingPathComponent("themes")) else { continue }
+            setenv("GHOSTTY_RESOURCES_DIR", dir, 1)
+            PocLog.write("[ghostty] GHOSTTY_RESOURCES_DIR -> \(dir)")
+            return
+        }
+        PocLog.write("[ghostty] no resources dir with themes/ found; themes will not resolve")
+    }
+
     func start() {
+        configureResourcesDir()
         let result = ghostty_init(UInt(CommandLine.argc), CommandLine.unsafeArgv)
         let info = ghostty_info()
         let version = info.version.map { String(cString: $0) } ?? "(nil)"

@@ -26,6 +26,12 @@ targets:
       - path: Resources/preview
         type: folder
         buildPhase: resources
+      # Ghostty 標準テーマ集（scripts/fetch-ghostty-themes.sh で取得）。
+      # libghostty にはテーマが同梱されないので bundle し、GHOSTTY_RESOURCES_DIR
+      # で参照させる（GhosttyManager の起動処理を参照）。<bundle>/Resources/ghostty/themes/ になる。
+      - path: Resources/ghostty
+        type: folder
+        buildPhase: resources
     dependencies:
       - framework: GhosttyKit.xcframework
         embed: false

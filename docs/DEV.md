@@ -108,6 +108,15 @@ open -n "/tmp/ide-build/Build/Products/Debug/IDE Dev.app" \
 
 ---
 
+## Ghostty のテーマ / リソースディレクトリ
+
+- **libghostty には標準テーマ集が同梱されていない**: スタンドアロン Ghostty.app は `Contents/Resources/ghostty/themes/` にテーマファイルを持つが、`GhosttyKit.xcframework` には無い。そのままだと `~/.config/ghostty/config` の `theme = "GitHub Dark"` 等が解決できず**デフォルト配色（明るめのグレー）にフォールバック**して「もやがかかったような薄い色」に見える
+- **対策**: `scripts/fetch-ghostty-themes.sh` で [mbadolato/iTerm2-Color-Schemes](https://github.com/mbadolato/iTerm2-Color-Schemes) の `ghostty/` を `Resources/ghostty/themes/` に取得 → `project.yml` で folder reference として bundle → `GhosttyManager.configureResourcesDir()` が起動時（`ghostty_init` の前）に `GHOSTTY_RESOURCES_DIR` を `<bundle>/Contents/Resources/ghostty` に向ける（env に既にあれば尊重、無ければ `/Applications/Ghostty.app/...` にフォールバック）
+- **確認**: 起動後 `grep -i ghostty /tmp/ide-poc.log` で `GHOSTTY_RESOURCES_DIR -> ...` が出ていて、`theme "..." not found` の diagnostic が消えていれば OK
+- テーマを更新したくなったら `./scripts/fetch-ghostty-themes.sh` を再実行（差分は git で確認）
+
+---
+
 ## キー入力の優先順位
 
 詳細は [ARCHITECTURE.md](./ARCHITECTURE.md#キー入力の優先順位)。
