@@ -798,6 +798,42 @@ rm -f "$HOME/Library/Application Support/ide-dev/projects.json"*
 - コード（.swift）はモノスペースで表示
 - XML はそのままプレーンテキスト
 
+### 25.5 プレビュー自動リロード（自動）
+
+プレビュー中ファイルがディスク上で更新されたら、`FileChangeWatcher`（kqueue）が検知して
+自動で classify し直す。エディタのアトミック保存（temp に書いて mv で差し替え）でも
+delete/rename を検知して開き直すので追従が継続する。
+
+```bash
+BACKUP_DIR=$(mktemp -d)
+cp -a "$HOME/Library/Application Support/ide-dev" "$BACKUP_DIR/ide-dev-backup" 2>/dev/null || true
+mkdir -p /tmp/ide-watchtest
+printf '# Watch test\n\nVERSION ONE\n' > /tmp/ide-watchtest/note.md
+mkdir -p "$HOME/Library/Application Support/ide-dev"
+cat > "$HOME/Library/Application Support/ide-dev/projects.json" <<'JSON'
+{"projects":[{"displayName":"watchtest","id":"22222222-2222-2222-2222-222222222222","isPinned":true,"lastOpenedAt":"2026-05-11T00:00:00Z","path":"/tmp/ide-watchtest"}],"schemaVersion":1}
+JSON
+: > /tmp/ide-poc.log
+APP="/tmp/ide-build/Build/Products/Debug/IDE Dev.app"
+pkill -x "IDE Dev" 2>/dev/null; sleep 0.6
+IDE_TEST_AUTO_ACTIVATE_INDEX=0 IDE_TEST_AUTO_PREVIEW="note.md" "$APP/Contents/MacOS/IDE Dev" >/dev/null 2>&1 &
+sleep 4
+printf 'v2 in place\n' > /tmp/ide-watchtest/note.md; sleep 1.5
+printf 'v3 atomic\n' > /tmp/ide-watchtest/note.md.new && mv /tmp/ide-watchtest/note.md.new /tmp/ide-watchtest/note.md; sleep 1.5
+printf 'v4 atomic again\n' > /tmp/ide-watchtest/note.md.new && mv /tmp/ide-watchtest/note.md.new /tmp/ide-watchtest/note.md; sleep 1.5
+for i in 1 2 3 4 5; do printf "burst $i\n" >> /tmp/ide-watchtest/note.md; done; sleep 1.5
+grep -c "auto-reloaded" /tmp/ide-poc.log
+pkill -x "IDE Dev" 2>/dev/null
+rm -rf "$HOME/Library/Application Support/ide-dev"
+mv "$BACKUP_DIR/ide-dev-backup" "$HOME/Library/Application Support/ide-dev" 2>/dev/null || true
+rm -rf /tmp/ide-watchtest
+```
+
+期待:
+- `/tmp/ide-poc.log` に `[preview] auto-reloaded note.md` が **4 行**（v2 / v3 / v4 / burst×5 が 1 回にまとまる）。起動直後（編集前）には出ない
+- 実機で見ると、編集のたびにプレビュー本文が新しい内容に切り替わる（スクロール位置はリセットされる — 既知）
+- アクセシビリティ権限がない環境では screenshot が撮れないので、本文の目視は実機で確認する
+
 ### 26. プレビュー画像/PDF/バイナリ/大きいファイル（手動）
 
 実機で確認:

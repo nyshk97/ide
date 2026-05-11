@@ -17,6 +17,10 @@ struct FilePreviewView: View {
     @State private var kind: FilePreviewKind?
     @State private var loadedURL: URL?
 
+    /// 自動リロードのたびにインクリメント。画像 / PDF は URL が同じだと
+    /// `updateNSView` が再読込しないので、`.id()` に噛ませて作り直しを強制する。
+    @State private var reloadGen = 0
+
     /// 「ツリー」パンくずリンクのホバー状態。clickable であることを示すため underline に使う。
     @State private var treeHovered = false
 
@@ -31,15 +35,31 @@ struct FilePreviewView: View {
         }
         .task(id: url) {
             forceLoadLarge = false
-            // 同じ url が連続で渡る（履歴で同ファイルに戻る等）はスキップ
-            if loadedURL == url, kind != nil { return }
-            let target = url
-            let result = await Task.detached(priority: .userInitiated) {
-                FilePreviewClassifier.classify(target)
-            }.value
-            if Task.isCancelled { return }
-            self.kind = result
-            self.loadedURL = target
+            // 同じ url が連続で渡る（履歴で同ファイルに戻る等）は初回ロードをスキップ
+            if !(loadedURL == url && kind != nil) {
+                await classifyAndApply()
+            }
+            // 表示中ファイルがディスク上で更新されたら自動でリロード。
+            // url が変わる / ツリーに戻ると .task が cancel され、watcher も止まる。
+            for await _ in FileChangeWatcher.events(for: url) {
+                if Task.isCancelled { break }
+                await classifyAndApply(isReload: true)
+            }
+        }
+    }
+
+    /// ファイルを分類し直して表示状態に反映する。`.task` 初回と自動リロードの両方が呼ぶ。
+    private func classifyAndApply(isReload: Bool = false) async {
+        let target = url
+        let result = await Task.detached(priority: .userInitiated) {
+            FilePreviewClassifier.classify(target)
+        }.value
+        if Task.isCancelled { return }
+        self.kind = result
+        self.loadedURL = target
+        if isReload {
+            self.reloadGen &+= 1
+            PocLog.write("[preview] auto-reloaded \(target.lastPathComponent)")
         }
     }
 
@@ -113,8 +133,10 @@ struct FilePreviewView: View {
                 ))
             case .image:
                 ImagePreview(url: url)
+                    .id(reloadGen)
             case .pdf:
                 PDFPreview(url: url)
+                    .id(reloadGen)
             case .binary:
                 externalPrompt(message: "バイナリファイルです（プレビュー非対応）")
             case .tooLarge(let bytes):
