@@ -50,8 +50,12 @@ final class GhosttyManager: @unchecked Sendable {
         surfaceToTab[surface]?.value
     }
 
-    /// タブが「いまアクティブ（active pane の active tab）」でなければ未読を立てる。
+    /// 非アクティブタブに完了通知が来たとき鳴らすシステムサウンド名（`/System/Library/Sounds/*.aiff`）。
+    private static let notificationSoundName = NSSound.Name("Glass")
+
+    /// タブが「いまアクティブ（active pane の active tab）」でなければ未読を立て、通知音を鳴らす。
     /// AI 完了シグナル（progress REMOVE / desktop notification / bell）から呼ぶ共通処理。
+    /// 音は未読フラグが false→true に変わったときだけ鳴らす（同じタブで連打しない）。
     @MainActor
     static func markUnreadIfBackgrounded(_ tab: TerminalTab, reason: String) {
         let active = ProjectsModel.shared.activeWorkspace?.isCurrentlyActive(tab: tab) ?? false
@@ -59,6 +63,7 @@ final class GhosttyManager: @unchecked Sendable {
         if !tab.hasUnreadNotification {
             tab.hasUnreadNotification = true
             ProjectsModel.shared.refreshUnreadProjects()
+            NSSound(named: notificationSoundName)?.play()
             PocLog.write("[unread] tab=\(tab.title) reason=\(reason) unreadProjects=\(ProjectsModel.shared.unreadProjectIDs.count)")
         }
     }
