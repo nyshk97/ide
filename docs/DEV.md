@@ -35,10 +35,11 @@
 | スクリプト | 用途 |
 |---|---|
 | `scripts/ide-launch.sh [wait_seconds]` | ide を kill してから起動。デフォルト 3 秒待機 |
-| `scripts/ide-keystroke.sh [--enter|--keycode N] "text"` | osascript でキー送信 |
-| `scripts/ide-screenshot.sh <path>` | フロントウィンドウだけを `screencapture -x -R` でキャプチャ |
+| `scripts/ide-keystroke.sh [--enter|--keycode N] "text"` | osascript（補助アクセス権限が必要）でキー送信 |
+| `scripts/ide-screenshot.sh <path>` | `CGWindowList` でウィンドウ ID を引いて `screencapture -l` でキャプチャ（取れなければメイン画面全体にフォールバック） |
 
-- **`ide-screenshot.sh` / `ide-keystroke.sh` は Claude Code の Bash 環境からは動かない**: `osascript` の補助アクセス権限・画面収録権限が無く、`osascript ... -25211` や `screencapture -x ... could not create image from display` で落ちる。エージェント側の検証は `/tmp/ide-poc.log`（PocLog）・起動ログ・テスト用環境変数に倒し、目視スクショが要るものはユーザーに依頼する
+- **TCC（プライバシー）権限の罠**: `osascript` / `screencapture` は SIP 配下のバイナリで、IDE 内ターミナル（Ghostty）はシェルを `/usr/bin/login` 経由で起動する。この `login` のせいで TCC の「責任プロセス」が IDE.app に解決されず、`osascript`/`screencapture` 自体に権限を求めるポップアップが毎回出る（恒久付与できない）。`ide-screenshot.sh` は `osascript` を捨てて `CGWindowList`（補助アクセス不要）+ `screencapture -l` にしてあるので「アクセシビリティ」のポップアップは出ない（「画面収録」は依然必要）。`ide-keystroke.sh` は合成キー入力のため補助アクセスが不可避。**キーストローク込みの検証を安定して回したいなら、IDE の中ではなく Terminal.app / iTerm から実行**し、そのターミナルアプリに一度「アクセシビリティ」「画面収録」を付与する（普通に署名された安定アプリ & `login` 介在なしなので付与が効き続ける）。
+- **Claude Code の Bash 環境からは画面収録権限が無い**ので `ide-screenshot.sh` も `could not create image from display` で落ちる。エージェント側の検証は `/tmp/ide-poc.log`（PocLog）・起動ログ・テスト用環境変数に倒し、目視スクショが要るものはユーザーに依頼する
 
 詳しい確認手順は [VERIFY.md](../VERIFY.md)。
 
