@@ -13,8 +13,13 @@ final class TerminalTab: ObservableObject, Identifiable {
     /// `restart()` で increment。SwiftUI 側の `.id()` に混ぜることで view 再生成を起こす。
     @Published var generation: Int = 0
 
-    /// BEL 受信などで未読通知が立っている状態。アクティブ化で自動クリアする。
+    /// AI 完了などで未読通知が立っている状態。アクティブ化で自動クリアする。
     @Published var hasUnreadNotification: Bool = false
+
+    /// AI ツール（claude / codex）が `OSC 9;4` のプログレスで「作業中」を表明していて、
+    /// まだ REMOVE で消されていない状態。`作業中 → REMOVE` の遷移だけを「ターン完了」とみなし、
+    /// 起動直後の空 REMOVE 等での誤検知を防ぐためのフラグ。
+    var aiTurnInProgress: Bool = false
 
     /// foreground プロセスを定期 polling して識別した結果。タブのアイコン表示に使う。
     @Published var foregroundProgram: ForegroundProgram = .shell

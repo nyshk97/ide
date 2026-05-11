@@ -110,16 +110,15 @@ final class GhosttyTerminalNSView: NSView {
 
     override func becomeFirstResponder() -> Bool {
         let ok = super.becomeFirstResponder()
-        // 自分の属するペインを active pane に昇格（setActive 内で未読通知はクリアされる）。
+        // 自分の属するペインを active pane に昇格＆そのタブの未読をクリアする。
         // ただし、ユーザー操作（クリック・キー）起因のときのみ。NSWindow の自動 initialFirstResponder
-        // で上ペインが選ばれてしまうと、WorkspaceModel.init の activePane=bottomPane が
-        // 上書きされてしまうため、そのケースは除外する。
+        // 等のレイアウト起因では、WorkspaceModel.init の activePane=bottomPane を上書きしてしまう上、
+        // バックグラウンド workspace のタブに立っている未読通知まで消してしまうため除外する。
         if let pane, isUserDrivenFirstResponderChange() {
             ProjectsModel.shared.activeWorkspace?.setActive(pane)
+            tab?.hasUnreadNotification = false
+            ProjectsModel.shared.refreshUnreadProjects()
         }
-        // becomeFirstResponder した NSView は自身のタブを最前面表示しているはずなので
-        // そのタブの未読も明示的にクリア
-        tab?.hasUnreadNotification = false
         if let s = surface, let tab {
             ghostty_surface_set_focus(s, true)
             GhosttyManager.shared.register(surface: s, tab: tab)

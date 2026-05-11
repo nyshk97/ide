@@ -95,9 +95,20 @@ struct LeftSidebarView: View {
         }
     }
 
+    /// 未読プロジェクトの強調色（紫系）。左端バーと薄いティント背景に使う。
+    private static let unreadAccent = Color(red: 0.58, green: 0.40, blue: 0.92)
+
+    /// 行の背景色。アクティブが最優先、次に未読（紫のごく薄いティント）。
+    private func rowBackground(isActive: Bool, hasUnread: Bool) -> Color {
+        if isActive { return Color.accentColor.opacity(0.25) }
+        if hasUnread { return Self.unreadAccent.opacity(0.13) }
+        return Color.clear
+    }
+
     private func row(_ project: Project) -> some View {
         let isActive = projects.activeProject?.id == project.id
         let missing = project.isMissing
+        let hasUnread = projects.unreadProjectIDs.contains(project.id)
         return HStack(spacing: 8) {
             ProjectAvatarView(
                 name: project.displayName,
@@ -119,7 +130,7 @@ struct LeftSidebarView: View {
         .padding(.horizontal, 8)
         .padding(.vertical, 5)
         .frame(maxWidth: .infinity, minHeight: Self.rowHeight, alignment: .leading)
-        .background(isActive ? Color.accentColor.opacity(0.25) : Color.clear)
+        .background(rowBackground(isActive: isActive, hasUnread: hasUnread))
         .opacity(missing ? 0.55 : 1.0)
         .overlay(alignment: .top) {
             if dropIndicator == .beforeRow(project.id) {
@@ -133,6 +144,12 @@ struct LeftSidebarView: View {
                 Rectangle()
                     .fill(Color.accentColor)
                     .frame(height: 2)
+            }
+        }
+        .overlay(alignment: .leading) {
+            // 未読プロジェクトは左端に紫の縦バー（focused タブ表示と同じ手法）
+            if hasUnread {
+                Self.unreadAccent.frame(width: 3)
             }
         }
         .help(missing ? "パスが見つかりません: \(project.path.path)" : project.path.path)

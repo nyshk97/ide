@@ -31,9 +31,11 @@ final class PaneState: ObservableObject, Identifiable {
         if tabs.isEmpty {
             // 最後のタブが閉じたら新規を1つ自動で立てる（PoC 段階の暫定挙動）
             addTab()
-            return
+        } else {
+            activeIndex = min(activeIndex, tabs.count - 1)
         }
-        activeIndex = min(activeIndex, tabs.count - 1)
+        // 未読タブを閉じた可能性があるのでサイドバーのリングを再計算
+        ProjectsModel.shared.refreshUnreadProjects()
     }
 
     func selectTab(at index: Int) {
@@ -41,5 +43,6 @@ final class PaneState: ObservableObject, Identifiable {
         activeIndex = index
         // タブを能動的に切替えたら未読通知はクリア
         tabs[index].hasUnreadNotification = false
+        ProjectsModel.shared.refreshUnreadProjects()
     }
 }

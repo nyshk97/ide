@@ -48,7 +48,7 @@ Phase 2 完了後に残っているタスクと、今後のアイデアを集約
 | 🟢 | クロスエージェント引き継ぎ補助 | 要件 5 |
 | 🟢 | コードプレビューのシンタックスハイライト | step8 で単純 NSTextView。Highlightr or tree-sitter |
 | 🟢 | Markdown 完全レンダリング | 現状は `AttributedString` の inlineOnly |
-| 🟢 | BEL 通知の誤検知対策 | Phase 1 の積み残し、誤検知が顕在化したら |
+| 🟢 | AI 完了通知の精度向上 | 完了検知は `OSC 9;4` プログレス（作業中→REMOVE）ベースで実装済み（claude/codex はベルを鳴らさないため）。残: ツール呼び出しで途中 REMOVE が挟まる場合の debounce / 手動クリア / codex でも同じプログレスが来るかの確認 |
 | 🟢 | セッション復元 | 要件未記載、運用見て判断 |
 
 ---

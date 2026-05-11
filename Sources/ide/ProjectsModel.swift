@@ -23,6 +23,10 @@ final class ProjectsModel: ObservableObject {
     /// close されたときだけ破棄する。
     @Published private(set) var workspaces: [UUID: WorkspaceModel] = [:]
 
+    /// 配下のいずれかのタブに未読通知（AI ツールの完了 BEL）があるプロジェクトの id 集合。
+    /// サイドバーのアバターにリングを表示するのに使う。`refreshUnreadProjects()` で更新する。
+    @Published private(set) var unreadProjectIDs: Set<UUID> = []
+
     /// プロジェクトごとのファイルツリーモデル。`fileTree(for:)` で遅延作成。
     @Published private(set) var fileTrees: [UUID: FileTreeModel] = [:]
 
@@ -59,6 +63,10 @@ final class ProjectsModel: ObservableObject {
     private init(store: ProjectsStore = .shared) {
         self.store = store
         load()
+        // 未読フラグ → アクティブ化の順。こうしておくと AUTO_ACTIVATE と UNREAD_INDICES を
+        // 同じプロジェクトに向けたとき「アクティブ化でそのプロジェクトの表示タブの未読が消える」
+        // 挙動も検証できる。
+        applyTestUnreadIndices()
         applyTestAutoActivate()
         applyTestAutoPreview()
     }
@@ -111,6 +119,21 @@ final class ProjectsModel: ObservableObject {
         }
     }
 
+    /// `IDE_TEST_UNREAD_INDICES=0,2` のように指定すると、allOrdered の該当インデックスの
+    /// プロジェクトの workspace を作成し、下ペインのカレントタブに未読通知を立てる。
+    /// サイドバーのリング表示の VERIFY 用デバッグ機能。
+    private func applyTestUnreadIndices() {
+        guard let raw = ProcessInfo.processInfo.environment["IDE_TEST_UNREAD_INDICES"] else { return }
+        let indices = raw.split(separator: ",").compactMap { Int($0.trimmingCharacters(in: .whitespaces)) }
+        let ordered = allOrdered
+        for index in indices where ordered.indices.contains(index) {
+            let wm = workspace(for: ordered[index])
+            wm.bottomPane.activeTab?.hasUnreadNotification = true
+            PocLog.write("[projects] test-unread index=\(index) name=\(ordered[index].displayName)")
+        }
+        refreshUnreadProjects()
+    }
+
     /// 表示順に並べた全プロジェクト（pinned + temporary）。
     var allOrdered: [Project] { pinned + temporary }
 
@@ -160,6 +183,16 @@ final class ProjectsModel: ObservableObject {
     var activeWorkspace: WorkspaceModel? {
         guard let active = activeProject else { return nil }
         return workspace(for: active)
+    }
+
+    /// 各 workspace のタブ未読状態を走査して `unreadProjectIDs` を再計算する。
+    /// タブの未読フラグが変わった箇所（BEL 受信・タブ選択・ペイン active 化・タブ閉じる）から呼ぶ。
+    func refreshUnreadProjects() {
+        var ids = Set<UUID>()
+        for (projectID, wm) in workspaces where wm.hasUnreadTab {
+            ids.insert(projectID)
+        }
+        if ids != unreadProjectIDs { unreadProjectIDs = ids }
     }
 
     /// プロジェクトに紐付く FileTreeModel を返す。なければ新規作成して dictionary に保持。
@@ -344,7 +377,11 @@ final class ProjectsModel: ObservableObject {
         let didSwitch = activeProject?.id != updated.id
         activeProject = updated
         // 初回 active 時に workspace を作る（=shell 起動）。2 回目以降は既存を再利用。
-        _ = workspace(for: updated)
+        let ws = workspace(for: updated)
+        // プロジェクトを開いたら、いま表示されるタブ（active pane の active tab）の未読はクリア。
+        // 他ペイン・他タブに未読が残っていればサイドバーのリングは残る（要件 5）。
+        ws.activePane.activeTab?.hasUnreadNotification = false
+        refreshUnreadProjects()
         // 実際にプロジェクトが切り替わった瞬間に MRU 確定（要件通り）。
         if didSwitch { pushMRU(updated.id) }
     }

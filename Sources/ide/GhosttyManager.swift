@@ -50,6 +50,19 @@ final class GhosttyManager: @unchecked Sendable {
         surfaceToTab[surface]?.value
     }
 
+    /// タブが「いまアクティブ（active pane の active tab）」でなければ未読を立てる。
+    /// AI 完了シグナル（progress REMOVE / desktop notification / bell）から呼ぶ共通処理。
+    @MainActor
+    static func markUnreadIfBackgrounded(_ tab: TerminalTab, reason: String) {
+        let active = ProjectsModel.shared.activeWorkspace?.isCurrentlyActive(tab: tab) ?? false
+        guard !active else { return }
+        if !tab.hasUnreadNotification {
+            tab.hasUnreadNotification = true
+            ProjectsModel.shared.refreshUnreadProjects()
+            PocLog.write("[unread] tab=\(tab.title) reason=\(reason) unreadProjects=\(ProjectsModel.shared.unreadProjectIDs.count)")
+        }
+    }
+
     /// 全 surface の foreground プロセスを 500ms ごとに識別し、変化があればタブに反映。
     private func startForegroundPolling() {
         foregroundPollTimer?.invalidate()
@@ -129,13 +142,51 @@ final class GhosttyManager: @unchecked Sendable {
                     }
                 }
             case GHOSTTY_ACTION_RING_BELL:
-                if target.tag == GHOSTTY_TARGET_SURFACE,
-                   let surface = target.target.surface {
+                // ベルは AI ツール（claude / codex）実行中のタブのときだけ未読にする。
+                // ※ claude/codex は実際にはベルを鳴らさず OSC 9;4 プログレスを使うので、
+                //   これが主経路ではない。素のシェルのエラーベル等での誤点灯を避けるための gating。
+                if target.tag == GHOSTTY_TARGET_SURFACE, let surface = target.target.surface {
                     DispatchQueue.main.async {
-                        if let tab = GhosttyManager.shared.tab(forSurface: surface),
-                           !(ProjectsModel.shared.activeWorkspace?.isCurrentlyActive(tab: tab) ?? false) {
-                            tab.hasUnreadNotification = true
+                        guard let tab = GhosttyManager.shared.tab(forSurface: surface) else { return }
+                        switch tab.foregroundProgram {
+                        case .claude, .codex: break
+                        default: return
                         }
+                        GhosttyManager.markUnreadIfBackgrounded(tab, reason: "bell")
+                    }
+                }
+            case GHOSTTY_ACTION_PROGRESS_REPORT:
+                // claude / codex は作業中に OSC 9;4 で進捗（INDETERMINATE / SET 等）を出し、
+                // ターンが終わると REMOVE で消す。「作業中 → REMOVE」の遷移を「応答完了」とみなす。
+                if target.tag == GHOSTTY_TARGET_SURFACE, let surface = target.target.surface {
+                    let stateRaw = action.action.progress_report.state.rawValue
+                    let isRemove = (action.action.progress_report.state == GHOSTTY_PROGRESS_STATE_REMOVE)
+                    DispatchQueue.main.async {
+                        guard let tab = GhosttyManager.shared.tab(forSurface: surface) else { return }
+                        PocLog.write("[progress] tab=\(tab.title) fg=\(tab.foregroundProgram) state=\(stateRaw) inProgress=\(tab.aiTurnInProgress)")
+                        let isAITab: Bool
+                        switch tab.foregroundProgram {
+                        case .claude, .codex: isAITab = true
+                        default: isAITab = false
+                        }
+                        guard isAITab else { tab.aiTurnInProgress = false; return }
+                        if isRemove {
+                            if tab.aiTurnInProgress {
+                                tab.aiTurnInProgress = false
+                                GhosttyManager.markUnreadIfBackgrounded(tab, reason: "ai-turn-done")
+                            }
+                            // aiTurnInProgress が false の REMOVE（起動直後の空 remove 等）は無視
+                        } else {
+                            tab.aiTurnInProgress = true
+                        }
+                    }
+                }
+            case GHOSTTY_ACTION_DESKTOP_NOTIFICATION:
+                // プログラムが明示的に通知を要求した（OSC 9 / OSC 777）→ 素直に未読にする
+                if target.tag == GHOSTTY_TARGET_SURFACE, let surface = target.target.surface {
+                    DispatchQueue.main.async {
+                        guard let tab = GhosttyManager.shared.tab(forSurface: surface) else { return }
+                        GhosttyManager.markUnreadIfBackgrounded(tab, reason: "desktop-notification")
                     }
                 }
             case GHOSTTY_ACTION_OPEN_URL:

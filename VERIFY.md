@@ -122,32 +122,70 @@ sleep 4
 
 `codex` 起動時は 🅞（緑 tint）が出る。識別は `proc_pidpath` の basename から拡張子を除いて行う（claude のバイナリは `claude.exe` で来るので注意）。
 
-## 7. BEL 通知
+## 7. AI 完了通知（タブ青丸バッジ + サイドバーのリング）
+
+claude / codex は応答中に `OSC 9;4` プログレス（INDETERMINATE 等）を出し、ターンが終わると REMOVE で消す。IDE は **「`.claude`/`.codex` タブで 作業中 → REMOVE の遷移」を「応答完了」とみなして**、そのタブがバックグラウンド（active pane の active tab でない）なら未読を立てる。BEL（`\a`）や OSC 9 / OSC 777 のデスクトップ通知も同様に未読のトリガーになる（が claude/codex は実際には鳴らさず、主経路はプログレス）。未読が立つと:
+- そのタブ → タブ名の右に青丸（●）バッジ
+- そのプロジェクト → サイドバーのアバターに青いリング（配下のどれかのタブが未読なら点灯。表示中のタブをアクティブにすると消える）
+
+調査用に `/tmp/ide-poc.log` に `[progress]`（プログレス受信）/ `[unread]`（未読を立てた）ログを出している。
+
+### 7-a. サイドバーのリング（自動・決定的）
+
+`IDE_TEST_UNREAD_INDICES=0,2` で起動時に 0 番目と 2 番目のプロジェクトの下ペインのタブに未読を仕込める。
 
 ```bash
-cat > /tmp/bel-test.sh <<'SCRIPT'
-(sleep 2 && printf '\a') &
-SCRIPT
-chmod +x /tmp/bel-test.sh
+pkill -x "IDE Dev" 2>/dev/null
+mkdir -p "$HOME/Library/Application Support/ide-dev"
+cat > "$HOME/Library/Application Support/ide-dev/projects.json" <<'JSON'
+{
+  "projects" : [
+    {"displayName":"ide","id":"11111111-1111-1111-1111-111111111111","isPinned":true,"lastOpenedAt":"2026-05-10T01:00:00Z","path":"/Users/d0ne1s/ide"},
+    {"displayName":"docs","id":"22222222-2222-2222-2222-222222222222","isPinned":true,"lastOpenedAt":"2026-05-10T02:00:00Z","path":"/Users/d0ne1s/ide/docs"},
+    {"displayName":"Sources","id":"33333333-3333-3333-3333-333333333333","isPinned":true,"lastOpenedAt":"2026-05-10T03:00:00Z","path":"/Users/d0ne1s/ide/Sources"}
+  ],
+  "schemaVersion" : 1
+}
+JSON
 
-./scripts/ide-launch.sh
-osascript -e 'tell application "System Events" to tell process "ide" to set frontmost to true'
-sleep 0.3
-osascript -e 'tell application "System Events" to key code 102'
-osascript -e 'tell application "System Events" to keystroke "source /tmp/bel-test.sh"'
-osascript -e 'tell application "System Events" to key code 36'
-sleep 0.4
-# Cmd+T で別タブに切替（shell 1 が非active になる）
-osascript -e 'tell application "System Events" to keystroke "t" using command down'
-sleep 3
-./scripts/ide-screenshot.sh /tmp/v-bel.png
+# index 1 (docs) をアクティブ起動。0/2 を未読に。
+open -n "/tmp/ide-build/Build/Products/Debug/IDE Dev.app" \
+  --env IDE_TEST_AUTO_ACTIVATE_INDEX=1 --env IDE_TEST_UNREAD_INDICES=0,2
+sleep 4
+./scripts/ide-screenshot.sh /tmp/v-ring.png
 ```
 
-期待: スクショで `shell 1` のタブ名の右に青丸（●）バッジが表示されている（非active タブで BEL 受信）。
+期待:
+- サイドバーで `ide`（index 0）と `Sources`（index 2）のアバターに青いリングが付く
+- `docs`（index 1 = active）にはリングが付かない
 
-実機での確認:
-- `shell 1` タブをクリックで切替 → バッジが消える
-- アクティブタブ自身で `printf '\a'` を実行 → バッジは出ない（自分で触っているので未読扱いしない）
+次に「未読プロジェクトをアクティブにすると、その表示タブの未読が消える」確認:
+
+```bash
+pkill -x "IDE Dev" 2>/dev/null; sleep 0.5
+# 今度は index 0 (ide) を未読にしつつアクティブ起動
+open -n "/tmp/ide-build/Build/Products/Debug/IDE Dev.app" \
+  --env IDE_TEST_AUTO_ACTIVATE_INDEX=0 --env IDE_TEST_UNREAD_INDICES=0,2
+sleep 4
+./scripts/ide-screenshot.sh /tmp/v-ring-activated.png
+```
+
+期待: `ide` はアクティブ行になり**リング無し**（表示中の下ペインのタブの未読がクリアされた）、`Sources` はリングが残る。
+
+クリーンアップ:
+```bash
+pkill -x "IDE Dev" 2>/dev/null
+rm -rf "$HOME/Library/Application Support/ide-dev"
+```
+
+### 7-b. 実機での確認（claude / codex 実セッション）
+
+1. 適当なプロジェクトを開いて、下ペインで `claude`（or `codex`）を起動
+2. プロンプトを投げて、すぐ Cmd+T で別タブに移る（AI タブをバックグラウンドに）
+3. 応答が終わると → AI タブに青丸、サイドバーのプロジェクトにリング。`grep '\[unread\]' /tmp/ide-poc.log` に `reason=ai-turn-done` が出る
+4. その AI タブ / ペインをクリックで切替 → 青丸が消える。プロジェクト配下の未読が全部消えたらリングも消える
+5. AI タブを active にしたまま応答完了 → 出ない（自分で見ているので未読扱いしない。`[progress]` ログには `state=0` が出るが `[unread]` は出ない）
+6. 素のシェルで `printf '\a'` → 出ない（AI タブでないため）
 
 ## 7. PTY 異常終了表示と再起動
 

@@ -28,10 +28,18 @@ final class WorkspaceModel: ObservableObject {
         }
         // active になったペインのカレントタブの未読通知をクリア
         pane.activeTab?.hasUnreadNotification = false
+        ProjectsModel.shared.refreshUnreadProjects()
     }
 
     func isActive(_ pane: PaneState) -> Bool {
         pane === activePane
+    }
+
+    /// 上下どちらかのペインのいずれかのタブに未読通知があるか。
+    /// サイドバーのプロジェクトリング表示の派生元。
+    var hasUnreadTab: Bool {
+        topPane.tabs.contains { $0.hasUnreadNotification }
+            || bottomPane.tabs.contains { $0.hasUnreadNotification }
     }
 
     /// 与えられたタブが「真にアクティブ」（active pane の active tab）か。
