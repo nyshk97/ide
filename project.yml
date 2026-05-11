@@ -32,6 +32,13 @@ targets:
       - path: Resources/ghostty
         type: folder
         buildPhase: resources
+      # Ghostty の terminfo（scripts/fetch-ghostty-terminfo.sh で生成）。
+      # libghostty はシェルに TERM=xterm-ghostty と TERMINFO=<GHOSTTY_RESOURCES_DIR の隣>/terminfo
+      # を必ずセットするが、xcframework には terminfo が同梱されていない。無いと terminfo が
+      # 引けず入力中の表示が崩れる。<bundle>/Resources/terminfo/ に置けば libghostty が見つける。
+      - path: Resources/terminfo
+        type: folder
+        buildPhase: resources
     dependencies:
       - framework: GhosttyKit.xcframework
         embed: false
