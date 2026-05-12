@@ -39,7 +39,7 @@
 | `scripts/ide-screenshot.sh <path>` | `CGWindowList` でウィンドウ ID を引いて `screencapture -l` でキャプチャ（取れなければメイン画面全体にフォールバック） |
 
 - **TCC（プライバシー）権限の罠**: `osascript` / `screencapture` は SIP 配下のバイナリで、IDE 内ターミナル（Ghostty）はシェルを `/usr/bin/login` 経由で起動する。この `login` のせいで TCC の「責任プロセス」が IDE.app に解決されず、`osascript`/`screencapture` 自体に権限を求めるポップアップが毎回出る（恒久付与できない）。`ide-screenshot.sh` は `osascript` を捨てて `CGWindowList`（補助アクセス不要）+ `screencapture -l` にしてあるので「アクセシビリティ」のポップアップは出ない（「画面収録」は依然必要）。`ide-keystroke.sh` は合成キー入力のため補助アクセスが不可避。**キーストローク込みの検証を安定して回したいなら、IDE の中ではなく Terminal.app / iTerm から実行**し、そのターミナルアプリに一度「アクセシビリティ」「画面収録」を付与する（普通に署名された安定アプリ & `login` 介在なしなので付与が効き続ける）。
-- **Claude Code の Bash 環境では画面収録権限が無く、ネットワークもサンドボックスされる**: `ide-screenshot.sh` は `could not create image from display` で落ちる。`scripts/build.sh` も codesign の `--timestamp`（`timestamp.apple.com` 不達 → `A timestamp was expected but was not found` で archive 失敗）や `xcrun notarytool`（Apple 不達）で落ちるので、エージェントから走らせるときは Bash ツールのサンドボックスを無効化して実行する。エージェント側の通常検証は `/tmp/ide-poc.log`（PocLog）・起動ログ・テスト用環境変数に倒し、目視スクショが要るものはユーザーに依頼する
+- **Claude Code の Bash 環境では画面収録権限が無く、ネットワークもサンドボックスされる**: `ide-screenshot.sh` は `could not create image from display` で落ちる。`scripts/build.sh` も codesign の `--timestamp`（`timestamp.apple.com` 不達 → `A timestamp was expected but was not found` で archive 失敗）や `xcrun notarytool`（Apple 不達）で落ちるので、エージェントから走らせるときは Bash ツールのサンドボックスを無効化して実行する。エージェント側の通常検証は `/tmp/ide-poc.log`（Debug ビルドの Logger ミラー）・起動ログ・テスト用環境変数に倒し、目視スクショが要るものはユーザーに依頼する
 
 詳しい確認手順は [VERIFY.md](../VERIFY.md)。
 
@@ -76,10 +76,10 @@ open -n "/tmp/ide-build/Build/Products/Debug/IDE Dev.app" \
 
 | ログファイル | 用途 |
 |---|---|
-| `/tmp/ide-poc.log` | デバッグ用。`init()` で reset、`PocLog.write` で追記。`tail -f` で追える |
-| `~/Library/Logs/ide/ide-YYYY-MM-DD.log` | 永続ログ（step12〜）。日次ローテーション、7 日 / 50MB 超で削除 |
+| `~/Library/Logs/{ide,ide-dev}/{ide,ide-dev}-YYYY-MM-DD.log` | 永続ログ。日次ローテーション、7 日 / 50MB 超で削除。stderr にも出力 |
+| `/tmp/ide-poc.log` | **Debug ビルドのみ** の Logger ミラー。`init()` で `Logger.shared.resetDebugMirror()`、以後 `Logger.shared.{debug,info,...}` の出力が追記される。`tail -f` で追える |
 
-`PocLog.write` は内部で `Logger.debug` にも転送するので、step12 以降は `~/Library/Logs/ide/` も併せて見る。PocLog は `Logger` へ一本化して撤去予定（[BACKLOG.md](./BACKLOG.md)）。
+ログ経路は `Logger` に一本化済み（旧 `PocLog` は撤去）。`Logger.shared.debug(...)` で書き、Debug なら `/tmp/ide-poc.log` にも、Release なら永続ログ + stderr のみ。
 
 ---
 

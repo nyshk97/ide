@@ -4,7 +4,7 @@ import GhosttyKit
 @main
 struct IdeApp: App {
     init() {
-        PocLog.reset()
+        Logger.shared.resetDebugMirror()
         GhosttyManager.shared.start()
         MRUKeyMonitor.install()
         // ファイルプレビュー用 WKWebView を pre-warm。起動時に

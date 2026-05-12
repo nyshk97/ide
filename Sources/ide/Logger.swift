@@ -2,14 +2,11 @@ import Foundation
 
 /// IDE 全体のログ出力。
 ///
-/// - 永続化: `~/Library/Logs/ide/ide-YYYY-MM-DD.log`
+/// - 永続化: `~/Library/Logs/{ide,ide-dev}/{ide,ide-dev}-YYYY-MM-DD.log`
 /// - 日次でファイルが切り替わる
 /// - 上限 50MB を超えたら古いログから削除（最大 7 日分まで残す）
 /// - error / warn / info / debug の 4 段階
-///
-/// 既存の `PocLog` （`/tmp/ide-poc.log`）はデバッグ用に並走させる。
-/// Phase 1 から残っているハードコードを step12 で完全には置き換えず、
-/// 内部で `Logger.shared` にも転送する。
+/// - Debug ビルドでは `/tmp/ide-poc.log` にもミラーする（`tail -f` で追える、VERIFY 用）
 final class Logger: @unchecked Sendable {
     enum Level: String {
         case error = "ERROR"
@@ -76,6 +73,34 @@ final class Logger: @unchecked Sendable {
         }
         // ターミナル/console 用にも出す
         FileHandle.standardError.write(data)
+        #if DEBUG
+        appendToDebugMirror(data)
+        #endif
+    }
+
+    // MARK: - Debug ミラー（/tmp/ide-poc.log）
+
+    #if DEBUG
+    private static let debugMirrorPath = "/tmp/ide-poc.log"
+
+    private func appendToDebugMirror(_ data: Data) {
+        let url = URL(fileURLWithPath: Self.debugMirrorPath)
+        if let h = try? FileHandle(forWritingTo: url) {
+            h.seekToEndOfFile()
+            h.write(data)
+            try? h.close()
+        } else {
+            try? data.write(to: url)
+        }
+    }
+    #endif
+
+    /// 起動時に Debug ミラーを空にする（Release では no-op）。
+    func resetDebugMirror() {
+        #if DEBUG
+        lock.lock(); defer { lock.unlock() }
+        try? Data().write(to: URL(fileURLWithPath: Self.debugMirrorPath))
+        #endif
     }
 
     /// 古いログのクリーンアップ。50MB 超 or 7 日より古いもの。

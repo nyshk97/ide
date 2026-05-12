@@ -148,7 +148,7 @@ final class GhosttyTerminalNSView: NSView {
 
     private func createSurface() {
         guard let app = GhosttyManager.shared.app else {
-            PocLog.write("[surface] GhosttyManager.app is nil")
+            Logger.shared.debug("[surface] GhosttyManager.app is nil")
             return
         }
         var cfg = ghostty_surface_config_new()
@@ -167,14 +167,14 @@ final class GhosttyTerminalNSView: NSView {
             cwdString.withCString { ptr in
                 cfg.working_directory = ptr
                 guard let s = ghostty_surface_new(app, &cfg) else {
-                    PocLog.write("[surface] ghostty_surface_new returned nil")
+                    Logger.shared.debug("[surface] ghostty_surface_new returned nil")
                     return
                 }
                 attachSurface(s, cfg: cfg)
             }
         } else {
             guard let s = ghostty_surface_new(app, &cfg) else {
-                PocLog.write("[surface] ghostty_surface_new returned nil")
+                Logger.shared.debug("[surface] ghostty_surface_new returned nil")
                 return
             }
             attachSurface(s, cfg: cfg)
@@ -193,7 +193,7 @@ final class GhosttyTerminalNSView: NSView {
         }
         syncSize()
         let cwdLog = tab?.cwd?.path ?? "(default)"
-        PocLog.write("[surface] new ok cwd=\(cwdLog)")
+        Logger.shared.debug("[surface] new ok cwd=\(cwdLog)")
     }
 
     private func syncSize() {

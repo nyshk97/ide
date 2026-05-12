@@ -37,7 +37,7 @@ struct ProjectsStore: Sendable {
         for i in 1...3 {
             let backup = url.appendingPathExtension("\(i)")
             if let projects = decode(at: backup) {
-                PocLog.write("[projects] recovered from backup .\(i)")
+                Logger.shared.debug("[projects] recovered from backup .\(i)")
                 return projects
             }
         }
@@ -52,12 +52,12 @@ struct ProjectsStore: Sendable {
             decoder.dateDecodingStrategy = .iso8601
             let snapshot = try decoder.decode(Snapshot.self, from: data)
             guard snapshot.schemaVersion == 1 else {
-                PocLog.write("[projects] unknown schemaVersion=\(snapshot.schemaVersion) at \(url.lastPathComponent)")
+                Logger.shared.debug("[projects] unknown schemaVersion=\(snapshot.schemaVersion) at \(url.lastPathComponent)")
                 return nil
             }
             return snapshot.projects
         } catch {
-            PocLog.write("[projects] decode failed at \(url.lastPathComponent): \(error)")
+            Logger.shared.debug("[projects] decode failed at \(url.lastPathComponent): \(error)")
             return nil
         }
     }
@@ -76,7 +76,7 @@ struct ProjectsStore: Sendable {
             let data = try encoder.encode(snapshot)
             try atomicWrite(data: data, to: storageURL)
         } catch {
-            PocLog.write("[projects] save failed: \(error)")
+            Logger.shared.debug("[projects] save failed: \(error)")
             DispatchQueue.main.async {
                 ErrorBus.shared.notify("プロジェクト一覧の保存に失敗しました: \(error.localizedDescription)")
             }

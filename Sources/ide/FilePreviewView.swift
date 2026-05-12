@@ -69,7 +69,7 @@ struct FilePreviewView: View {
         self.loadedURL = target
         if isReload {
             self.reloadGen &+= 1
-            PocLog.write("[preview] auto-reloaded \(target.lastPathComponent)")
+            Logger.shared.debug("[preview] auto-reloaded \(target.lastPathComponent)")
         }
     }
 

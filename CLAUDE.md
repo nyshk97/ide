@@ -89,9 +89,9 @@ mv "$BACKUP_DIR/ide-dev-backup" "$HOME/Library/Application Support/ide-dev" 2>/d
 
 ## ログの使い分け
 
-- **`PocLog.write(...)`**: デバッグ用、`/tmp/ide-poc.log`。`tail -f` で追えるので調査時に強い
-- **`Logger.shared.{error|warn|info|debug}(...)`**: 永続ログ、`~/Library/Logs/ide/`
-- 現在 `PocLog.write` 内部で `Logger.debug` にも転送している。`PocLog` は `Logger` へ一本化して撤去予定（[docs/BACKLOG.md](./docs/BACKLOG.md) の「優先度: 高め」）
+- **`Logger.shared.{error|warn|info|debug}(...)`**: 唯一のログ経路。永続ログは `~/Library/Logs/{ide,ide-dev}/`、加えて stderr に出力する
+- **Debug ビルドのみ** `/tmp/ide-poc.log` にもミラーする（`tail -f` で追える、VERIFY 用）。起動時に `Logger.shared.resetDebugMirror()` で空にする
+- 旧 `PocLog` は撤去済み（call site はすべて `Logger.shared.debug` に置換）
 
 エラー toast を出したいときは `ErrorBus.shared.notify(_:kind:)`。継続的な状態異常は各 View 内に常駐表示する（要件 8.3）。
 

@@ -132,10 +132,9 @@ WorkspaceModel(project: ide)
 - Ghostty NSView の `performKeyEquivalent` より先に呼ばれるので、vim/claude 等の TUI 内でも IDE が捕捉できる（要件 3）
 - `Ctrl+M` の判定は `keyCode == 46`（macOS が `Ctrl+letter` を CR にマップする問題回避）
 
-### Logger / PocLog / ErrorBus
+### Logger / ErrorBus
 
-- `Logger.shared`: `~/Library/Logs/ide/ide-YYYY-MM-DD.log` への永続化。日次ローテーション + 7 日 / 50MB 超で削除
-- `PocLog`: `/tmp/ide-poc.log` への並走出力（Phase 1 から残るデバッグ用）。内部で `Logger.debug` に転送している。`Logger` へ一本化して撤去予定（[BACKLOG.md](./BACKLOG.md)）
+- `Logger.shared`: `~/Library/Logs/{ide,ide-dev}/{ide,ide-dev}-YYYY-MM-DD.log` への永続化。日次ローテーション + 7 日 / 50MB 超で削除。stderr にも出力。**Debug ビルドのみ** `/tmp/ide-poc.log` にミラー（`tail -f` 用、起動時に `resetDebugMirror()`）。旧 `PocLog` は撤去済み
 - `ErrorBus.shared`: 単発 toast 用 ObservableObject（要件 8.3）。継続的な状態異常は各 View 内で常駐表示する使い分け
 
 ---

@@ -90,7 +90,7 @@ final class ProjectsModel: ObservableObject {
         guard ordered.indices.contains(index) else { return }
         let target = ordered[index]
         setActive(target)
-        PocLog.write("[projects] test-auto-activate index=\(index) name=\(target.displayName)")
+        Logger.shared.debug("[projects] test-auto-activate index=\(index) name=\(target.displayName)")
     }
 
     /// `IDE_TEST_AUTO_PREVIEW` 環境変数が active project からの相対パスを指していたら
@@ -103,7 +103,7 @@ final class ProjectsModel: ObservableObject {
             let target = active.path.appendingPathComponent(relPath)
             if FileManager.default.fileExists(atPath: target.path) {
                 preview(for: active).open(target)
-                PocLog.write("[projects] test-auto-preview \(relPath)")
+                Logger.shared.debug("[projects] test-auto-preview \(relPath)")
             }
         }
 
@@ -129,7 +129,7 @@ final class ProjectsModel: ObservableObject {
         for index in indices where ordered.indices.contains(index) {
             let wm = workspace(for: ordered[index])
             wm.bottomPane.activeTab?.hasUnreadNotification = true
-            PocLog.write("[projects] test-unread index=\(index) name=\(ordered[index].displayName)")
+            Logger.shared.debug("[projects] test-unread index=\(index) name=\(ordered[index].displayName)")
         }
         refreshUnreadProjects()
     }

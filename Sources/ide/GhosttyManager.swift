@@ -6,7 +6,7 @@ import GhosttyKit
 private func openExternalURL(_ urlString: String) {
     guard urlString.hasPrefix("http://") || urlString.hasPrefix("https://"),
           let url = URL(string: urlString) else {
-        PocLog.write("[url] skipped non-http: \(urlString.prefix(80))")
+        Logger.shared.debug("[url] skipped non-http: \(urlString.prefix(80))")
         return
     }
     NSWorkspace.shared.open(url)
@@ -70,7 +70,7 @@ final class GhosttyManager: @unchecked Sendable {
         guard !active, !tab.hasUnreadNotification else { return false }
         tab.hasUnreadNotification = true
         ProjectsModel.shared.refreshUnreadProjects()
-        PocLog.write("[unread] tab=\(tab.title) reason=\(reason) unreadProjects=\(ProjectsModel.shared.unreadProjectIDs.count)")
+        Logger.shared.debug("[unread] tab=\(tab.title) reason=\(reason) unreadProjects=\(ProjectsModel.shared.unreadProjectIDs.count)")
         return true
     }
 
@@ -96,7 +96,7 @@ final class GhosttyManager: @unchecked Sendable {
             #if DEBUG
             if tab.foregroundProgram != program {
                 let path = ForegroundProcessInspector.executablePath(for: pid_t(pid)) ?? "(nil)"
-                PocLog.write("[fg] tab=\(tab.title) pid=\(pid) path=\(path) -> \(program)")
+                Logger.shared.debug("[fg] tab=\(tab.title) pid=\(pid) path=\(path) -> \(program)")
             }
             #endif
             if tab.foregroundProgram != program {
@@ -113,7 +113,7 @@ final class GhosttyManager: @unchecked Sendable {
     /// 必ず `ghostty_init` より前に呼ぶこと。
     private func configureResourcesDir() {
         if let existing = ProcessInfo.processInfo.environment["GHOSTTY_RESOURCES_DIR"], !existing.isEmpty {
-            PocLog.write("[ghostty] GHOSTTY_RESOURCES_DIR already set: \(existing)")
+            Logger.shared.debug("[ghostty] GHOSTTY_RESOURCES_DIR already set: \(existing)")
             return
         }
         let fm = FileManager.default
@@ -127,10 +127,10 @@ final class GhosttyManager: @unchecked Sendable {
             guard fm.fileExists(atPath: dir, isDirectory: &isDir), isDir.boolValue else { continue }
             guard fm.fileExists(atPath: (dir as NSString).appendingPathComponent("themes")) else { continue }
             setenv("GHOSTTY_RESOURCES_DIR", dir, 1)
-            PocLog.write("[ghostty] GHOSTTY_RESOURCES_DIR -> \(dir)")
+            Logger.shared.debug("[ghostty] GHOSTTY_RESOURCES_DIR -> \(dir)")
             return
         }
-        PocLog.write("[ghostty] no resources dir with themes/ found; themes will not resolve")
+        Logger.shared.debug("[ghostty] no resources dir with themes/ found; themes will not resolve")
     }
 
     func start() {
@@ -138,22 +138,22 @@ final class GhosttyManager: @unchecked Sendable {
         let result = ghostty_init(UInt(CommandLine.argc), CommandLine.unsafeArgv)
         let info = ghostty_info()
         let version = info.version.map { String(cString: $0) } ?? "(nil)"
-        PocLog.write("[ghostty] init=\(result) version=\(version) build_mode=\(info.build_mode.rawValue)")
+        Logger.shared.debug("[ghostty] init=\(result) version=\(version) build_mode=\(info.build_mode.rawValue)")
         guard result == GHOSTTY_SUCCESS else { return }
 
         guard let cfg = ghostty_config_new() else {
-            PocLog.write("[ghostty] config_new returned nil")
+            Logger.shared.debug("[ghostty] config_new returned nil")
             return
         }
         ghostty_config_load_default_files(cfg)
         ghostty_config_load_recursive_files(cfg)
         ghostty_config_finalize(cfg)
         let diagCount = ghostty_config_diagnostics_count(cfg)
-        PocLog.write("[ghostty] config diagnostics: \(diagCount)")
+        Logger.shared.debug("[ghostty] config diagnostics: \(diagCount)")
         for i in 0..<diagCount {
             let diag = ghostty_config_get_diagnostic(cfg, i)
             if let msg = diag.message {
-                PocLog.write("[ghostty]   diag[\(i)]: \(String(cString: msg))")
+                Logger.shared.debug("[ghostty]   diag[\(i)]: \(String(cString: msg))")
             }
         }
 
@@ -203,7 +203,7 @@ final class GhosttyManager: @unchecked Sendable {
                     let isRemove = (action.action.progress_report.state == GHOSTTY_PROGRESS_STATE_REMOVE)
                     DispatchQueue.main.async {
                         guard let tab = GhosttyManager.shared.tab(forSurface: surface) else { return }
-                        PocLog.write("[progress] tab=\(tab.title) fg=\(tab.foregroundProgram) state=\(stateRaw) inProgress=\(tab.aiTurnInProgress)")
+                        Logger.shared.debug("[progress] tab=\(tab.title) fg=\(tab.foregroundProgram) state=\(stateRaw) inProgress=\(tab.aiTurnInProgress)")
                         let isAITab: Bool
                         switch tab.foregroundProgram {
                         case .claude, .codex: isAITab = true
@@ -253,13 +253,13 @@ final class GhosttyManager: @unchecked Sendable {
         runtime.close_surface_cb = { _, _ in }
 
         guard let appHandle = ghostty_app_new(&runtime, cfg) else {
-            PocLog.write("[ghostty] app_new returned nil")
+            Logger.shared.debug("[ghostty] app_new returned nil")
             ghostty_config_free(cfg)
             return
         }
         self.app = appHandle
         self.config = cfg
-        PocLog.write("[ghostty] app_new ok")
+        Logger.shared.debug("[ghostty] app_new ok")
 
         // foreground プロセス監視を開始
         startForegroundPolling()

@@ -140,7 +140,7 @@ private func saveClipboardImageIfNeeded(from pb: NSPasteboard) -> String? {
     do {
         try data.write(to: url)
     } catch {
-        PocLog.write("[clipboard] image write failed: \(error.localizedDescription)")
+        Logger.shared.debug("[clipboard] image write failed: \(error.localizedDescription)")
         return nil
     }
 
