@@ -2,34 +2,15 @@ import Foundation
 
 /// `git check-ignore` でファイル群が ignore 対象かを一括判定する。
 ///
-/// argv 配列で起動（要件 8.1: 外部コマンドは shell 文字列結合せず argv 配列で）。
+/// `ProcessRunner` 経由で argv 配列で起動（要件 8.1）。stdin 供給と stdout 読み取りは
+/// `ProcessRunner` 内で並行に行われるので、投入パスが多くても stdin↔stdout デッドロックしない。
 /// プロジェクトが git リポジトリでない場合は空集合を返す（クラッシュさせない）。
 enum GitIgnoreChecker {
     /// 指定パス群のうち ignore 対象のものを返す。
     /// 1 件ずつ git に問い合わせるとプロセス起動コストが嵩むので、stdin にまとめて流す。
     static func check(in repoRoot: URL, paths: [URL]) -> Set<URL> {
         guard !paths.isEmpty else { return [] }
-        guard let git = locateGit() else { return [] }
-
-        let process = Process()
-        process.executableURL = URL(fileURLWithPath: git)
-        process.currentDirectoryURL = repoRoot
-        // --no-index で work tree 配下にないファイルでも判定可能。-z は NUL 区切り入出力。
-        // --stdin で標準入力からパスを受け取る。
-        process.arguments = ["check-ignore", "--stdin", "-z", "--non-matching", "--verbose"]
-
-        let stdin = Pipe()
-        let stdout = Pipe()
-        let stderr = Pipe()
-        process.standardInput = stdin
-        process.standardOutput = stdout
-        process.standardError = stderr
-
-        do {
-            try process.run()
-        } catch {
-            return []
-        }
+        guard let git = BinaryLocator.git else { return [] }
 
         // パスは NUL 区切りで repoRoot からの相対パスを流す。
         let rootPath = repoRoot.standardizedFileURL.path
@@ -49,20 +30,25 @@ enum GitIgnoreChecker {
                 inputData.append(0)
             }
         }
-        stdin.fileHandleForWriting.write(inputData)
-        try? stdin.fileHandleForWriting.close()
+        guard !inputData.isEmpty else { return [] }
 
-        let outData = stdout.fileHandleForReading.readDataToEndOfFile()
-        process.waitUntilExit()
+        // -z は NUL 区切り入出力。--stdin で標準入力からパスを受け取る。
+        // --verbose --non-matching で「ignore でないパス」も出力させ、source 欄の有無で判定する。
+        let result = ProcessRunner.run(
+            executable: git,
+            arguments: ["check-ignore", "--stdin", "-z", "--non-matching", "--verbose"],
+            cwd: repoRoot,
+            stdin: inputData,
+            timeout: 10
+        )
         // exit 0/1/128: それぞれ「全 ignore」「全 non-match」「非 git」など。出力内容で判定する。
-
-        // verbose --non-matching の出力フォーマット（NUL 区切り）:
-        //   <source>\0<linenum>\0<pattern>\0<path>\0  ... 繰り返し
-        // ignore 対象は <source> が空でない。non-match は <source> が空。
-        return parseVerboseNullOutput(outData, repoRoot: repoRoot)
+        return parseVerboseNullOutput(result.stdout, repoRoot: repoRoot)
     }
 
     private static func parseVerboseNullOutput(_ data: Data, repoRoot: URL) -> Set<URL> {
+        // verbose --non-matching の出力フォーマット（NUL 区切り）:
+        //   <source>\0<linenum>\0<pattern>\0<path>\0  ... 繰り返し
+        // ignore 対象は <source> が空でない。non-match は <source> が空。
         var result: Set<URL> = []
         let bytes = [UInt8](data)
         var fields: [String] = []
@@ -85,14 +71,5 @@ enum GitIgnoreChecker {
             }
         }
         return result
-    }
-
-    /// `git` のフルパス。homebrew / Xcode CLT のどちらでも引けるよう PATH を探す。
-    private static func locateGit() -> String? {
-        let candidates = ["/opt/homebrew/bin/git", "/usr/bin/git", "/usr/local/bin/git"]
-        for path in candidates {
-            if FileManager.default.isExecutableFile(atPath: path) { return path }
-        }
-        return nil
     }
 }

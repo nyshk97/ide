@@ -204,14 +204,13 @@ struct FilePreviewView: View {
     }
 
     private func openInCursor(_ url: URL) {
-        let process = Process()
         // `cursor` コマンドが PATH 配下にある想定。argv 配列で起動（要件 8.1）。
-        let candidates = ["/opt/homebrew/bin/cursor", "/usr/local/bin/cursor"]
-        guard let cursorPath = candidates.first(where: { FileManager.default.isExecutableFile(atPath: $0) }) else {
+        guard let cursorPath = BinaryLocator.cursor else {
             // フォールバック: NSWorkspace で開く
             NSWorkspace.shared.open(url)
             return
         }
+        let process = Process()
         process.executableURL = URL(fileURLWithPath: cursorPath)
         process.arguments = [url.path]
         try? process.run()

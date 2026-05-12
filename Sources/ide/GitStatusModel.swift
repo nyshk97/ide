@@ -90,30 +90,14 @@ final class GitStatusModel: ObservableObject {
 
     /// `git status --porcelain=v1` を 10 秒タイムアウトで実行。
     nonisolated private static func runGitStatus(in repoRoot: URL) -> [String: Badge] {
-        guard let git = locateGit() else { return [:] }
-
-        let process = Process()
-        process.executableURL = URL(fileURLWithPath: git)
-        process.currentDirectoryURL = repoRoot
-        process.arguments = ["status", "--porcelain=v1", "-z", "-uall"]
-
-        let stdout = Pipe()
-        let stderr = Pipe()
-        process.standardOutput = stdout
-        process.standardError = stderr
-
-        do { try process.run() } catch { return [:] }
-
-        // 10 秒タイムアウト
-        let deadline = DispatchTime.now() + 10
-        DispatchQueue.global().asyncAfter(deadline: deadline) {
-            if process.isRunning { process.terminate() }
-        }
-
-        let outData = stdout.fileHandleForReading.readDataToEndOfFile()
-        process.waitUntilExit()
-
-        return parsePorcelainV1(outData, repoRoot: repoRoot)
+        guard let git = BinaryLocator.git else { return [:] }
+        let result = ProcessRunner.run(
+            executable: git,
+            arguments: ["status", "--porcelain=v1", "-z", "-uall"],
+            cwd: repoRoot,
+            timeout: 10
+        )
+        return parsePorcelainV1(result.stdout, repoRoot: repoRoot)
     }
 
     /// `--porcelain=v1 -z` 形式の出力をパース。
@@ -160,13 +144,5 @@ final class GitStatusModel: ObservableObject {
         case "!": return .ignored
         default: return .unknown
         }
-    }
-
-    nonisolated private static func locateGit() -> String? {
-        let candidates = ["/usr/bin/git", "/opt/homebrew/bin/git", "/usr/local/bin/git"]
-        for path in candidates {
-            if FileManager.default.isExecutableFile(atPath: path) { return path }
-        }
-        return nil
     }
 }

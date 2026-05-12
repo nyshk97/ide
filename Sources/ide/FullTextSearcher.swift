@@ -17,46 +17,35 @@ struct SearchHit: Identifiable, Hashable {
 enum FullTextSearcher {
     static let resultLimit = 1000
     static let timeoutSeconds: TimeInterval = 10
+    /// stdout の打ち切り上限。grep は結果上限を知らないので、これを超えたら `ProcessRunner` が
+    /// terminate する（1000 件分の出力は通常これより遥かに小さい）。
+    static let maxStdoutBytes = 4 * 1024 * 1024
 
     /// 検索を実行（同期、バックグラウンド queue で呼ぶこと）。
     nonisolated static func run(query: String, in repoRoot: URL) -> [SearchHit] {
         let trimmed = query.trimmingCharacters(in: .whitespaces)
         guard !trimmed.isEmpty else { return [] }
-        guard let grep = locateGrep() else { return [] }
+        guard let grep = BinaryLocator.grep else { return [] }
 
-        let process = Process()
-        process.executableURL = URL(fileURLWithPath: grep)
-        process.currentDirectoryURL = repoRoot
         // -r 再帰、-n 行番号、-I バイナリ除外、-F 固定文字列扱い、--exclude-dir で重い dir をスキップ
-        process.arguments = [
-            "-rnIH",
-            "-F",
-            "--exclude-dir=.git",
-            "--exclude-dir=node_modules",
-            "--exclude-dir=DerivedData",
-            "--exclude-dir=.build",
-            "--exclude-dir=.refs",
-            trimmed,
-            ".",
-        ]
-
-        let stdout = Pipe()
-        let stderr = Pipe()
-        process.standardOutput = stdout
-        process.standardError = stderr
-
-        do { try process.run() } catch { return [] }
-
-        let deadline = DispatchTime.now() + timeoutSeconds
-        DispatchQueue.global().asyncAfter(deadline: deadline) {
-            if process.isRunning { process.terminate() }
-        }
-
-        let data = stdout.fileHandleForReading.readDataToEndOfFile()
-        process.waitUntilExit()
-
-        guard let text = String(data: data, encoding: .utf8) else { return [] }
-        return parse(text, repoRoot: repoRoot)
+        let result = ProcessRunner.run(
+            executable: grep,
+            arguments: [
+                "-rnIH",
+                "-F",
+                "--exclude-dir=.git",
+                "--exclude-dir=node_modules",
+                "--exclude-dir=DerivedData",
+                "--exclude-dir=.build",
+                "--exclude-dir=.refs",
+                trimmed,
+                ".",
+            ],
+            cwd: repoRoot,
+            timeout: timeoutSeconds,
+            maxStdoutBytes: maxStdoutBytes
+        )
+        return parse(result.stdoutString, repoRoot: repoRoot)
     }
 
     nonisolated private static func parse(_ text: String, repoRoot: URL) -> [SearchHit] {
@@ -77,16 +66,4 @@ enum FullTextSearcher {
         return hits
     }
 
-    nonisolated private static func locateGrep() -> String? {
-        // GNU grep 優先（Brewfile で grep をインストールしていれば /usr/local/opt/grep/libexec/gnubin/grep）
-        let candidates = [
-            "/opt/homebrew/opt/grep/libexec/gnubin/grep",
-            "/usr/local/opt/grep/libexec/gnubin/grep",
-            "/usr/bin/grep",
-        ]
-        for path in candidates {
-            if FileManager.default.isExecutableFile(atPath: path) { return path }
-        }
-        return nil
-    }
 }
