@@ -821,6 +821,7 @@ rm -f "$HOME/Library/Application Support/ide-dev/projects.json"*
 - Markdown はインラインレンダリング（リンク・強調が効く、見出しはプレーン）
 - コード（.swift）はモノスペースで表示
 - XML はそのままプレーンテキスト
+- パンくずのファイル名をクリック → 「相対パスをコピーしました: …」トースト + pasteboard に project root からの相対パスが入る（Markdown でも非 Markdown でも同じ。要手動: ホバーで下線が出てクリックできる）
 
 ### 25.5 プレビュー自動リロード（自動）
 

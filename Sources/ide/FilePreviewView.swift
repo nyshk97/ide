@@ -25,6 +25,8 @@ struct FilePreviewView: View {
 
     /// 「ツリー」パンくずリンクのホバー状態。clickable であることを示すため underline に使う。
     @State private var treeHovered = false
+    /// ファイル名パンくずのホバー状態。クリックで相対パスをコピーできることを示す。
+    @State private var nameHovered = false
 
     var body: some View {
         VStack(spacing: 0) {
@@ -89,10 +91,16 @@ struct FilePreviewView: View {
                 Text("/")
                     .foregroundStyle(.tertiary)
 
-                Text(url.lastPathComponent)
-                    .font(.system(size: 12, weight: .semibold))
-                    .lineLimit(1)
-                    .truncationMode(.middle)
+                Button(action: copyRelativePath) {
+                    Text(url.lastPathComponent)
+                        .font(.system(size: 12, weight: .semibold))
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+                        .underline(nameHovered)
+                }
+                .buttonStyle(.plain)
+                .help("クリックで相対パスをコピー")
+                .onHover { nameHovered = $0 }
             }
 
             // 履歴ナビ
@@ -210,6 +218,23 @@ struct FilePreviewView: View {
             Spacer()
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    /// プロジェクトルートからの相対パスをクリップボードへコピーする。
+    /// ルート配下でなければ絶対パスにフォールバックする（PreviewWebView の挙動に合わせる）。
+    private func copyRelativePath() {
+        let rootPath = projectRoot.standardizedFileURL.path
+        let abs = url.standardizedFileURL.path
+        let rel: String
+        if abs.hasPrefix(rootPath + "/") {
+            rel = String(abs.dropFirst(rootPath.count + 1))
+        } else {
+            rel = abs
+        }
+        let pb = NSPasteboard.general
+        pb.clearContents()
+        pb.setString(rel, forType: .string)
+        ErrorBus.shared.notify("相対パスをコピーしました: \(rel)", kind: .info)
     }
 
     private func openInCursor(_ url: URL) {
