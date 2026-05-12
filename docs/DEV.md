@@ -30,6 +30,17 @@
 
 ---
 
+## リリース
+
+1. `project.yml` の `MARKETING_VERSION` を bump → コミット（`fix:` 系とは別に `chore: バージョンを X に bump`）
+2. `scripts/release.sh <version>` — Release ビルド（Developer ID 署名 + notarize + staple）→ `git push origin main` → `gh release create v<version>`。notarize / codesign の timestamp がネットワークを使うので **Bash サンドボックスを無効化して**走らせる（下の「`scripts/build.sh` はネットワークが要る」参照）
+3. release.sh が末尾に出す `version` / `sha256` で homebrew-tap の cask を更新する: `"$(brew --repository)/Library/Taps/nyshk97/homebrew-tap/Casks/ide.rb`（このローカル clone がそのまま作業ツリー。origin = `github.com/nyshk97/homebrew-tap`）の `version` と `sha256` を書き換えて commit & push
+4. ローカルに最新版を入れる → **`scripts/install.sh`**（`/Applications/IDE.app` をバンドルごと差し替え。`build/ide.zip` が無ければ build から走る）
+
+**dogfooding 中（IDE.app の中で Claude Code を回している）に `brew upgrade --cask ide` を打つと、cask が実行中の IDE.app を quit してそのセッションごと死ぬ**。`scripts/install.sh` はバンドルを上書きするだけで実行中プロセスは生かしたまま（macOS は使用中の .app バンドルを unlink してもプロセスは動き続ける）なので、こちらを使う。どちらにしても修正の反映には IDE.app の手動再起動が必要。`install.sh` 経由だと `brew` 側のバージョン表示はズレるが実害なし（次に `brew upgrade --cask ide` を打てば揃う）。
+
+---
+
 ## 動作確認スクリプト
 
 | スクリプト | 用途 |
@@ -150,6 +161,7 @@ open -n "/tmp/ide-build/Build/Products/Debug/IDE Dev.app" \
 要点だけ:
 - **NSEvent.addLocalMonitorForEvents（MRUKeyMonitor）が最優先**。Ctrl+M / Cmd+P / Cmd+Shift+F / Cmd+J / (ツリーにフォーカス時) Cmd+R は vim/claude の中でも握る
 - `Ctrl+M` は `keyCode == 46` で判定（macOS が Ctrl+letter を CR にマップする問題回避）
+- 検索バー / オーバーレイ表示中に Return / Esc / ↑↓ を横取りする箇所は、**IME 変換中（field editor が marked text を持つ）なら横取りせずイベントを素通り**させる。さもないと日本語変換の確定（Return）・キャンセル（Esc）・候補移動（↑↓）が IME に届かない。判定は `NSApp.keyWindow?.firstResponder as? NSTextInputClient` → `hasMarkedText()`（`MRUKeyMonitor.isComposingInTextField()`）
 
 ---
 
