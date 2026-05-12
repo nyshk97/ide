@@ -111,7 +111,7 @@ WorkspaceModel(project: ide)
 - `FilePreviewClassifier`: URL → `FilePreviewKind`（code / markdown / image / pdf / binary / tooLarge / external / error）。NUL 検査でバイナリ判定、5MB 超は確認、50MB 超は外部誘導
 - `FilePreviewView`: 種別ごとに表示を切替。コードは `PreviewWebView`、画像は `NSImage`、PDF は PDFKit、Markdown は WKWebView でレンダリング。ヘッダーはパンくず形式で `Cmd+J` でツリーとトグル。`.task(id: url)` で初回 classify したあと `FileChangeWatcher` を for-await して、ディスク上の更新を自動リロード（画像/PDF は同 URL だと `updateNSView` が再読込しないので `.id(reloadGen)` で作り直しを強制）
 - `FileChangeWatcher`: 単一ファイルを kqueue（`DispatchSourceFileSystemObject`）で監視し、変更を `AsyncStream<Void>` で流す。エディタのアトミック保存（temp→mv で inode 差し替え）は delete/rename を検知してパスを開き直して継続。連続書き込みは ~120ms デバウンス
-- `PreviewWebView`: WKWebView + highlight.js のラッパ。アプリ起動時に空 surface を pre-warm して初回プレビューの遅延を吸収。Markdown プレビュー内のリンクは `WKScriptMessageHandler`（weak ラッパで参照リーク回避）で横取りし、外部 URL はクリップボードコピー、内部ファイルは `FilePreviewModel` で開く
+- `PreviewWebView`: WKWebView + highlight.js のラッパ。アプリ起動時に空 surface を pre-warm して初回プレビューの遅延を吸収。Markdown プレビュー内のリンクは `WKScriptMessageHandler`（weak ラッパで参照リーク回避）で横取りし、外部 URL はクリップボードコピー、内部ファイルは `FilePreviewModel` で開く。Markdown 中の `file://` 画像は `loadFileURL(_:allowingReadAccessTo:)` の読み取り権限（viewer.html のあるバンドル配下のみ）外で表示できないので、viewer.js が `<img src>` を `ideres://` に書き換え、`WKURLSchemeHandler`（`LocalResourceSchemeHandler`）が `allowedRoot` 配下チェック付きでディスクから読んで返す
 
 ### FileIndex / QuickSearchView (Cmd+P)
 

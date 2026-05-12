@@ -109,6 +109,7 @@
       html = "<pre>" + escapeHtml(text) + "</pre>";
     }
     root.innerHTML = html;
+    rewriteLocalImageSrcs();
     // marked v12 の highlight オプションは廃止予定なので、念のためフォールバックで再ハイライト
     if (window.hljs) {
       root.querySelectorAll("pre code").forEach(function (el) {
@@ -141,6 +142,26 @@
       base.setAttribute("href", href);
     } else if (base) {
       base.parentNode.removeChild(base);
+    }
+  }
+
+  // マークダウン本文中の file:// 画像を ideres:// に書き換える。
+  // viewer.html はアプリバンドル配下から読まれており、WKWebView の読み取り権限も
+  // そのディレクトリに限られるため file:// のプロジェクト内画像は読めない。Swift 側の
+  // スキームハンドラ (allowedRoot 配下チェック付き) に肩代わりさせる。
+  function rewriteLocalImageSrcs() {
+    if (!root) return;
+    // 同一プレビュー内で再描画されたとき、WebKit のメモリキャッシュで古い画像が
+    // 出続けないようにキャッシュバスターを付ける（path 部には影響しない）。
+    var cb = "_ide_t=" + Date.now();
+    var imgs = root.querySelectorAll("img[src]");
+    for (var i = 0; i < imgs.length; i++) {
+      var img = imgs[i];
+      var abs = img.src; // <base href> 込みで解決済みの絶対 URL
+      if (typeof abs !== "string" || abs.indexOf("file://") !== 0) continue;
+      var rewritten = abs.replace(/^file:\/\//, "ideres://localhost");
+      rewritten += (rewritten.indexOf("?") === -1 ? "?" : "&") + cb;
+      img.src = rewritten;
     }
   }
 

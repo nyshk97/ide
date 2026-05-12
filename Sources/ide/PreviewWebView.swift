@@ -1,4 +1,5 @@
 import SwiftUI
+import UniformTypeIdentifiers
 import WebKit
 
 /// プレビュー本体に表示するペイロード。markdown / コード / エラーのみ扱う。
@@ -23,6 +24,10 @@ struct PreviewPayload: Equatable {
 @MainActor
 final class PreviewWebController: NSObject, ObservableObject {
     static let shared = PreviewWebController()
+
+    /// マークダウン内の `file://` 画像は viewer.html のバンドル配下しか読めない WKWebView の
+    /// 読み取りサンドボックスに阻まれるので、JS 側でこのスキームに書き換えて Swift から読ませる。
+    static let localResourceScheme = "ideres"
 
     let webView: WKWebView
 
@@ -49,6 +54,9 @@ final class PreviewWebController: NSObject, ObservableObject {
         let prefs = WKWebpagePreferences()
         prefs.allowsContentJavaScript = true
         config.defaultWebpagePreferences = prefs
+
+        // ideres:// で要求されたローカルファイルを allowedRoot 配下チェック付きで返す。
+        config.setURLSchemeHandler(LocalResourceSchemeHandler(), forURLScheme: PreviewWebController.localResourceScheme)
 
         let view = WKWebView(frame: .zero, configuration: config)
         view.setValue(false, forKey: "drawsBackground")  // 背景を本体に合わせる
@@ -218,6 +226,42 @@ final class PreviewWebController: NSObject, ObservableObject {
         let rootPath = root.standardizedFileURL.path
         let target = url.standardizedFileURL.path
         return target == rootPath || target.hasPrefix(rootPath + "/")
+    }
+
+    /// `ideres://localhost/<絶対パス>` で要求されたローカルファイルを読んで返す。
+    /// マークダウン由来の `file://` 画像はこの経路を通す（viewer.js が src を書き換える）。
+    /// 現在のプレビューの `allowedRoot` 配下のファイルだけ許可し、プロジェクト外は弾く。
+    /// WKWebView は configuration をコピーするが scheme handler の実体は共有されるので、
+    /// シングルトンの `PreviewWebController.shared` を都度参照すれば足りる。
+    private final class LocalResourceSchemeHandler: NSObject, WKURLSchemeHandler {
+        func webView(_ webView: WKWebView, start urlSchemeTask: WKURLSchemeTask) {
+            guard let url = urlSchemeTask.request.url, !url.path.isEmpty else {
+                urlSchemeTask.didFailWithError(URLError(.badURL))
+                return
+            }
+            let fileURL = URL(fileURLWithPath: url.path).standardizedFileURL
+            let allowed = MainActor.assumeIsolated {
+                PreviewWebController.shared.isWithinAllowedRoot(fileURL)
+            }
+            guard allowed else {
+                urlSchemeTask.didFailWithError(URLError(.noPermissionsToReadFile))
+                return
+            }
+            guard let data = try? Data(contentsOf: fileURL) else {
+                urlSchemeTask.didFailWithError(URLError(.fileDoesNotExist))
+                return
+            }
+            let mime = UTType(filenameExtension: fileURL.pathExtension)?.preferredMIMEType ?? "application/octet-stream"
+            let response = URLResponse(
+                url: url, mimeType: mime, expectedContentLength: data.count, textEncodingName: nil)
+            urlSchemeTask.didReceive(response)
+            urlSchemeTask.didReceive(data)
+            urlSchemeTask.didFinish()
+        }
+
+        func webView(_ webView: WKWebView, stop urlSchemeTask: WKURLSchemeTask) {
+            // 同期的に didFinish/didFail まで完了するので後始末は不要。
+        }
     }
 
     /// JS から ready 通知を受け取るための薄いブリッジ。
