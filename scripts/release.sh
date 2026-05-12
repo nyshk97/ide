@@ -1,7 +1,12 @@
 #!/usr/bin/env bash
 # build.sh で作った zip を GitHub Release として公開する。
 # 使い方: scripts/release.sh <version>
-#   例: scripts/release.sh 0.0.1
+#   例: scripts/release.sh 1.0.4
+#
+# 前提: `project.yml` の MARKETING_VERSION を <version> に bump してコミット済みであること
+# （release.sh は project.yml をいじらない。タグ名と notes に <version> を使うだけ）。
+# `gh release create` はリモートの main HEAD にタグを作るので、未 push のコミットがあると
+# リリース zip とタグのソースがズレる。それを防ぐため先に `git push origin main` する。
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
@@ -19,6 +24,9 @@ TAG="v$VERSION"
 
 echo "==> Running fresh build (always rebuild to avoid uploading stale zip)..."
 "$SCRIPT_DIR/build.sh"
+
+echo "==> Pushing main to origin (so the tag references the released commit)..."
+git push origin main
 
 echo "==> Creating GitHub release $TAG..."
 gh release create "$TAG" \
