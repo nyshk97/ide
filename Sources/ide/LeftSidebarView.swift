@@ -155,7 +155,7 @@ struct LeftSidebarView: View {
         .help(missing ? "パスが見つかりません: \(project.path.path)" : project.path.path)
         .contentShape(Rectangle())
         .onTapGesture {
-            // missing でもアクティブにはできる（中央ペインで状態を見てもらう）
+            // missing なプロジェクトは setActive 側で弾かれ、toast が出る（要件 2: クリックしても開けない）。
             projects.setActive(project)
         }
         .contextMenu {

@@ -397,6 +397,12 @@ final class ProjectsModel: ObservableObject {
     /// `lastOpenedAt` は現状の仕様（再起動で active を復元しない・temporary は手動順・MRU は別管理）
     /// ではほぼ使われないので、切替では更新しない。
     func setActive(_ project: Project) {
+        // パスが消えている / マウント未接続なら開かない（要件 2: クリックしても開けない）。
+        // ここで弾くことで、存在しない cwd で shell を起動しに行く workspace(for:) を呼ばない。
+        if project.isMissing {
+            ErrorBus.shared.notify("プロジェクトのパスが見つかりません: \(project.path.path)")
+            return
+        }
         let didSwitch = activeProject?.id != project.id
         activeProject = project
         // 初回 active 時に workspace を作る（=shell 起動）。2 回目以降は既存を再利用。

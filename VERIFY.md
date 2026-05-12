@@ -501,6 +501,30 @@ rm -rf /tmp/ide-step3-test
 rm -f "$HOME/Library/Application Support/ide-dev/projects.json"*
 ```
 
+### 13-a. missing なプロジェクトは active にできない（半自動）
+
+要件 2「クリックしても開けない」。`IDE_TEST_AUTO_ACTIVATE_INDEX` で missing なプロジェクトを active にしようとして、toast が出るだけで workspace（shell）が作られないことを確認する。
+
+```bash
+APP="/tmp/ide-build/Build/Products/Debug/IDE Dev.app"
+SUPPORT="$HOME/Library/Application Support/ide-dev"
+BACKUP_DIR=$(mktemp -d); [ -d "$SUPPORT" ] && cp -a "$SUPPORT" "$BACKUP_DIR/ide-dev-backup"
+mkdir -p "$SUPPORT"
+cat > "$SUPPORT/projects.json" <<'JSON'
+{ "schemaVersion": 1, "projects": [
+  { "id": "00000000-0000-0000-0000-000000000001", "displayName": "ghost-project", "isPinned": true, "lastOpenedAt": "2026-05-01T00:00:00Z", "path": "/tmp/nonexistent-project-p14" }
+] }
+JSON
+pkill -x "IDE Dev" 2>/dev/null; sleep 1
+IDE_TEST_AUTO_ACTIVATE_INDEX=0 "$APP/Contents/MacOS/IDE Dev" >/dev/null 2>&1 &
+sleep 4
+grep -n "見つかりません\|workspace\|WorkspaceModel" /tmp/ide-poc.log
+pkill -x "IDE Dev" 2>/dev/null; sleep 1
+rm -rf "$SUPPORT"; [ -d "$BACKUP_DIR/ide-dev-backup" ] && mv "$BACKUP_DIR/ide-dev-backup" "$SUPPORT"
+```
+
+期待: `/tmp/ide-poc.log` に `[ERROR] プロジェクトのパスが見つかりません: /tmp/nonexistent-project-p14` が出て、それ以降 `workspace` / `WorkspaceModel` 関連の行が出ない（= `setActive` が `workspace(for:)` を呼ぶ前に return している）。クラッシュもしない。
+
 ### 14. アトミック書き込み・バックアップ世代（手動）
 
 実機で確認:
