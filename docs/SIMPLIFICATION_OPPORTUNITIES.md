@@ -4,7 +4,15 @@
 
 セキュリティ観点は広げすぎず、重要度が高いもの、または対応コストが低いものだけ載せる。
 
-> このドキュメントは詳細リファレンス（行番号・根拠・確認手順）。実際の消化は [docs/plans/2026-05-12-code-cleanup-pass.md](./plans/2026-05-12-code-cleanup-pass.md) で追跡する。消化済みになった項目はそちらでチェックが付き、本ドキュメントの該当箇所も順次更新する。
+> このドキュメントは詳細リファレンス（行番号・根拠・確認手順）。実際の消化は [docs/plans/2026-05-12-code-cleanup-pass.md](./plans/2026-05-12-code-cleanup-pass.md) で追跡した。
+
+## 消化状況（2026-05-12 整理パス）
+
+- ✅ 完了: **P0-1, P0-2, P0-3, P0-4, P1-1, P1-3（短期: stdout 打ち切り）, P1-5, P1-6, P1-8（短期: shell escape）, P1-9**
+- 🟡 一部完了: **P1-7** — `com.apple.security.automation.apple-events` は削除済み。残り 3 つの hardened runtime 例外（libghostty 由来と推定）は据え置き。Release 実機での検証は別途人間作業
+- ⬜ 未着手（余力があれば）: **P1-2**（除外ポリシー一元化）, **P1-4**（missing project を active にしない）, **P2-1〜P2-5**
+
+行番号は整理パス後にずれている箇所がある。
 
 ## 調査範囲
 

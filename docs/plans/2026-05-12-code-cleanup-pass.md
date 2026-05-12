@@ -23,76 +23,76 @@
 ## 実装計画
 
 ### 事前準備 [人間👨‍💻]
-- [ ] 特になし（Phase 7 の Release 検証だけ後段で人間作業）
+- [x] 特になし（Phase 7 の Release 検証だけ後段で人間作業）
 
 ### Phase 1: `ProcessRunner` + `BinaryLocator` を作る [AI🤖]
 （参照: SIMPLIFICATION P0-2）
-- [ ] `Sources/ide/ProcessRunner.swift` 新規作成
-  - [ ] `BinaryLocator`: `.git` / `.grep` / `.cursor`（候補パスを 1 箇所に集約。`locateGit()` の二重実装＋優先順位不一致を解消）
-  - [ ] `run(executable:arguments:cwd:stdin:timeout:maxStdoutBytes:)` 相当の API
-  - [ ] stdout / stderr の**両方を drain**（pipe バッファ詰まり回避）
-  - [ ] stdin への供給は別 queue / `writabilityHandler` で stdout drain と並行（`GitIgnoreChecker` の stdin→stdout デッドロック回避）
-  - [ ] timeout で terminate → 必要なら kill
-  - [ ] 戻り値に `exitCode` / `timedOut` / `stdout` / `stderr`
-- [ ] `project.yml` の regen が要れば回す、`mise run build` が通ることを確認
-- [ ] コミット
+- [x] `Sources/ide/ProcessRunner.swift` 新規作成
+  - [x] `BinaryLocator`: `.git` / `.grep` / `.cursor`（候補パスを 1 箇所に集約。`locateGit()` の二重実装＋優先順位不一致を解消）
+  - [x] `run(executable:arguments:cwd:stdin:timeout:maxStdoutBytes:)` 相当の API
+  - [x] stdout / stderr の**両方を drain**（pipe バッファ詰まり回避）
+  - [x] stdin への供給は別 queue で stdout drain と並行（`GitIgnoreChecker` の stdin→stdout デッドロック回避）
+  - [x] timeout で terminate → 数秒後も生きていれば SIGKILL
+  - [x] 戻り値に `exitCode` / `timedOut` / `stdout` / `stderr` / `stdoutTruncated`
+- [x] `mise run build` が通ることを確認
+- [x] コミット
 
 ### Phase 2: `FullTextSearcher` / `GitStatusModel` / `GitIgnoreChecker` を `ProcessRunner` に載せ替え [AI🤖]
 （参照: SIMPLIFICATION P0-2, P1-3 短期）
-- [ ] `GitStatusModel.runGitStatus` を `ProcessRunner` 経由に
-- [ ] `GitIgnoreChecker.check` を `ProcessRunner` 経由に（stdin 供給を drain と並行に）
-- [ ] `FullTextSearcher.run` を `ProcessRunner` 経由に
-  - [ ] `maxStdoutBytes` または行単位処理で 1000 件に達したら terminate（grep が上限超えても出し続ける問題を解消）
-- [ ] 各所の `locateGit()` / `locateGrep()` を `BinaryLocator` に置換、重複削除
-- [ ] `mise run build` + `./scripts/ide-launch.sh` で git status バッジ / Cmd+Shift+F が動くこと、git が無い状態でも固まらないことを確認（VERIFY.md section 7, 10, 11）
-- [ ] コミット
+- [x] `GitStatusModel.runGitStatus` を `ProcessRunner` 経由に
+- [x] `GitIgnoreChecker.check` を `ProcessRunner` 経由に（stdin 供給を drain と並行に）
+- [x] `FullTextSearcher.run` を `ProcessRunner` 経由に
+  - [x] `maxStdoutBytes`（4MB）で打ち切り（grep が上限超えても出し続ける問題を解消）
+- [x] 各所の `locateGit()` / `locateGrep()` を `BinaryLocator` に置換、重複削除（`openInCursor` も）
+- [x] `mise run build` 通過。launch して crash なし（screenshot は当環境の TCC 制約で不可、目視はユーザー検証へ）
+- [x] コミット
 
 ### Phase 3: `setActive` から永続化を外す + `lastOpenedAt` 整理 [AI🤖]
 （参照: SIMPLIFICATION P0-1）
-- [ ] `setActive(_:)` は `activeProject` / workspace / unread / MRU 更新だけにし、`persist()` を呼ばない
-- [ ] `lastOpenedAt = .now` の更新を `setActive` から外す（`addTemporary` / `unpin` 等での更新は要否を見て判断）
-- [ ] `addTemporary` など「永続状態が変わる操作」に `persist()` を明示的に追加（`setActive` 経由で persist していた箇所の補完）
-- [ ] `lastOpenedAt` は decode は残し、当面値は据え置き（encode から外すのは schema v2 で。今回はやらない）
-- [ ] `apply(&activeProject!)` の force-unwrap 周りもついでに整理（できる範囲で）
-- [ ] 確認: Ctrl+M / サイドバークリックで `~/Library/Application Support/ide-dev/projects.json` の mtime が変わらないこと。pin/unpin/並び替え/rename/relocate/追加/閉じるでは変わること（VERIFY.md section 13, 14, 16, 17, 30 の関連分）
-- [ ] コミット
+- [x] `setActive(_:)` は `activeProject` / workspace / unread / MRU 更新だけにし、`persist()` を呼ばない
+- [x] `lastOpenedAt = .now` の更新を `setActive` から外す（`unpin` 内の更新は `togglePin` 経由で persist されるので据え置き）
+- [x] `addTemporary` に `persist()` を明示追加
+- [x] `lastOpenedAt` は decode/encode とも据え置き（encode から外すのは schema v2 で）
+- [x] `apply(&activeProject!)` の force-unwrap を `syncActive(to:)` に置換
+- [x] 確認: AUTO_ACTIVATE 起動後に `projects.json` の mtime が変わらないこと（実測 pass）
+- [x] コミット
 
 ### Phase 4: `FilePathKey` 導入 [AI🤖]
 （参照: SIMPLIFICATION P0-4）
-- [ ] `struct FilePathKey: Hashable, Codable { let path: String; init(_ url: URL) { path = url.standardizedFileURL.path } }` を追加
-- [ ] `FileTreeModel`: `expanded` / `scannedDirs` / `selectedURL` の比較を `FilePathKey` ベースに
-- [ ] `FilePreviewModel`: `history` の重複判定を `FilePathKey` ベースに（`currentURL == url` 等）
-- [ ] `GitIgnoreChecker.check` の戻り値を `Set<FilePathKey>` に、呼び出し側（`FileIndex.scan` / `FileTreeModel.applyIgnored`）も合わせる
-- [ ] `FileIndex.recents` を `[FilePathKey: Date]` に
-- [ ] 確認: symlink / standardized path / file URL が混ざっても選択状態・履歴・ignore 表示が崩れないこと（VERIFY.md section 8, 9, 10）
-- [ ] コミット
+- [x] `struct FilePathKey: Hashable, Codable, Sendable { let path: String; init(_ url: URL) }` を追加
+- [x] `FileTreeModel`: `expanded` / `scannedDirs` を `Set<FilePathKey>` に、`selectedURL` 比較は `isSelected(_:)`、`findNode` の `node.url` 比較も `FilePathKey` に
+- [x] `FilePreviewModel`: `history` の重複判定と `currentURL` 比較を `FilePathKey` ベースに
+- [x] `GitIgnoreChecker.check` の戻り値を `Set<FilePathKey>` に、呼び出し側（`FileIndex.scan` / `FileTreeModel.applyIgnored`）も合わせる
+- [x] `FileIndex.recents` を `[FilePathKey: Date]` に
+- [x] 確認: `mise run build` 通過 + launch crash なし（symlink 混在の目視はユーザー検証へ）
+- [x] コミット
 
 ### Phase 5: プレビューのサイズ判定を先頭へ [AI🤖]
 （参照: SIMPLIFICATION P0-3）
-- [ ] `FilePreviewClassifier.classify`: `fileExists` 直後に `attributesOfItem` で size を取得し、画像 / PDF / テキストすべてに `warnSize`（5MB）/ `externalSize`（50MB）を適用（拡張子判定より前 or 直後）
-- [ ] `FilePreviewView`: `forceLoadLarge` 時の `Data(contentsOf:)` を View body から直呼びせず、`classifyAndApply` と同じ async 経路で読むよう変更
-- [ ] （任意）画像は `CGImageSourceCreateThumbnailAtIndex` で downsample も検討 — 重ければ別途
-- [ ] 確認: 5MB 超画像/PDF が確認 UI、50MB 超が外部誘導になること（VERIFY.md section 23）
-- [ ] コミット
+- [x] `FilePreviewClassifier.classify`: `fileExists` 直後に `attributesOfItem` で size を取得し、画像 / PDF / テキストすべてに `warnSize`（5MB）/ `externalSize`（50MB）を適用（拡張子判定より前）。`allowLarge` 引数で「読み込む」確認後の再分類に対応
+- [x] `FilePreviewView`: `forceLoadLarge` は `.onChange` で再分類（`allowLarge: true`）を発火するトリガに変更し、View body の `Data(contentsOf:)` 直呼びを廃止。`.tooLarge` ケースは常に確認 UI（再分類で実際の種別に化ける）
+- [x] （任意）画像 downsample は見送り
+- [x] 確認: `mise run build` 通過（5/50MB 境界の目視はユーザー検証へ）
+- [x] コミット
 
 ### Phase 6: `git ls-files` ベースの Cmd+P scan（Git repo のみ）[AI🤖]
 （参照: SIMPLIFICATION P1-1。挙動変化あり → 上の「想定挙動変化」参照）
-- [ ] Git repo では `git ls-files -co --exclude-standard -z`（`ProcessRunner` 経由）でファイル一覧を取得し、親ディレクトリを合成して `Entry` を作る
-- [ ] `includeIgnored=true` のときは現行 BFS（または別 fallback）を使う
-- [ ] 非 Git repo は現行 `scan` を残す
-- [ ] `.git` は何があっても出さない
-- [ ] （任意）この機会に検索/ツリーの除外ポリシーを小さい enum にまとめられそうなら寄せる（P1-2）— 無理しない
-- [ ] 確認: `.gitignore` 対象が通常出ない / `includeIgnored` で出る / 隠しファイルは含まれる（VERIFY.md section 25）
-- [ ] コミット
+- [x] Git repo では `git ls-files -co --exclude-standard -z`（`ProcessRunner` 経由）でファイル一覧を取得し、親ディレクトリを合成して `Entry` を作る（`scanViaGit`）
+- [x] `includeIgnored=true` のときは現行 BFS（`scanViaBFS`）を使う
+- [x] 非 Git repo は `scanViaBFS` を使う（exit code != 0 でフォールバック）
+- [x] `.git` は `git ls-files` がそもそも列挙しないので明示除外不要
+- [ ] ~~（任意）検索/ツリーの除外ポリシー一元化（P1-2）~~ → 見送り（ログ参照）
+- [x] 確認: `git ls-files -co --exclude-standard -z` の出力を実測（`.git/` なし、`.gitignore` 等の隠しファイルあり、ignored ファイルなし）。`mise run build` 通過
+- [x] コミット
 
 ### Phase 7: セキュリティ quick wins [AI🤖]
 （参照: SIMPLIFICATION P1-6, P1-7, P1-8, P1-9）
-- [ ] `Resources/IDE.entitlements` から `com.apple.security.automation.apple-events` を削除（残り 3 つの hardened runtime 例外は libghostty 由来の可能性が高いので**残す**）
-- [ ] `PreviewWebView`: `PreviewPayload` に `allowedRoot`（= project root）を持たせ、file URL は root 配下のみ同一プレビューで開く。root 外はコピー + toast
-- [ ] `FileTreeView.openInTerminal`: `shellEscape` を `ClipboardSupport` から独立した `ShellEscaper` に切り出し、`cd \(shellEscape(dir.path))\n` に。unused な `workspace` / `pane` / `tab` 取得を削除
-- [ ] `ClipboardSupport`: クリップボード画像を `FileManager.default.temporaryDirectory` ではなく `~/Library/Caches/{ide,ide-dev}/clipboard/` に保存。`AppPaths` に `cacheDirectory` を追加（Release/Debug 分離）。起動時に 1 日以上前のものを削除。コード/コメントの `/tmp/clipboard-...` 表記も直す
-- [ ] `mise run build` + Debug 起動で Markdown リンク / ターミナルで開く / 画像 paste が動くことを確認
-- [ ] コミット（entitlement 変更は次の人間検証が通ってから本採用でもよい）
+- [x] `Resources/IDE.entitlements` から `com.apple.security.automation.apple-events` を削除（残り 3 つの hardened runtime 例外は libghostty 由来の可能性が高いので**残す**）
+- [x] `PreviewWebView`: `PreviewPayload` に `allowedRoot`（= project root）を持たせ、file URL は root 配下のみ同一プレビューで開く。root 外はパスをコピー + toast。コードプレビューにも適用
+- [x] `ShellEscaper` を `ClipboardSupport` から独立。`openInTerminal` は `cd \(ShellEscaper.escape(dir.path))\n` に、unused な `workspace` / `pane` / `tab` 取得 + `FileTreeView` の `projects` プロパティを削除
+- [x] `ClipboardSupport`: クリップボード画像を `~/Library/Caches/{ide,ide-dev}/clipboard/` に保存。`AppPaths.cacheDirectory` を追加（Release/Debug 分離）。起動時（`IdeApp.init`）に `cleanupOldClipboardImages()` で 1 日以上前のものを削除。`/tmp/clipboard-...` 表記も修正
+- [x] `mise run build` 通過 + Debug 起動 crash なし（Markdown リンク / ターミナルで開く / 画像 paste の目視はユーザー検証へ）
+- [x] コミット
 
 ### Phase 7 の検証 [人間👨‍💻]
 - [ ] `scripts/build.sh` で Release ビルド + 署名 + notarize
@@ -101,22 +101,22 @@
 
 ### Phase 8: `PocLog` → `Logger` 一本化 [AI🤖]
 （参照: SIMPLIFICATION P1-5, BACKLOG「優先度: 高め」）
-- [ ] `PocLog.write` の call site を全部 `Logger.shared.debug` に置換
-- [ ] `/tmp/ide-poc.log` が VERIFY で便利なら、Debug ビルド限定で `Logger` の mirror sink として残す（`PocLog.reset()` は Debug mirror だけ初期化）。不要なら `PocLog` ごと削除
-- [ ] stderr 二重出力が消えていること、`~/Library/Logs/ide-dev/` にログが出ることを確認
-- [ ] CLAUDE.md / docs/DEV.md / docs/ARCHITECTURE.md の「PocLog 撤去予定」記述を実態に合わせて更新
-- [ ] コミット
+- [x] `PocLog.write` の call site を全部 `Logger.shared.debug` に置換、`Logging.swift` を削除
+- [x] `/tmp/ide-poc.log` は Debug ビルド限定で `Logger` のミラーとして残す（`Logger.shared.resetDebugMirror()` で起動時クリア）
+- [x] stderr 二重出力が消えていること（`'app_new ok'` が stderr に 1 回）、`~/Library/Logs/ide-dev/` と `/tmp/ide-poc.log` 両方に出ることを確認
+- [x] CLAUDE.md / docs/DEV.md / docs/ARCHITECTURE.md の「PocLog 撤去予定」記述を実態に合わせて更新
+- [x] コミット
 
 ### Phase 9: 小粒 — Cmd+P / Cmd+Shift+F の Cmd+C パスコピー [AI🤖]
 （参照: BACKLOG「優先度: 低め」step10 / step11 由来。今回まとめてやる）
-- [ ] `QuickSearchView`: 選択中エントリで `Cmd+C` → 相対パス（or 絶対パス）をクリップボードへ
-- [ ] `FullSearchView`: 同様に選択中ヒットのパスを `Cmd+C` でコピー
-- [ ] 確認: それぞれ overlay 表示中に `Cmd+C` でクリップボードに入ること
-- [ ] コミット
+- [x] `QuickSearchView`/`MRUKeyMonitor`: 選択中エントリで `Cmd+C` → 相対パスをクリップボードへ + info toast（選択なしなら素通り）
+- [x] `FullSearchView`/`MRUKeyMonitor`: 同様に選択中ヒットの相対パスを `Cmd+C` でコピー
+- [x] 確認: `mise run build` 通過 + launch crash なし（overlay 上での Cmd+C 目視はユーザー検証へ）
+- [x] コミット
 
 ### 仕上げ [AI🤖]
-- [ ] `docs/SIMPLIFICATION_OPPORTUNITIES.md` の冒頭に「実行は `docs/plans/2026-05-12-code-cleanup-pass.md` で追跡」の一行、消化済み項目に印（or 削除）
-- [ ] `docs/BACKLOG.md`: 「優先度: 高め」の `PocLog`→`Logger` 行を削除（消化済み）、冒頭ポインタを更新
+- [x] `docs/SIMPLIFICATION_OPPORTUNITIES.md` に「消化状況」セクションを追加
+- [x] `docs/BACKLOG.md`: 「優先度: 高め」の `PocLog`→`Logger` 行を削除、冒頭ポインタを更新（step10/step11 の Cmd+C 行・P1-8 行も消化済みに更新）
 - [ ] `/retro` で振り返りを提案
 
 ### 動作確認 [人間👨‍💻]
@@ -125,7 +125,14 @@
 
 ## ログ
 ### 試したこと・わかったこと
-（実装中に随時追記）
+- 当環境（Claude Code の Bash）は画面収録 TCC 権限が無く `ide-screenshot.sh` が `could not create image from display` で落ちる。各 Phase の検証は「`mise run build` 通過 + `launch` して crash なし + ログ確認 + 可能なら test 用フラグ + 外部コマンド出力の実測」に倒し、UI 目視はユーザー検証に委ねた。
+- Phase 3 検証: 固定フィクスチャ + `IDE_TEST_AUTO_ACTIVATE_INDEX` で起動し、起動前後で `~/Library/Application Support/ide-dev/projects.json` の mtime が不変であることを確認（setActive が persist しなくなった証跡）。
+- Phase 6 検証: `git ls-files -co --exclude-standard -z` の出力を ide リポジトリで実測。`.git/` 配下なし、`.gitignore` `.mise.toml` 等の隠しファイルあり、`*.xcodeproj` `.refs/` 等の ignored は出ない、を確認。
+- Phase 8 検証: stderr に `app_new ok` が 1 回だけ出る（旧実装は PocLog と Logger 双方が stderr に書いて 2 回出ていた）。`~/Library/Logs/ide-dev/` と Debug ミラー `/tmp/ide-poc.log` の両方に出力。
 
 ### 方針変更
-（実装中に随時追記）
+- Phase 5: `.tooLarge` のときの「読み込む」を、従来の「View body で `Data(contentsOf:)` を直読みして code として表示」から「`forceLoadLarge` を立てて `classify(allowLarge: true)` で再分類 → 実際の種別（image/pdf/code）でレンダリング」に変更。これで巨大画像/PDF も確認 UI を経たうえで正しい種別で表示でき、読み込み経路も classify の Task に一本化される。
+- Phase 6: P1-2（検索/ツリーの除外ポリシー一元化）は「無理しない」枠だったので今回は見送り（`scanViaBFS` 側の `alwaysSkipDirNames` / `cheapSkipDirNames` と `FullTextSearcher` の `--exclude-dir` がまだ別々）。SIMPLIFICATION の「未着手」に残した。
+- Phase 7: P1-7 は `automation.apple-events` の削除のみ実施。残り 3 つの hardened runtime 例外（allow-jit / allow-unsigned-executable-memory / disable-library-validation）は libghostty 由来と推定されるため据え置き。`automation.apple-events` を外しても問題ないかの Release 実機検証は人間作業（Phase 7 の検証）。
+- Phase 8: `/tmp/ide-poc.log` は VERIFY で `tail -f` 用に便利なので削除せず、`#if DEBUG` の Logger ミラーとして残した（`PocLog` 型自体は削除、`PocLog.reset()` → `Logger.shared.resetDebugMirror()`）。
+- Phase 9: Cmd+C は overlay 表示中かつ「選択中エントリが存在する」ときだけ event を消費する。選択が無いときはパイプラインに流す（検索フィールドで選択したテキストの通常コピーを妨げないため）。
