@@ -840,10 +840,47 @@ rm -rf /tmp/ide-watchtest
 - **画像**: ツリーから .png/.jpg などをクリック → ScrollView 内に画像が表示
 - **PDF**: .pdf をクリック → PDFKit で表示、ページめくり可
 - **バイナリ**: 実行可能ファイル等を選択 → 「バイナリファイルです（プレビュー非対応）」+「Cursor で開く」ボタン
-- **5MB 〜 50MB**: 「N MB のファイルです。読み込みますか？」確認 → 「読み込む」でテキスト表示
+- **5MB 〜 50MB（テキスト・画像・PDF いずれも）**: 「N MB のファイルです。読み込みますか？」確認 → 「読み込む」で実際の種別（テキスト / 画像 / PDF）として表示。サイズ判定は拡張子判定より前なので、巨大な画像/PDF もここで止まる
 - **50MB 超**: 自動的に「外部で開いてください」+「Cursor で開く」
 - **Cmd+Option+O**: Cursor が起動し、当該ファイルが開く
 - **Esc / `folder` アイコンパンくず**: ツリーに戻る（ホバーで primary 色に変化）
+
+### 26-a. プレビューのサイズしきい値（半自動・スクショ）
+
+`IDE_TEST_AUTO_PREVIEW` で巨大ファイルを開いて確認 UI に分岐するかをスクショで確認する。
+（`IDE.app` に画面収録権限がある前提 — [docs/DEV.md の TCC の節](./docs/DEV.md#tccプライバシー権限の罠) 参照）
+
+```bash
+BACKUP_DIR=$(mktemp -d); cp -a "$HOME/Library/Application Support/ide-dev" "$BACKUP_DIR/ide-dev" 2>/dev/null || true
+TD=/tmp/ide-verify-proj; rm -rf "$TD"; mkdir -p "$TD"
+# 6MB テキスト / 60MB テキスト / 6MB の非圧縮ノイズ PNG
+yes "padding line padding line padding line padding line padding line" | head -c 6291456 > "$TD/big6mb.txt"
+yes "padding line padding line padding line padding line padding line" | head -c 62914560 > "$TD/huge60mb.txt"
+python3 -c "import zlib,struct,os;W=H=1500;raw=bytearray();r=os.urandom(W*H*3);i=0
+for y in range(H):raw.append(0);raw.extend(r[i:i+W*3]);i+=W*3
+def c(t,d):return struct.pack('>I',len(d))+t+d+struct.pack('>I',zlib.crc32(t+d)&0xffffffff)
+p=b'\x89PNG\r\n\x1a\n'+c(b'IHDR',struct.pack('>IIBBBBB',W,H,8,2,0,0,0))+c(b'IDAT',zlib.compress(bytes(raw),1))+c(b'IEND',b'')
+open('$TD/noise6mb.png','wb').write(p)"
+mkdir -p "$HOME/Library/Application Support/ide-dev"
+cat > "$HOME/Library/Application Support/ide-dev/projects.json" <<'JSON'
+{"schemaVersion":1,"projects":[{"id":"aaaaaaaa-0000-0000-0000-000000000001","path":"/tmp/ide-verify-proj","displayName":"verify-proj","isPinned":true,"lastOpenedAt":"2026-05-12T00:00:00Z"}]}
+JSON
+rm -f "$HOME/Library/Application Support/ide-dev"/projects.json.[0-9]
+APP="/tmp/ide-build/Build/Products/Debug/IDE Dev.app"
+for f in big6mb.txt huge60mb.txt noise6mb.png; do
+  pkill -x "IDE Dev" 2>/dev/null; sleep 0.6
+  IDE_TEST_AUTO_ACTIVATE_INDEX=0 IDE_TEST_AUTO_PREVIEW="$f" "$APP/Contents/MacOS/IDE Dev" >/dev/null 2>&1 &
+  sleep 4; ./scripts/ide-screenshot.sh "/tmp/v26-$f.png"
+done
+pkill -x "IDE Dev" 2>/dev/null
+rm -rf "$HOME/Library/Application Support/ide-dev"; mv "$BACKUP_DIR/ide-dev" "$HOME/Library/Application Support/ide-dev" 2>/dev/null || true
+rm -rf "$TD"
+```
+
+期待（スクショで目視）:
+- `big6mb.txt` / `noise6mb.png` → 中央ペインに「6.0 MB のファイルです。読み込みますか？」+「読み込む」「Cursor で開く」（**画像も拡張子判定より前にサイズで止まる**のがポイント）
+- `huge60mb.txt` → 「ファイルサイズが大きいか UTF-8 でないため外部で開いてください」+「Cursor で開く」のみ
+- ※「読み込む」を押した後に実際の種別で表示されるか・Markdown のプロジェクト外リンクのコピー挙動・overlay 上の Cmd+C は、クリック / キーストロークが要るので手動確認（IDE 内 Claude Code からは osascript の補助アクセスが効かないため自動化不可）
 
 ### 27. プレビュー履歴ナビ（手動）
 
