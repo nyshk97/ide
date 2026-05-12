@@ -3,11 +3,11 @@
 # build/ide.zip に出力する。brew cask 配布用。
 #
 # 前提（一度だけ手作業で用意する）:
-#   1. キーチェーンに "Developer ID Application: ... (U4WAHGGBR7)" 証明書がある
+#   1. キーチェーンに "Developer ID Application: ... (VYDUR99LAM)" 証明書がある
 #      （Xcode → Settings → Accounts → Manage Certificates → + → Developer ID Application）
 #   2. notarytool の認証情報を keychain profile "ide-notary" に保存済み:
 #        xcrun notarytool store-credentials "ide-notary" \
-#          --apple-id <Apple ID> --team-id U4WAHGGBR7 --password <App用パスワード>
+#          --apple-id <Apple ID> --team-id VYDUR99LAM --password <App用パスワード>
 # NOTARY_PROFILE 環境変数で profile 名を上書きできる。
 set -euo pipefail
 

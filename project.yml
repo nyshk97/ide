@@ -73,6 +73,6 @@ targets:
         Release:
           CODE_SIGN_STYLE: Manual
           CODE_SIGN_IDENTITY: "Developer ID Application"
-          DEVELOPMENT_TEAM: U4WAHGGBR7
+          DEVELOPMENT_TEAM: VYDUR99LAM
           CODE_SIGN_ENTITLEMENTS: Resources/IDE.entitlements
           OTHER_CODE_SIGN_FLAGS: --timestamp
