@@ -148,7 +148,8 @@ final class ProjectsModel: ObservableObject {
         }
         let project = Project(path: path)
         temporary.append(project)
-        setActive(project)  // setActive 内で persist される
+        persist()  // 一覧に新しい project が増えた = 永続状態が変わった
+        setActive(project)
         return project
     }
 
@@ -349,41 +350,39 @@ final class ProjectsModel: ObservableObject {
 
         if let idx = pinned.firstIndex(where: { $0.id == project.id }) {
             apply(&pinned[idx])
-            if activeProject?.id == project.id { apply(&activeProject!) }
+            syncActive(to: pinned[idx])
             persist()
             return
         }
         if let idx = temporary.firstIndex(where: { $0.id == project.id }) {
             apply(&temporary[idx])
-            if activeProject?.id == project.id { apply(&activeProject!) }
+            syncActive(to: temporary[idx])
             persist()
         }
     }
 
+    /// 配列内の project を更新したとき、それが現在 active なら `activeProject` も同じ値に揃える。
+    private func syncActive(to project: Project) {
+        if activeProject?.id == project.id { activeProject = project }
+    }
+
     // MARK: - アクティブ切替
 
+    /// プロジェクトを active にする。永続状態（projects.json）は変えない
+    /// ＝ プロジェクト切替のたびに JSON を書く / backup を rotate するのをやめた。
+    /// `lastOpenedAt` は現状の仕様（再起動で active を復元しない・temporary は手動順・MRU は別管理）
+    /// ではほぼ使われないので、切替では更新しない。
     func setActive(_ project: Project) {
-        var updated = project
-        updated.lastOpenedAt = .now
-
-        if let idx = pinned.firstIndex(where: { $0.id == project.id }) {
-            pinned[idx] = updated
-            persist()
-        } else if let idx = temporary.firstIndex(where: { $0.id == project.id }) {
-            // 並び替えを手動順序に変更したので、temporary 内での位置は変えず lastOpenedAt のみ更新。
-            temporary[idx] = updated
-            persist()
-        }
-        let didSwitch = activeProject?.id != updated.id
-        activeProject = updated
+        let didSwitch = activeProject?.id != project.id
+        activeProject = project
         // 初回 active 時に workspace を作る（=shell 起動）。2 回目以降は既存を再利用。
-        let ws = workspace(for: updated)
+        let ws = workspace(for: project)
         // プロジェクトを開いたら、いま表示されるタブ（active pane の active tab）の未読はクリア。
         // 他ペイン・他タブに未読が残っていればサイドバーのリングは残る（要件 5）。
         ws.activePane.activeTab?.hasUnreadNotification = false
         refreshUnreadProjects()
         // 実際にプロジェクトが切り替わった瞬間に MRU 確定（要件通り）。
-        if didSwitch { pushMRU(updated.id) }
+        if didSwitch { pushMRU(project.id) }
     }
 
     // MARK: - MRU
