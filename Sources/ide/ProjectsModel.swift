@@ -451,26 +451,25 @@ final class ProjectsModel: ObservableObject {
         if mruStack.count > mruLimit { mruStack.removeLast(mruStack.count - mruLimit) }
     }
 
-    /// オーバーレイ用の候補。MRU 順に並べた現存プロジェクト群（close 済みは除外）。
+    /// オーバーレイ用の候補。直近に使った最大 `mruLimit` 件だけ（close 済みは除外）。
+    /// 並び順は「このセッションで切り替えた順（MRU）」を最優先し、残り枠は `lastOpenedAt` 降順で埋める。
     func mruCandidates() -> [Project] {
         let allById: [UUID: Project] = Dictionary(uniqueKeysWithValues: allOrdered.map { ($0.id, $0) })
         var seen = Set<UUID>()
         var result: [Project] = []
-        // MRU に載っているもの優先
+        // このセッションで実際に切り替えた順（MRU）を最優先。
         for id in mruStack {
             if let p = allById[id], !seen.contains(id) {
                 result.append(p)
                 seen.insert(id)
             }
         }
-        // MRU に未掲載のサイドバー上の project も候補末尾に積む。
-        // 要件: 「ピン留め・一時を区別せず、開いてるプロジェクトはすべて MRU の対象」
-        // → 「開いてる」= サイドバーに並んでいる全 project と解釈する。
-        for p in allOrdered where !seen.contains(p.id) {
+        // 残り枠は lastOpenedAt が新しい順に埋める（再起動直後で mruStack が薄くても「直近使った」順になる）。
+        for p in allOrdered.sorted(by: { $0.lastOpenedAt > $1.lastOpenedAt }) where !seen.contains(p.id) {
             result.append(p)
             seen.insert(p.id)
         }
-        return result
+        return Array(result.prefix(mruLimit))
     }
 
     /// Ctrl+M で起動 / 既に起動中なら次の候補にサイクル。

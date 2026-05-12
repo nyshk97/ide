@@ -705,6 +705,40 @@ rm -f "$HOME/Library/Application Support/ide-dev/projects.json"*
   - 3 回目: A にカーソル（一周）
 - Ctrl 離した瞬間に確定 → 選んでた project が active になる
 
+#### 19-A. 候補は直近 5 件まで（手動）
+
+`mruCandidates()` は最大 5 件（`mruLimit`）で打ち切る。並び順は「このセッションで切り替えた順（MRU）」優先、残り枠は `lastOpenedAt` 降順。
+
+6 件フィクスチャで起動:
+```bash
+mkdir -p "$HOME/Library/Application Support/ide-dev"
+cat > "$HOME/Library/Application Support/ide-dev/projects.json" <<'JSON'
+{
+  "projects" : [
+    {"displayName":"p1","id":"11111111-1111-1111-1111-111111111111","isPinned":true,"lastOpenedAt":"2026-05-09T06:00:00Z","path":"/Users/d0ne1s/ide"},
+    {"displayName":"p2","id":"22222222-2222-2222-2222-222222222222","isPinned":true,"lastOpenedAt":"2026-05-09T05:00:00Z","path":"/Users/d0ne1s/Documents"},
+    {"displayName":"p3","id":"33333333-3333-3333-3333-333333333333","isPinned":true,"lastOpenedAt":"2026-05-09T04:00:00Z","path":"/Users/d0ne1s/Downloads"},
+    {"displayName":"p4","id":"44444444-4444-4444-4444-444444444444","isPinned":true,"lastOpenedAt":"2026-05-09T03:00:00Z","path":"/Users/d0ne1s/Desktop"},
+    {"displayName":"p5","id":"55555555-5555-5555-5555-555555555555","isPinned":true,"lastOpenedAt":"2026-05-09T02:00:00Z","path":"/Users/d0ne1s/Public"},
+    {"displayName":"p6","id":"66666666-6666-6666-6666-666666666666","isPinned":true,"lastOpenedAt":"2026-05-09T01:00:00Z","path":"/Users/d0ne1s/Movies"}
+  ],
+  "schemaVersion" : 1
+}
+JSON
+pkill -x ide 2>/dev/null; sleep 0.4
+APP=/tmp/ide-build/Build/Products/Debug/ide.app
+IDE_TEST_AUTO_ACTIVATE_INDEX=0 "$APP/Contents/MacOS/ide" >/tmp/ide-stdout.log 2>&1 &
+sleep 2
+```
+
+Ctrl 押しっぱなしで M 連打 → overlay の候補が **5 件で止まる**こと（p6 は出ない。`lastOpenedAt` が一番古いため）。さらに p3 を一度 active 化してから Ctrl+M すると p3 が先頭に来て、代わりに末尾の 1 件が押し出されること。
+
+クリーンアップ:
+```bash
+pkill -x ide 2>/dev/null
+rm -f "$HOME/Library/Application Support/ide-dev/projects.json"*
+```
+
 ### 20. ファイルツリー基本表示（自動）
 
 ```bash
