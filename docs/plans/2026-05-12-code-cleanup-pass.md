@@ -2,9 +2,9 @@
 
 ## 概要・やりたいこと
 
-`docs/SIMPLIFICATION_OPPORTUNITIES.md` の棚卸しで挙がった「やった方がいい」項目を、同ドキュメントの「## 実装順のおすすめ」の順番で一気に片付ける。機能はほぼ変えず、処理量・記述量・壊れ方を減らすのが目的。ついでに `docs/BACKLOG.md` の小粒（Cmd+P / Cmd+Shift+F の Cmd+C パスコピー）も最後に入れる。
+かつて `docs/SIMPLIFICATION_OPPORTUNITIES.md`（クローズ後に削除済み・内容は git history 参照）の棚卸しで挙がった「やった方がいい」項目を、同ドキュメントの「## 実装順のおすすめ」の順番で一気に片付けた。機能はほぼ変えず、処理量・記述量・壊れ方を減らすのが目的。ついでに `docs/BACKLOG.md` の小粒（Cmd+P / Cmd+Shift+F の Cmd+C パスコピー）も最後に入れた。
 
-このプランが「進行中の整理」の正。詳細・行番号・確認手順は各ステップから `SIMPLIFICATION_OPPORTUNITIES.md` の P 番号を参照する。
+このプランはクローズ済み（[ログ](#ログ)参照）。各ステップの「（参照: SIMPLIFICATION P0-2）」等の P 番号は、その削除済みドキュメント内の項目番号（行番号・根拠・確認手順を含む詳細はそちらにあった）。
 
 各 Phase 完了時にコミットする（CLAUDE.md「実装中」の規約通り）。想定外の失敗・方針変更はログセクションに 1 件 10 行以内で追記する。
 
@@ -125,6 +125,10 @@
 - [ ] Release 検証（Phase 7 の検証と兼ねる）
 
 ## ログ
+### クローズ（2026-05-12）
+- Phase 1〜9 + 仕上げ（SIMPLIFICATION の消化状況追記・BACKLOG 整理）まで完了したのでこのプランはクローズ。詳細リファレンスだった `docs/SIMPLIFICATION_OPPORTUNITIES.md` はクローズ後に削除した（内容は git history 参照）。
+- 残った人間作業（Phase 7 の Release 実機検証、普段使いでの体感確認）と未消化の長尾（P1-2 / P1-4 / P2-1〜P2-3 / P2-5）は `docs/BACKLOG.md` の「優先度: 低め」表へ移した。
+
 ### 試したこと・わかったこと
 - 当環境（Claude Code の Bash）は画面収録 TCC 権限が無く `ide-screenshot.sh` が `could not create image from display` で落ちる。各 Phase の検証は「`mise run build` 通過 + `launch` して crash なし + ログ確認 + 可能なら test 用フラグ + 外部コマンド出力の実測」に倒し、UI 目視はユーザー検証に委ねた。
 - Phase 3 検証: 固定フィクスチャ + `IDE_TEST_AUTO_ACTIVATE_INDEX` で起動し、起動前後で `~/Library/Application Support/ide-dev/projects.json` の mtime が不変であることを確認（setActive が persist しなくなった証跡）。

@@ -2,7 +2,7 @@
 
 PoC で実装するときに参照すべき cmux のファイルと、libghostty の主要 API を控える。
 
-cmux: `https://github.com/manaflow-ai/cmux`（REQUIREMENTS.md の `japajoe/cmux` は誤り → 後で修正）
+cmux: `https://github.com/manaflow-ai/cmux`
 
 ローカル: `/Users/d0ne1s/ide/.refs/cmux/` に shallow clone 済み（submodule は未取得）。
 

@@ -128,7 +128,7 @@
 - ビルド成功 (Xcode 26.4.1 / Swift 6.3.1)、ウィンドウも前面表示確認
 
 ### 2026-05-08 step1 完了
-- cmux 実体は `manaflow-ai/cmux`（REQUIREMENTS.md の `japajoe/cmux` は誤りで要修正）
+- cmux 実体は `manaflow-ai/cmux`（当初 REQUIREMENTS.md に `japajoe/cmux` と誤記していたが修正済み）
 - ビルド方式は **GhosttyKit.xcframework を Bridging Header 経由で Swift にリンク**。prebuilt 取得経路があるので PoC で zig は必須でない
 - `~/.config/ghostty/config` の継承は `ghostty_config_load_default_files()` 一発で済む見込み
 - PTY は libghostty 内蔵（`io_mode = EXEC`）。自前 forkpty 不要
