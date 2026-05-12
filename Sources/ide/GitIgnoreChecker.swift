@@ -8,7 +8,7 @@ import Foundation
 enum GitIgnoreChecker {
     /// 指定パス群のうち ignore 対象のものを返す。
     /// 1 件ずつ git に問い合わせるとプロセス起動コストが嵩むので、stdin にまとめて流す。
-    static func check(in repoRoot: URL, paths: [URL]) -> Set<URL> {
+    static func check(in repoRoot: URL, paths: [URL]) -> Set<FilePathKey> {
         guard !paths.isEmpty else { return [] }
         guard let git = BinaryLocator.git else { return [] }
 
@@ -45,11 +45,11 @@ enum GitIgnoreChecker {
         return parseVerboseNullOutput(result.stdout, repoRoot: repoRoot)
     }
 
-    private static func parseVerboseNullOutput(_ data: Data, repoRoot: URL) -> Set<URL> {
+    private static func parseVerboseNullOutput(_ data: Data, repoRoot: URL) -> Set<FilePathKey> {
         // verbose --non-matching の出力フォーマット（NUL 区切り）:
         //   <source>\0<linenum>\0<pattern>\0<path>\0  ... 繰り返し
         // ignore 対象は <source> が空でない。non-match は <source> が空。
-        var result: Set<URL> = []
+        var result: Set<FilePathKey> = []
         let bytes = [UInt8](data)
         var fields: [String] = []
         var current: [UInt8] = []
@@ -61,8 +61,7 @@ enum GitIgnoreChecker {
                     let source = fields[0]
                     let path = fields[3]
                     if !source.isEmpty {
-                        let abs = repoRoot.appendingPathComponent(path).standardizedFileURL
-                        result.insert(abs)
+                        result.insert(FilePathKey(repoRoot.appendingPathComponent(path)))
                     }
                     fields = []
                 }

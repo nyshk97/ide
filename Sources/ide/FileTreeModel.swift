@@ -12,8 +12,8 @@ final class FileTreeModel: ObservableObject {
     /// ルートノード。`reload()` で再構築。
     @Published private(set) var root: FileNode
 
-    /// 展開状態（プロジェクト内の URL 集合）。再起動でリセット（要件通り）。
-    @Published var expanded: Set<URL> = []
+    /// 展開状態（プロジェクト内のパス集合）。再起動でリセット（要件通り）。
+    @Published var expanded: Set<FilePathKey> = []
 
     /// `.gitignore` 対象を完全に隠すかどうか。デフォルトは false（薄表示で見せる）。
     @Published var hideIgnored: Bool = false
@@ -22,7 +22,7 @@ final class FileTreeModel: ObservableObject {
     @Published var selectedURL: URL?
 
     /// 既に scan 済みのディレクトリ（再展開で重複 scan を防ぐ）。
-    private var scannedDirs: Set<URL> = []
+    private var scannedDirs: Set<FilePathKey> = []
 
     /// git status バッジ。3 秒 polling で自動更新。
     let gitStatus: GitStatusModel
@@ -40,41 +40,49 @@ final class FileTreeModel: ObservableObject {
         let children = Self.scanChildren(of: project.path)
         applyIgnored(in: children, parentDir: project.path)
         root.children = children
-        scannedDirs.insert(project.path)
+        scannedDirs.insert(FilePathKey(project.path))
         gitStatus.scheduleRefresh()
         objectWillChange.send()
     }
 
     func toggleExpanded(_ url: URL) {
-        if expanded.contains(url) {
-            expanded.remove(url)
+        let key = FilePathKey(url)
+        if expanded.contains(key) {
+            expanded.remove(key)
         } else {
-            expanded.insert(url)
+            expanded.insert(key)
             scanIfNeeded(url)
         }
     }
 
     func isExpanded(_ url: URL) -> Bool {
-        expanded.contains(url)
+        expanded.contains(FilePathKey(url))
+    }
+
+    /// 指定 URL が「最後にプレビューで開いた」ものかどうか（ツリー行の薄い強調表示用）。
+    func isSelected(_ url: URL) -> Bool {
+        guard let selectedURL else { return false }
+        return FilePathKey(selectedURL) == FilePathKey(url)
     }
 
     /// 展開するディレクトリの children を遅延 scan する。
     private func scanIfNeeded(_ url: URL) {
-        guard !scannedDirs.contains(url) else { return }
+        let key = FilePathKey(url)
+        guard !scannedDirs.contains(key) else { return }
         guard let node = findNode(url: url) else { return }
         let children = Self.scanChildren(of: url)
         applyIgnored(in: children, parentDir: url)
         node.children = children
-        scannedDirs.insert(url)
+        scannedDirs.insert(key)
         objectWillChange.send()
     }
 
     private func findNode(url: URL) -> FileNode? {
-        return findNode(in: root, target: url)
+        return findNode(in: root, target: FilePathKey(url))
     }
 
-    private func findNode(in node: FileNode, target: URL) -> FileNode? {
-        if node.url == target { return node }
+    private func findNode(in node: FileNode, target: FilePathKey) -> FileNode? {
+        if FilePathKey(node.url) == target { return node }
         for child in node.children {
             if let found = findNode(in: child, target: target) { return found }
         }
@@ -84,7 +92,7 @@ final class FileTreeModel: ObservableObject {
     /// 指定ディレクトリの直下にあるノードに対して `.gitignore` 判定をまとめて適用。
     private func applyIgnored(in nodes: [FileNode], parentDir: URL) {
         let ignored = GitIgnoreChecker.check(in: project.path, paths: nodes.map { $0.url })
-        for node in nodes where ignored.contains(node.url) {
+        for node in nodes where ignored.contains(FilePathKey(node.url)) {
             node.isIgnored = true
         }
     }

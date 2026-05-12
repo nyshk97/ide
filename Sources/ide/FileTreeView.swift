@@ -109,7 +109,7 @@ struct FileTreeView: View {
 
     private func rowView(node: FileNode, depth: Int, isExpanded: Bool) -> some View {
         let isHovered = hoveredNodeID == node.id
-        let isSelected = model.selectedURL?.standardizedFileURL == node.url.standardizedFileURL
+        let isSelected = model.isSelected(node.url)
         return HStack(spacing: 4) {
             // インデント
             Spacer().frame(width: CGFloat(depth) * 14)

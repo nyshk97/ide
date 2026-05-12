@@ -12,15 +12,19 @@ final class FilePreviewModel: ObservableObject {
     @Published private(set) var history: [URL] = []
     @Published private(set) var historyIndex: Int = -1
 
-    /// プレビュー対象を切替（履歴に push）。
+    /// プレビュー対象を切替（履歴に push）。URL の == は表記揺れで一致しないことがあるので
+    /// 重複判定は `FilePathKey` で行う。
     func open(_ url: URL) {
-        if currentURL == url { return }
+        let key = FilePathKey(url)
+        if let currentURL, FilePathKey(currentURL) == key { return }
         // 履歴の途中まで進んでいた場合、それ以降を破棄してから push
         if historyIndex >= 0 && historyIndex < history.count - 1 {
             history.removeSubrange((historyIndex + 1)..<history.count)
         }
         // 同じパスを連続で開くのは重複させない
-        if history.last != url {
+        if let last = history.last, FilePathKey(last) == key {
+            // 直前と同じなら積まない
+        } else {
             history.append(url)
         }
         historyIndex = history.count - 1

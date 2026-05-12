@@ -21,8 +21,8 @@ final class FileIndex: ObservableObject {
         }
     }
 
-    /// 直近開いたファイルの URL → 開いた時刻。スコアリング上位に効かせる。
-    var recents: [URL: Date] = [:]
+    /// 直近開いたファイルのパス → 開いた時刻。スコアリング上位に効かせる。
+    var recents: [FilePathKey: Date] = [:]
 
     struct Entry: Identifiable, Hashable {
         let url: URL
@@ -59,8 +59,8 @@ final class FileIndex: ObservableObject {
         guard !q.isEmpty else {
             // 空クエリ: 直近開いたものを上位に並べる
             return entries.sorted { lhs, rhs in
-                let l = recents[lhs.url] ?? .distantPast
-                let r = recents[rhs.url] ?? .distantPast
+                let l = recents[FilePathKey(lhs.url)] ?? .distantPast
+                let r = recents[FilePathKey(rhs.url)] ?? .distantPast
                 return l > r
             }.prefix(limit).map { $0 }
         }
@@ -72,7 +72,7 @@ final class FileIndex: ObservableObject {
                     guard e.lowercaseRelativePath.contains(q) else { return nil }
                     var score = 1000
                     if e.lowercaseRelativePath.hasPrefix(q) { score += 500 }
-                    if let r = recents[e.url] {
+                    if let r = recents[FilePathKey(e.url)] {
                         score += Int(r.timeIntervalSince1970 / 1000)
                     }
                     return (e, score)
@@ -90,7 +90,7 @@ final class FileIndex: ObservableObject {
                 let total = max(nameScore, pathScore)
                 guard total > 0 else { return nil }
                 var score = total
-                if let r = recents[e.url] {
+                if let r = recents[FilePathKey(e.url)] {
                     score += Int(r.timeIntervalSince1970 / 1000)
                 }
                 return (e, score)
@@ -102,7 +102,7 @@ final class FileIndex: ObservableObject {
 
     /// プレビューを開くたびに呼ぶ。直近スコアに効く。
     func recordOpen(_ url: URL) {
-        recents[url] = .now
+        recents[FilePathKey(url)] = .now
     }
 
     // MARK: - 内部
@@ -185,12 +185,12 @@ final class FileIndex: ObservableObject {
             }
 
             // includeIgnored=true のときは check-ignore を呼ばず全降下。
-            let ignored: Set<URL> = includeIgnored
+            let ignored: Set<FilePathKey> = includeIgnored
                 ? []
                 : GitIgnoreChecker.check(in: root, paths: dirsForCheck)
 
             for url in dirsForCheck {
-                if !includeIgnored, ignored.contains(url) { continue }
+                if !includeIgnored, ignored.contains(FilePathKey(url)) { continue }
                 appendEntry(&result, url: url, isDir: true, rootPath: rootPath)
                 queue.append(url)
                 if result.count > 50000 { break outer }
