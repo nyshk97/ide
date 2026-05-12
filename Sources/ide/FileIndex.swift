@@ -135,17 +135,61 @@ final class FileIndex: ObservableObject {
     ///
     /// 要件 6.1:
     /// - 隠しファイル（.gitignore, .mise.toml 等）は含める
-    /// - `.gitignore` 対象のディレクトリは `includeIgnored=false` のとき降下スキップ＋除外
-    ///   （ファイル単位の ignore は無視するので `.env` 等はヒットする）
-    /// - `includeIgnored=true` のときは git check-ignore を呼ばず全部含める
+    /// - `.gitignore` 対象はデフォルトで除外
+    /// - `includeIgnored=true`（Cmd+P の「ignore も含める」トグル ON）のときは全部含める
     ///
-    /// BFS でレベルごとに処理し、各レベルのディレクトリ群を `git check-ignore` に
-    /// 一括投入する（プロセス起動コストを 1 レベル 1 回にまとめる）。
+    /// Git repo かつ `includeIgnored=false` のときは `git ls-files` に寄せる（独自 BFS より
+    /// `.gitignore` の再現性が高く、ファイル単位の ignore も効く）。それ以外は従来の BFS。
     nonisolated private static func scan(root: URL, includeIgnored: Bool) -> [Entry] {
+        let rootPath = root.standardizedFileURL.path
+        if !includeIgnored, let viaGit = scanViaGit(root: root, rootPath: rootPath) {
+            return viaGit
+        }
+        return scanViaBFS(root: root, includeIgnored: includeIgnored, rootPath: rootPath)
+    }
+
+    /// Git repo では `git ls-files -co --exclude-standard -z` でファイル一覧を取得し、
+    /// 親ディレクトリを合成して `Entry` を組む。非 git repo（exit 128 等）では nil を返す。
+    /// `.git` 配下は `git ls-files` がそもそも列挙しないので明示の除外は不要。
+    nonisolated private static func scanViaGit(root: URL, rootPath: String) -> [Entry]? {
+        guard let git = BinaryLocator.git else { return nil }
+        let result = ProcessRunner.run(
+            executable: git,
+            arguments: ["ls-files", "-co", "--exclude-standard", "-z"],
+            cwd: root,
+            timeout: 10,
+            maxStdoutBytes: 16 * 1024 * 1024
+        )
+        guard result.exitCode == 0 else { return nil }  // 128 = 非 git repo など
+
+        var entries: [Entry] = []
+        var seenDirs = Set<String>()  // 合成済みディレクトリの相対パス
+        for chunk in result.stdout.split(separator: 0) {
+            let rel = String(decoding: chunk, as: UTF8.self)
+            guard !rel.isEmpty else { continue }
+            // 親ディレクトリを root 直下まで合成
+            let components = rel.split(separator: "/").map(String.init)
+            if components.count > 1 {
+                var acc = ""
+                for comp in components.dropLast() {
+                    acc = acc.isEmpty ? comp : acc + "/" + comp
+                    if seenDirs.insert(acc).inserted {
+                        appendEntry(&entries, url: root.appendingPathComponent(acc), isDir: true, rootPath: rootPath)
+                    }
+                }
+            }
+            appendEntry(&entries, url: root.appendingPathComponent(rel), isDir: false, rootPath: rootPath)
+            if entries.count > 50000 { break }
+        }
+        return entries
+    }
+
+    /// 従来の BFS スキャン（非 git repo / `includeIgnored=true` 用）。
+    /// 各レベルのディレクトリ群を `git check-ignore` に一括投入する。
+    nonisolated private static func scanViaBFS(root: URL, includeIgnored: Bool, rootPath: String) -> [Entry] {
         let fm = FileManager.default
         let resourceKeys: [URLResourceKey] = [.isDirectoryKey, .isSymbolicLinkKey]
         let resourceKeySet = Set(resourceKeys)
-        let rootPath = root.standardizedFileURL.path
 
         // .git は何が起きても降下しない（巨大かつ検索結果にも出すべきでない）。
         // それ以外の典型的な巨大物 (node_modules 等) は includeIgnored=false の高速ショートカット。
