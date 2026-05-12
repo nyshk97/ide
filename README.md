@@ -8,7 +8,7 @@ macOS 用 IDE。
 主に自分（[@d0ne1s](https://github.com/nyshk97)）が日常で使うために作っているツールです。気になる人は自由に使ったり改造したりして OK ですが、issue / PR は基本的に対応しないので fork 推奨です。
 
 > [!NOTE]
-> 個人用ツールなので ad-hoc 署名のみで配布しています（Apple Developer ID 署名・公証はしていません）。
+> 配布版（Homebrew）は Apple Developer ID 署名 + notarization 済みです。ソースから自分でビルドする Debug ビルドは ad-hoc 署名です。
 
 ---
 
@@ -31,14 +31,7 @@ macOS 用 IDE。
 brew install nyshk97/tap/ide
 ```
 
-初回起動時に **「IDE.app は開けません」** という警告が出るはずです（ad-hoc 署名のため）。次の手順で 1 度だけ解除してください:
-
-1. **System Settings** → **Privacy & Security** を開く
-2. **Security** セクションまでスクロール
-3. ide が開けない旨のメッセージの右にある **Open Anyway** をクリック
-4. 確認ダイアログで承認
-
-これで以降は普通に起動できます（macOS のメジャーアップデート後に再度求められることがあります）。
+Developer ID 署名 + Apple notarization 済みなので、そのまま起動できます（Gatekeeper の警告は出ません）。
 
 ---
 
@@ -65,9 +58,9 @@ Debug ビルドの成果物は `/tmp/ide-build/Build/Products/Debug/IDE.app`。
 ### Release ビルド（配布用 zip）
 
 ```bash
-./scripts/build.sh        # build/ide.zip を作る（ad-hoc 署名）
-./scripts/install.sh      # build/ide.zip を /Applications/IDE.app に展開
-./scripts/release.sh 0.0.4  # GitHub Release を作る（gh CLI が必要）
+./scripts/build.sh          # build/ide.zip を作る（Developer ID 署名 + notarize。前提は scripts/build.sh の冒頭コメント参照）
+./scripts/install.sh        # build/ide.zip を /Applications/IDE.app に展開
+./scripts/release.sh 1.0.4  # GitHub Release を作る（gh CLI が必要）
 ```
 
 ### クリーン
