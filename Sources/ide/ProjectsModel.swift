@@ -263,6 +263,14 @@ final class ProjectsModel: ObservableObject {
         closeQuickSearch()
     }
 
+    /// Cmd+P で現在選択中のエントリの相対パス（無ければ nil）。Cmd+C コピー用。
+    func quickSearchSelectedPath() -> String? {
+        guard let active = activeProject else { return nil }
+        let results = fileIndex(for: active).search(quickSearchQuery)
+        guard results.indices.contains(quickSearchSelection) else { return nil }
+        return results[quickSearchSelection].relativePath
+    }
+
     // MARK: - Cmd+Shift+F 全文検索
 
     func openFullSearch() {
@@ -305,6 +313,22 @@ final class ProjectsModel: ObservableObject {
         preview(for: active).open(hit.url)
         fileIndex(for: active).recordOpen(hit.url)
         closeFullSearch()
+    }
+
+    /// Cmd+Shift+F で現在選択中のヒットの相対パス（無ければ nil）。Cmd+C コピー用。
+    func fullSearchSelectedPath() -> String? {
+        guard fullSearchHits.indices.contains(fullSearchSelection) else { return nil }
+        return relativePath(of: fullSearchHits[fullSearchSelection].url)
+    }
+
+    /// active project ルートからの相対パス。配下でなければ絶対パスを返す。
+    private func relativePath(of url: URL) -> String {
+        guard let active = activeProject else { return url.path }
+        let rootPath = active.path.standardizedFileURL.path
+        let abs = url.standardizedFileURL.path
+        if abs == rootPath { return "." }
+        if abs.hasPrefix(rootPath + "/") { return String(abs.dropFirst(rootPath.count + 1)) }
+        return abs
     }
 
     // MARK: - ピン留め切替

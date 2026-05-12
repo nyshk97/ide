@@ -61,6 +61,13 @@ enum MRUKeyMonitor {
 
         // クイック検索表示中のキー操作
         if model.quickSearchVisible {
+            // Cmd+C: 選択中エントリの相対パスをコピー（選択が無ければ素通り）
+            if mods == .command, event.keyCode == 8 {  // 8 = C
+                if let path = model.quickSearchSelectedPath() {
+                    copyPath(path)
+                    return true
+                }
+            }
             switch event.keyCode {
             case 53:  // Esc
                 model.closeQuickSearch()
@@ -78,6 +85,13 @@ enum MRUKeyMonitor {
 
         // 全文検索表示中のキー操作
         if model.fullSearchVisible {
+            // Cmd+C: 選択中ヒットの相対パスをコピー（選択が無ければ素通り）
+            if mods == .command, event.keyCode == 8 {  // 8 = C
+                if let path = model.fullSearchSelectedPath() {
+                    copyPath(path)
+                    return true
+                }
+            }
             switch event.keyCode {
             case 53:  // Esc
                 model.closeFullSearch()
@@ -94,6 +108,15 @@ enum MRUKeyMonitor {
         }
 
         return false
+    }
+
+    /// パス文字列を一般ペーストボードへ。簡単な確認 toast も出す。
+    @MainActor
+    private static func copyPath(_ path: String) {
+        let pb = NSPasteboard.general
+        pb.clearContents()
+        pb.setString(path, forType: .string)
+        ErrorBus.shared.notify("パスをコピーしました: \(path)", kind: .info)
     }
 
     /// Ctrl 離しで確定。.flagsChanged は modifier の変化通知。
