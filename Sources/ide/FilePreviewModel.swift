@@ -85,10 +85,20 @@ enum FilePreviewClassifier {
     static let warnSize: Int64 = 5 * 1024 * 1024
     static let externalSize: Int64 = 50 * 1024 * 1024
 
-    static func classify(_ url: URL) -> FilePreviewKind {
+    /// - Parameter allowLarge: 「読み込む」確認を経た場合 `true`。サイズしきい値を無視して
+    ///   実際の種別（画像 / PDF / テキスト）を返す。
+    static func classify(_ url: URL, allowLarge: Bool = false) -> FilePreviewKind {
         let fm = FileManager.default
         guard fm.fileExists(atPath: url.path) else {
             return .error("ファイルが見つかりません")
+        }
+
+        // サイズチェックを拡張子判定より前に行う（巨大な画像/PDF が素通りしてメモリを食わないように）。
+        if !allowLarge {
+            let attr = try? fm.attributesOfItem(atPath: url.path)
+            let size = (attr?[.size] as? NSNumber)?.int64Value ?? 0
+            if size > externalSize { return .external }
+            if size > warnSize { return .tooLarge(bytes: size) }
         }
 
         // 拡張子で先に分かるものは早めに振り分け
@@ -101,12 +111,6 @@ enum FilePreviewClassifier {
         default:
             break
         }
-
-        // サイズチェック
-        let attr = try? fm.attributesOfItem(atPath: url.path)
-        let size = (attr?[.size] as? NSNumber)?.int64Value ?? 0
-        if size > externalSize { return .external }
-        if size > warnSize { return .tooLarge(bytes: size) }
 
         // 中身を読んでバイナリ判定（NUL 含むかどうか）
         guard let data = try? Data(contentsOf: url) else {

@@ -46,13 +46,21 @@ struct FilePreviewView: View {
                 await classifyAndApply(isReload: true)
             }
         }
+        // 「読み込む」確認を経たら、サイズしきい値を無視して再分類する。
+        // 巨大ファイルの読み込みも View body ではなく classify の Task 経路で行う。
+        .onChange(of: forceLoadLarge) { _, allow in
+            if allow {
+                Task { await classifyAndApply() }
+            }
+        }
     }
 
     /// ファイルを分類し直して表示状態に反映する。`.task` 初回と自動リロードの両方が呼ぶ。
     private func classifyAndApply(isReload: Bool = false) async {
         let target = url
+        let allowLarge = forceLoadLarge
         let result = await Task.detached(priority: .userInitiated) {
-            FilePreviewClassifier.classify(target)
+            FilePreviewClassifier.classify(target, allowLarge: allowLarge)
         }.value
         if Task.isCancelled { return }
         self.kind = result
@@ -140,11 +148,9 @@ struct FilePreviewView: View {
             case .binary:
                 externalPrompt(message: "バイナリファイルです（プレビュー非対応）")
             case .tooLarge(let bytes):
-                if forceLoadLarge {
-                    webPreview(payload: codePayload(data: (try? Data(contentsOf: url)) ?? Data()))
-                } else {
-                    largeFilePrompt(bytes: bytes)
-                }
+                // 「読み込む」を押すと forceLoadLarge=true → 再分類で実際の種別に変わるので、
+                // ここに来ている時点では常に確認 UI を出す。
+                largeFilePrompt(bytes: bytes)
             case .external:
                 externalPrompt(message: "ファイルサイズが大きいか UTF-8 でないため外部で開いてください")
             case .error(let msg):
