@@ -19,8 +19,11 @@ final class GitStatusModel: ObservableObject {
     }
 
     /// `git status` の `XY` 1〜2 文字を UI 用の 1 文字 + 色 にマップ。
+    ///
+    /// `--ignored` を渡していないので `!!`（ignored）は出力されない。ignored 表示は
+    /// `GitIgnoreChecker` → `FileTreeModel.applyIgnored` の薄表示で行う。
     enum Badge: Equatable {
-        case modified, added, deleted, untracked, ignored, renamed, unknown
+        case modified, added, deleted, untracked, renamed, unknown
 
         var letter: String {
             switch self {
@@ -28,7 +31,6 @@ final class GitStatusModel: ObservableObject {
             case .added: return "A"
             case .deleted: return "D"
             case .untracked: return "?"
-            case .ignored: return "!"
             case .renamed: return "R"
             case .unknown: return "•"
             }
@@ -39,7 +41,6 @@ final class GitStatusModel: ObservableObject {
             case .added: return .green
             case .deleted: return .red
             case .untracked: return .secondary
-            case .ignored: return Color.gray.opacity(0.5)
             case .unknown: return .secondary
             }
         }
@@ -141,7 +142,6 @@ final class GitStatusModel: ObservableObject {
         case "D": return .deleted
         case "R", "C": return .renamed
         case "?": return .untracked
-        case "!": return .ignored
         default: return .unknown
         }
     }
