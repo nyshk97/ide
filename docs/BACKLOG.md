@@ -2,7 +2,7 @@
 
 ide の今後の着手候補。基本機能は一通り揃っているので、ここにあるのは「やりたくなったら / 必要を感じたら」のリスト。優先度で 3 段に分ける（要件番号は [REQUIREMENTS.md](../REQUIREMENTS.md) を参照）。
 
-コード整理寄りのタスク（`ProcessRunner` 集約、`setActive` の永続化外し、`FilePathKey` 導入、プレビューのサイズ判定など）は [SIMPLIFICATION_OPPORTUNITIES.md](./SIMPLIFICATION_OPPORTUNITIES.md) の P0/P1/P2 を参照。こちらは主に「機能」の残タスクを置く。
+コード整理寄りのタスク（`ProcessRunner` 集約、`setActive` の永続化外し、`FilePathKey` 導入、プレビューのサイズ判定など）は近日中にまとめて消化する予定。プランは [docs/plans/2026-05-12-code-cleanup-pass.md](./plans/2026-05-12-code-cleanup-pass.md)、詳細リファレンスは [SIMPLIFICATION_OPPORTUNITIES.md](./SIMPLIFICATION_OPPORTUNITIES.md)。こちら（BACKLOG）は主に「機能」の残タスクと、その整理パスに含めない長尾を置く。
 
 ---
 
