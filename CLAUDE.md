@@ -91,7 +91,7 @@ mv "$BACKUP_DIR/ide-dev-backup" "$HOME/Library/Application Support/ide-dev" 2>/d
 
 - **`PocLog.write(...)`**: デバッグ用、`/tmp/ide-poc.log`。`tail -f` で追えるので調査時に強い
 - **`Logger.shared.{error|warn|info|debug}(...)`**: 永続ログ、`~/Library/Logs/ide/`
-- 現在 `PocLog.write` 内部で `Logger.debug` にも転送している。Phase 2.5 で `PocLog` を撤去予定
+- 現在 `PocLog.write` 内部で `Logger.debug` にも転送している。`PocLog` は `Logger` へ一本化して撤去予定（[docs/BACKLOG.md](./docs/BACKLOG.md) の「優先度: 高め」）
 
 エラー toast を出したいときは `ErrorBus.shared.notify(_:kind:)`。継続的な状態異常は各 View 内に常駐表示する（要件 8.3）。
 
@@ -136,7 +136,7 @@ mv "$BACKUP_DIR/ide-dev-backup" "$HOME/Library/Application Support/ide-dev" 2>/d
 | `CLAUDE.md` | ← 本文書。AI 向けの「これだけ読めば動ける」 |
 | `docs/ARCHITECTURE.md` | モジュール構成・データフロー |
 | `docs/DEV.md` | 開発時の手順・落とし穴 |
-| `docs/BACKLOG.md` | 残タスク・Phase 2.5・Phase 3 アイデア |
+| `docs/BACKLOG.md` | 残タスク・将来アイデア（優先度別） |
 | `docs/plans/*.md` | フェーズ単位の実装計画 |
 
 新しい知見が出たら適切な場所に書き戻す。`docs/plans/` のログにも方針変更は残す。

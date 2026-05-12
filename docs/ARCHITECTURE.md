@@ -103,7 +103,7 @@ WorkspaceModel(project: ide)
 
 - 3 秒間隔の `Timer` で `git status --porcelain=v1 -z -uall` を回し、結果を `[String: Badge]`（path → M/A/D/?/R）として保持
 - 200ms debounce、10 秒タイムアウト
-- FSEvents は Phase 2.5（[BACKLOG.md](./BACKLOG.md)）
+- ファイルツリーの差分反映（FSEvents）は未対応 — 残タスク（[BACKLOG.md](./BACKLOG.md) の「優先度: 低め」）
 
 ### FilePreviewModel / FilePreviewClassifier / FilePreviewView / PreviewWebView / FileChangeWatcher
 
@@ -123,7 +123,7 @@ WorkspaceModel(project: ide)
 
 - `grep -rnIH -F --exclude-dir=…` を `Process` で起動（要件 8.1: argv 配列）
 - 10 秒タイムアウト、上限 1000 件
-- ripgrep への切替は Phase 2.5
+- ripgrep への切替は残タスク（[BACKLOG.md](./BACKLOG.md) の「優先度: 低め」）
 
 ### MRUKeyMonitor
 
@@ -135,7 +135,7 @@ WorkspaceModel(project: ide)
 ### Logger / PocLog / ErrorBus
 
 - `Logger.shared`: `~/Library/Logs/ide/ide-YYYY-MM-DD.log` への永続化。日次ローテーション + 7 日 / 50MB 超で削除
-- `PocLog`: `/tmp/ide-poc.log` への並走出力（Phase 1 から残るデバッグ用）。内部で `Logger.debug` に転送している。Phase 2.5 で撤去予定
+- `PocLog`: `/tmp/ide-poc.log` への並走出力（Phase 1 から残るデバッグ用）。内部で `Logger.debug` に転送している。`Logger` へ一本化して撤去予定（[BACKLOG.md](./BACKLOG.md)）
 - `ErrorBus.shared`: 単発 toast 用 ObservableObject（要件 8.3）。継続的な状態異常は各 View 内で常駐表示する使い分け
 
 ---

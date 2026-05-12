@@ -79,7 +79,7 @@ open -n "/tmp/ide-build/Build/Products/Debug/IDE Dev.app" \
 | `/tmp/ide-poc.log` | デバッグ用。`init()` で reset、`PocLog.write` で追記。`tail -f` で追える |
 | `~/Library/Logs/ide/ide-YYYY-MM-DD.log` | 永続ログ（step12〜）。日次ローテーション、7 日 / 50MB 超で削除 |
 
-`PocLog.write` は内部で `Logger.debug` にも転送するので、step12 以降は `~/Library/Logs/ide/` も併せて見る。Phase 2.5 で PocLog は撤去予定（[BACKLOG.md](./BACKLOG.md)）。
+`PocLog.write` は内部で `Logger.debug` にも転送するので、step12 以降は `~/Library/Logs/ide/` も併せて見る。PocLog は `Logger` へ一本化して撤去予定（[BACKLOG.md](./BACKLOG.md)）。
 
 ---
 
@@ -147,7 +147,7 @@ ide/
 ├─ CLAUDE.md             AI（Claude Code）向けガイド
 └─ docs/
    ├─ ARCHITECTURE.md    モジュール構成・データフロー
-   ├─ BACKLOG.md         残タスク・Phase 2.5・Phase 3 アイデア
+   ├─ BACKLOG.md         残タスク・将来アイデア（優先度別）
    ├─ DEV.md             ← この文書
    └─ plans/
       ├─ phase1-terminal.md
