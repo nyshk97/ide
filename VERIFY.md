@@ -828,32 +828,33 @@ mkdir -p "$HOME/Library/Application Support/ide-dev"
 cat > "$HOME/Library/Application Support/ide-dev/projects.json" <<'JSON'
 {"projects":[{"displayName":"ide","id":"11111111-1111-1111-1111-111111111111","isPinned":true,"lastOpenedAt":"2026-05-09T01:00:00Z","path":"/Users/d0ne1s/ide"}],"schemaVersion":1}
 JSON
-APP=/tmp/ide-build/Build/Products/Debug/ide.app
+APP="/tmp/ide-build/Build/Products/Debug/IDE Dev.app"
+BIN="$APP/Contents/MacOS/IDE Dev"
 
-# Markdown
-pkill -x ide 2>/dev/null; sleep 0.4
-IDE_TEST_AUTO_ACTIVATE_INDEX=0 IDE_TEST_AUTO_PREVIEW="REQUIREMENTS.md" "$APP/Contents/MacOS/ide" >/dev/null 2>&1 &
+# Markdown（README.md は画像 ./docs/images/overview.png を埋め込んでいる）
+pkill -x "IDE Dev" 2>/dev/null; sleep 0.4
+IDE_TEST_AUTO_ACTIVATE_INDEX=0 IDE_TEST_AUTO_PREVIEW="README.md" "$BIN" >/dev/null 2>&1 &
 sleep 3
 ./scripts/ide-screenshot.sh /tmp/v-step8-md.png
 
 # Swift コード
-pkill -x ide 2>/dev/null; sleep 0.4
-IDE_TEST_AUTO_ACTIVATE_INDEX=0 IDE_TEST_AUTO_PREVIEW="Sources/ide/IdeApp.swift" "$APP/Contents/MacOS/ide" >/dev/null 2>&1 &
+pkill -x "IDE Dev" 2>/dev/null; sleep 0.4
+IDE_TEST_AUTO_ACTIVATE_INDEX=0 IDE_TEST_AUTO_PREVIEW="Sources/ide/IdeApp.swift" "$BIN" >/dev/null 2>&1 &
 sleep 3
 ./scripts/ide-screenshot.sh /tmp/v-step8-swift.png
 
 # XML (Info.plist)
-pkill -x ide 2>/dev/null; sleep 0.4
-IDE_TEST_AUTO_ACTIVATE_INDEX=0 IDE_TEST_AUTO_PREVIEW="Resources/Info.plist" "$APP/Contents/MacOS/ide" >/dev/null 2>&1 &
+pkill -x "IDE Dev" 2>/dev/null; sleep 0.4
+IDE_TEST_AUTO_ACTIVATE_INDEX=0 IDE_TEST_AUTO_PREVIEW="Resources/Info.plist" "$BIN" >/dev/null 2>&1 &
 sleep 3
 ./scripts/ide-screenshot.sh /tmp/v-step8-plist.png
-pkill -x ide 2>/dev/null
+pkill -x "IDE Dev" 2>/dev/null
 rm -f "$HOME/Library/Application Support/ide-dev/projects.json"*
 ```
 
 期待:
 - 中央ペインがプレビューモードに切替（ツールバー左に `folder` アイコン + `/` + ファイル名のパンくず、続いて履歴ナビ ← →、右端に「Cursor で開く」）
-- Markdown はインラインレンダリング（リンク・強調が効く、見出しはプレーン）
+- Markdown はインラインレンダリング（リンク・強調が効く、見出しはプレーン）。`README.md` の `![]()` 画像（`docs/images/overview.png`）が壊れアイコンではなくちゃんと表示される（`ideres://` スキームハンドラ経由）
 - コード（.swift）はモノスペースで表示
 - XML はそのままプレーンテキスト
 - パンくずのファイル名をクリック → 「相対パスをコピーしました: …」トースト + pasteboard に project root からの相対パスが入る（Markdown でも非 Markdown でも同じ。要手動: ホバーで下線が出てクリックできる）
