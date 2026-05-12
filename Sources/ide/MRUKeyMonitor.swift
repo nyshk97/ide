@@ -84,18 +84,21 @@ enum MRUKeyMonitor {
                     return true
                 }
             }
-            switch event.keyCode {
-            case 53:  // Esc
-                model.closeQuickSearch()
-                return true
-            case 125:  // Down
-                model.quickSearchMoveSelection(1)
-                return true
-            case 126:  // Up
-                model.quickSearchMoveSelection(-1)
-                return true
-            default:
-                break
+            // IME 変換中（marked text あり）は Esc/矢印を IME に渡して候補移動・キャンセルさせる。
+            if !isComposingInTextField() {
+                switch event.keyCode {
+                case 53:  // Esc
+                    model.closeQuickSearch()
+                    return true
+                case 125:  // Down
+                    model.quickSearchMoveSelection(1)
+                    return true
+                case 126:  // Up
+                    model.quickSearchMoveSelection(-1)
+                    return true
+                default:
+                    break
+                }
             }
         }
 
@@ -108,31 +111,41 @@ enum MRUKeyMonitor {
                     return true
                 }
             }
-            switch event.keyCode {
-            case 53:  // Esc
-                model.closeFullSearch()
-                return true
-            case 125:  // Down
-                model.fullSearchMoveSelection(1)
-                return true
-            case 126:  // Up
-                model.fullSearchMoveSelection(-1)
-                return true
-            default:
-                break
+            // IME 変換中（marked text あり）は Esc/矢印を IME に渡して候補移動・キャンセルさせる。
+            if !isComposingInTextField() {
+                switch event.keyCode {
+                case 53:  // Esc
+                    model.closeFullSearch()
+                    return true
+                case 125:  // Down
+                    model.fullSearchMoveSelection(1)
+                    return true
+                case 126:  // Up
+                    model.fullSearchMoveSelection(-1)
+                    return true
+                default:
+                    break
+                }
             }
         }
 
         // プレビュー内検索バー表示中のキー操作（モーダルなオーバーレイが出ていないときだけ）。
         if model.mruOverlay == nil, !model.quickSearchVisible, !model.fullSearchVisible,
            let preview = model.activePreview, preview.findBarVisible {
+            // IME で日本語を変換中（marked text あり）のときは Return/Esc を横取りしない。
+            // 横取りすると変換確定（Return）や変換キャンセル（Esc）が効かなくなる。
+            let composing = isComposingInTextField()
             switch event.keyCode {
             case 53:  // Esc: 検索バーを閉じる（プレビュー自体は閉じない）
-                preview.hideFindBar()
-                return true
+                if !composing {
+                    preview.hideFindBar()
+                    return true
+                }
             case 36, 76:  // Return / Enter: 次のマッチ（Shift で前へ）
-                preview.findNext(forward: !mods.contains(.shift))
-                return true
+                if !composing {
+                    preview.findNext(forward: !mods.contains(.shift))
+                    return true
+                }
             default:
                 break
             }
@@ -148,6 +161,15 @@ enum MRUKeyMonitor {
         }
 
         return false
+    }
+
+    /// キーウィンドウの first responder（SwiftUI TextField なら field editor の NSTextView）が
+    /// IME 変換中＝marked text を持っているか。日本語などの変換中に Return/Esc/矢印を
+    /// このモニターで横取りすると、変換確定・キャンセル・候補移動が IME に届かなくなる。
+    @MainActor
+    private static func isComposingInTextField() -> Bool {
+        guard let responder = NSApp.keyWindow?.firstResponder as? NSTextInputClient else { return false }
+        return responder.hasMarkedText()
     }
 
     /// パス文字列を一般ペーストボードへ。簡単な確認 toast も出す。
