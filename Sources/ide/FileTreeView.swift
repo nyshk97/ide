@@ -7,7 +7,6 @@ struct FileTreeView: View {
     @ObservedObject var model: FileTreeModel
     @ObservedObject var gitStatus: GitStatusModel
     @ObservedObject var preview: FilePreviewModel
-    @ObservedObject var projects: ProjectsModel = .shared
 
     /// ファイル（=ディレクトリ以外）をクリックしたときの callback（プレビュー切替用）。
     let onSelectFile: (URL) -> Void
@@ -253,18 +252,11 @@ struct FileTreeView: View {
 
     private func openInTerminal(_ node: FileNode) {
         let dir = node.isDirectory ? node.url : node.url.deletingLastPathComponent()
-        // active workspace の active pane の active tab に `cd` を流す
-        guard let workspace = projects.activeWorkspace else { return }
-        let pane = workspace.activePane
-        guard let tab = pane.activeTab else { return }
-        // ghostty surface に直接書き込めるが、cmux 同様シンプルに `cd <path>` + Enter を流す。
-        // ここはあえて Ghostty 側に echo させる: surface 経由で文字列を送るには
-        // GhosttyTerminalNSView の API が必要。step6 では暫定で「クリックで cd 文字列を
-        // クリップボードにコピーするだけ」にし、step8 以降の実装で正式に流す。
-        // → ここでは pasteboard に "cd <path>" を入れて手で貼ってもらう運用にする。
+        // 暫定実装: `cd <path>\n` を pasteboard に入れて手で貼ってもらう。
+        // surface 経由で直接送るには GhosttyTerminalNSView 側の API が要るので将来対応。
+        // パスは shell エスケープしておく（スペース・改行入りパスでも事故らない）。
         let pb = NSPasteboard.general
         pb.clearContents()
-        pb.setString("cd \(dir.path)\n", forType: .string)
-        _ = tab  // unused 警告抑制（将来 surface に直接送るためのフック）
+        pb.setString("cd \(ShellEscaper.escape(dir.path))\n", forType: .string)
     }
 }

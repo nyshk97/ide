@@ -7,6 +7,8 @@ struct FilePreviewView: View {
     @ObservedObject var preview: FilePreviewModel
 
     let url: URL
+    /// プロジェクトルート。Markdown 内のローカルリンクをこの配下に制限する。
+    let projectRoot: URL
     let onClose: () -> Void
 
     /// 5MB 超を「読み込む」ボタンで明示確認するための state。url が変わるたびリセット。
@@ -137,7 +139,8 @@ struct FilePreviewView: View {
                     kind: .markdown,
                     text: text,
                     lang: "",
-                    baseURL: url.deletingLastPathComponent()
+                    baseURL: url.deletingLastPathComponent(),
+                    allowedRoot: projectRoot
                 ))
             case .image:
                 ImagePreview(url: url)
@@ -175,7 +178,7 @@ struct FilePreviewView: View {
 
     private func codePayload(data: Data) -> PreviewPayload {
         let text = String(data: data, encoding: .utf8) ?? "(decode failed)"
-        return PreviewPayload(kind: .code, text: text, lang: PreviewLanguage.guess(from: url))
+        return PreviewPayload(kind: .code, text: text, lang: PreviewLanguage.guess(from: url), allowedRoot: projectRoot)
     }
 
     private func externalPrompt(message: String) -> some View {

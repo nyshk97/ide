@@ -64,7 +64,7 @@ private struct ProjectCenterContent: View {
             .allowsHitTesting(preview.currentURL == nil)
 
             if let url = preview.currentURL {
-                FilePreviewView(preview: preview, url: url, onClose: { preview.close() })
+                FilePreviewView(preview: preview, url: url, projectRoot: fileTree.project.path, onClose: { preview.close() })
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)

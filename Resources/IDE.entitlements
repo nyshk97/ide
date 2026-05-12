@@ -8,8 +8,12 @@
 -->
 <plist version="1.0">
 <dict>
-	<key>com.apple.security.automation.apple-events</key>
-	<true/>
+	<!--
+	  以下 3 つは埋め込みの libghostty / ghostty-internal.a（Metal レンダラ + C/C++）が
+	  hardened runtime 下で動くために必要。cmux と同じセット。
+	  かつて入っていた com.apple.security.automation.apple-events はアプリ本体で
+	  Apple Events を送る実装が無いため削除した（必要になったら戻す）。
+	-->
 	<key>com.apple.security.cs.allow-jit</key>
 	<true/>
 	<key>com.apple.security.cs.allow-unsigned-executable-memory</key>

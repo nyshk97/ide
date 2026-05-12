@@ -10,6 +10,8 @@ struct IdeApp: App {
         // ファイルプレビュー用 WKWebView を pre-warm。起動時に
         // 1 度ロードしておくと、最初のクリックから表示までを短縮できる。
         PreviewWebController.shared.prewarm()
+        // クリップボード画像キャッシュの古いもの（1 日以上前）を掃除する。
+        cleanupOldClipboardImages()
     }
 
     var body: some Scene {

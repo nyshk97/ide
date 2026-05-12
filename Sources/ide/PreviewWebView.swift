@@ -12,6 +12,10 @@ struct PreviewPayload: Equatable {
     /// マークダウン内の相対リンクを解決するための基点ディレクトリ。
     /// JS 側で <base href> として注入することで、`./foo.md` 等が file://<dir>/foo.md に展開される。
     var baseURL: URL? = nil
+    /// 同一プレビューで開いてよいローカルファイルの上限ディレクトリ（= プロジェクトルート）。
+    /// これより外の file:// リンクはプレビューに渡さず、コピー + トーストにする
+    /// （untrusted Markdown からプロジェクト外を覗かれないように）。nil なら制限しない。
+    var allowedRoot: URL? = nil
 }
 
 /// WKWebView を 1 つだけ生成し、初回 viewer.html ロード後は
@@ -147,7 +151,14 @@ final class PreviewWebController: NSObject, ObservableObject {
         }
 
         if url.isFileURL {
-            onNavigateToFile?(url)
+            if isWithinAllowedRoot(url) {
+                onNavigateToFile?(url)
+            } else {
+                let pb = NSPasteboard.general
+                pb.clearContents()
+                pb.setString(url.path, forType: .string)
+                ErrorBus.shared.notify("プロジェクト外のリンクはコピーしました: \(url.path)", kind: .info)
+            }
         } else {
             let pb = NSPasteboard.general
             pb.clearContents()
@@ -155,6 +166,14 @@ final class PreviewWebController: NSObject, ObservableObject {
             ErrorBus.shared.notify("URLをコピーしました: \(url.absoluteString)", kind: .info)
         }
         return .cancel
+    }
+
+    /// file URL が現在のプレビューの `allowedRoot` 配下か。`allowedRoot` が nil なら無条件で true。
+    private func isWithinAllowedRoot(_ url: URL) -> Bool {
+        guard let root = lastApplied?.allowedRoot else { return true }
+        let rootPath = root.standardizedFileURL.path
+        let target = url.standardizedFileURL.path
+        return target == rootPath || target.hasPrefix(rootPath + "/")
     }
 
     /// JS から ready 通知を受け取るための薄いブリッジ。

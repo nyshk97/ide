@@ -13,4 +13,12 @@ enum AppPaths {
         }
         return "ide"
     }
+
+    /// `~/Library/Caches/{ide,ide-dev}/`。クリップボード画像などの一時生成物置き場。
+    /// Release/Debug で分離される。
+    static var cacheDirectory: URL {
+        let base = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first
+            ?? FileManager.default.temporaryDirectory
+        return base.appendingPathComponent(subdirName, isDirectory: true)
+    }
 }

@@ -55,7 +55,7 @@ func ghosttyReadClipboardCallback(
     if let text = pb.string(forType: .string), !text.isEmpty {
         content = text
     } else if let imagePath = saveClipboardImageIfNeeded(from: pb) {
-        // 画像がクリップボードにあれば一時ファイルに保存し、シェルエスケープしたパスを返す。
+        // 画像がクリップボードにあれば cache ディレクトリに保存し、シェルエスケープしたパスを返す。
         // Claude Code はパスを画像として認識してくれる。
         content = imagePath
     } else {
@@ -98,17 +98,44 @@ private func pasteboard(for location: ghostty_clipboard_e) -> NSPasteboard {
 
 // MARK: - 画像ペースト対応
 
-/// クリップボードに画像があれば一時ファイルに書き出してシェルエスケープ済みのパスを返す。
-/// Claude Code は `/tmp/clipboard-...png` のようなパスを画像として認識する。
+/// クリップボード画像の保存先。`~/Library/Caches/{ide,ide-dev}/clipboard/`。
+private var clipboardImageDirectory: URL {
+    AppPaths.cacheDirectory.appendingPathComponent("clipboard", isDirectory: true)
+}
+
+/// 起動時に呼ぶ。クリップボード画像キャッシュのうち 1 日以上前のものを削除する。
+/// 画像には個人情報が入りやすいので溜め込まない。
+func cleanupOldClipboardImages() {
+    let fm = FileManager.default
+    let dir = clipboardImageDirectory
+    guard let entries = try? fm.contentsOfDirectory(
+        at: dir,
+        includingPropertiesForKeys: [.contentModificationDateKey],
+        options: [.skipsHiddenFiles]
+    ) else { return }
+    let cutoff = Date().addingTimeInterval(-24 * 60 * 60)
+    for url in entries {
+        let mtime = (try? url.resourceValues(forKeys: [.contentModificationDateKey]))?.contentModificationDate
+        if let mtime, mtime < cutoff {
+            try? fm.removeItem(at: url)
+        }
+    }
+}
+
+/// クリップボードに画像があれば cache ディレクトリに書き出してシェルエスケープ済みのパスを返す。
+/// Claude Code は `~/Library/Caches/ide/clipboard/clipboard-...png` のようなパスを画像として認識する。
 private func saveClipboardImageIfNeeded(from pb: NSPasteboard) -> String? {
     guard let (data, ext) = clipboardImageRepresentation(in: pb) else { return nil }
+
+    let dir = clipboardImageDirectory
+    try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
 
     let formatter = DateFormatter()
     formatter.dateFormat = "yyyy-MM-dd-HHmmss"
     formatter.locale = Locale(identifier: "en_US_POSIX")
     let timestamp = formatter.string(from: Date())
     let filename = "clipboard-\(timestamp)-\(UUID().uuidString.prefix(8)).\(ext)"
-    let url = FileManager.default.temporaryDirectory.appendingPathComponent(filename)
+    let url = dir.appendingPathComponent(filename)
 
     do {
         try data.write(to: url)
@@ -117,7 +144,7 @@ private func saveClipboardImageIfNeeded(from pb: NSPasteboard) -> String? {
         return nil
     }
 
-    return shellEscape(url.path)
+    return ShellEscaper.escape(url.path)
 }
 
 /// クリップボードから画像データと拡張子を取り出す。
@@ -157,18 +184,4 @@ private func hasImageData(in pb: NSPasteboard) -> Bool {
         guard let utType = UTType(type.rawValue) else { return false }
         return utType.conforms(to: .image)
     }
-}
-
-/// シェルにそのまま貼り付けても 1 引数として解釈されるようにエスケープする。
-private func shellEscape(_ value: String) -> String {
-    if value.contains(where: { $0 == "\n" || $0 == "\r" }) {
-        let escaped = value.replacingOccurrences(of: "'", with: "'\\''")
-        return "'\(escaped)'"
-    }
-    let charsToEscape = "\\ ()[]{}<>\"'`!#$&;|*?\t"
-    var result = value
-    for ch in charsToEscape {
-        result = result.replacingOccurrences(of: String(ch), with: "\\\(ch)")
-    }
-    return result
 }
