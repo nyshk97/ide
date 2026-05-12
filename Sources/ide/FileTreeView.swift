@@ -178,7 +178,7 @@ struct FileTreeView: View {
         }
         .contextMenu {
             Button("相対パスをコピー") { copyRelativePath(node) }
-            Button("ターミナルで開く") { openInTerminal(node) }
+            Button("Finder で開く") { openInFinder(node) }
         }
     }
 
@@ -250,13 +250,13 @@ struct FileTreeView: View {
         pb.setString(relative, forType: .string)
     }
 
-    private func openInTerminal(_ node: FileNode) {
-        let dir = node.isDirectory ? node.url : node.url.deletingLastPathComponent()
-        // 暫定実装: `cd <path>\n` を pasteboard に入れて手で貼ってもらう。
-        // surface 経由で直接送るには GhosttyTerminalNSView 側の API が要るので将来対応。
-        // パスは shell エスケープしておく（スペース・改行入りパスでも事故らない）。
-        let pb = NSPasteboard.general
-        pb.clearContents()
-        pb.setString("cd \(ShellEscaper.escape(dir.path))\n", forType: .string)
+    private func openInFinder(_ node: FileNode) {
+        if node.isDirectory {
+            // ディレクトリ自体を Finder ウィンドウとして開く。
+            NSWorkspace.shared.open(node.url)
+        } else {
+            // 親フォルダを開いて当該ファイルを選択状態にする。
+            NSWorkspace.shared.activateFileViewerSelecting([node.url])
+        }
     }
 }
