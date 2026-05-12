@@ -14,6 +14,10 @@ struct FileTreeView: View {
     /// マウスオーバー中のノード。背景色強調に使う。
     @State private var hoveredNodeID: FileNode.ID?
 
+    /// ツリーがキーボードフォーカスを持っているか。`ProjectsModel.fileTreeFocused` に同期し、
+    /// Cmd+R での再スキャン可否判定に使う（フォーカスが端末側にあるときは誤発火させない）。
+    @FocusState private var treeFocused: Bool
+
     init(model: FileTreeModel, preview: FilePreviewModel, onSelectFile: @escaping (URL) -> Void = { _ in }) {
         self.model = model
         self.gitStatus = model.gitStatus
@@ -32,6 +36,19 @@ struct FileTreeView: View {
                     }
                 }
                 .padding(.vertical, 4)
+            }
+            .focusable()
+            .focusEffectDisabled()
+            .focused($treeFocused)
+        }
+        .onChange(of: treeFocused) { _, focused in
+            ProjectsModel.shared.fileTreeFocused = focused
+        }
+        .onChange(of: preview.currentURL) { _, url in
+            // プレビュー表示に切り替わったらツリーはフォーカスを失う扱いにする。
+            if url != nil {
+                treeFocused = false
+                ProjectsModel.shared.fileTreeFocused = false
             }
         }
     }
@@ -92,7 +109,7 @@ struct FileTreeView: View {
                     .foregroundStyle(.secondary)
             }
             .buttonStyle(.plain)
-            .help("再スキャン")
+            .help("再スキャン（ツリーにフォーカス時 Cmd+R）")
         }
         .padding(.horizontal, 10)
         .frame(height: 30)
@@ -170,6 +187,9 @@ struct FileTreeView: View {
             }
         }
         .onTapGesture {
+            // 行をクリックしたらツリーにフォーカスを持たせる（@FocusState の自動遷移に頼らない）。
+            treeFocused = true
+            ProjectsModel.shared.fileTreeFocused = true
             if node.isDirectory && !node.isSymlink {
                 model.toggleExpanded(node.url)
             } else if !node.isDirectory {

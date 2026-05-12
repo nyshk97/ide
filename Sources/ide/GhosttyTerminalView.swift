@@ -110,6 +110,9 @@ final class GhosttyTerminalNSView: NSView {
 
     override func becomeFirstResponder() -> Bool {
         let ok = super.becomeFirstResponder()
+        // 端末にフォーカスが移ったらファイルツリーのフォーカス状態を落とす（Cmd+R 誤発火防止）。
+        // SwiftUI の @FocusState は AppKit の firstResponder 移動を検知しないことがあるため明示的に。
+        ProjectsModel.shared.fileTreeFocused = false
         // 自分の属するペインを active pane に昇格＆そのタブの未読をクリアする。
         // ただし、ユーザー操作（クリック・キー）起因のときのみ。NSWindow の自動 initialFirstResponder
         // 等のレイアウト起因では、WorkspaceModel.init の activePane=bottomPane を上書きしてしまう上、

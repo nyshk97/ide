@@ -119,6 +119,7 @@ open -n "/tmp/ide-build/Build/Products/Debug/IDE Dev.app" \
 - **AppleScript の `click at {x, y}`** は SwiftUI の `onTapGesture` に届かないことがある（カスタムタブバー等の `Button` も同様に反応しないことがある）: 動作確認は `IDE_TEST_*` 環境変数 or 座標連打で迂回、本格的な hit test は手動確認に倒す。入力を送る `osascript` は毎回 `set frontmost to true` から始める（osascript 終了でフォーカスが呼び出し元ターミナルに戻るので、複数呼び出しに分けると2発目以降が IDE に届かない）。`keystroke "..."` の直後に `key code 36`（Enter）を続けると Ghostty 端末で Enter が落ちることがある → Enter は別 osascript で、効かなければ2回送る
 - **`URL` の `==` は scheme/baseURL の差で一致しないことがある**: 比較は `URL.standardizedFileURL.path`（String）で行う
 - **NSView の自動 `becomeFirstResponder` 時は `NSApp.currentEvent` が nil**: 起動時に SplitView が NSHostingController を組み立てる過程で、最初に追加された NSView が自動で firstResponder になる。`WorkspaceModel.init` で設定した初期 `activePane = bottomPane` を上書きされたくない場合は、`becomeFirstResponder` 内で `NSApp.currentEvent?.type` が `.leftMouseDown` / `.keyDown` 等のユーザー操作起因のときだけ `setActive` を呼ぶ（[GhosttyTerminalView.swift](../Sources/ide/GhosttyTerminalView.swift) の `isUserDrivenFirstResponderChange()`）
+- **SwiftUI `@FocusState` は AppKit の firstResponder 移動を検知しない**: `.focused($state)` を当てた SwiftUI ビューにフォーカスがある状態で Ghostty 端末（NSView）が `becomeFirstResponder` を取っても `state` は `true` のまま残る。フォーカスを gate 条件にする挙動（例: ツリーにフォーカス時だけ Cmd+R で再スキャン、`MRUKeyMonitor` 側で `ProjectsModel.fileTreeFocused` を見る）を作るときは、(1) `@FocusState` を `@Published` にミラー、(2) フォーカスを奪う側の NSView の `becomeFirstResponder()` でその `@Published` を明示的に `false` にする、(3) `.focusable()` は click だけだとフォーカスを取らないことがあるので `.onTapGesture` 内で `@FocusState` を直接 `true` にする、の3点セットで整合させる。`.focusable()` のフォーカスリングが邪魔なら `.focusEffectDisabled()`（[FileTreeView.swift](../Sources/ide/FileTreeView.swift) / [GhosttyTerminalView.swift](../Sources/ide/GhosttyTerminalView.swift)）
 - **SourceKit の `Cannot find type ...` 警告は基本無視**: xcodegen 構成では SourceKit が project.yml を読まずファイル単独で解析するため `PaneState` 等が見つからない警告を多数吐く。`mise run build` が `BUILD SUCCEEDED` なら実害なし
 
 ---
@@ -144,7 +145,7 @@ open -n "/tmp/ide-build/Build/Products/Debug/IDE Dev.app" \
 詳細は [ARCHITECTURE.md](./ARCHITECTURE.md#キー入力の優先順位)。
 
 要点だけ:
-- **NSEvent.addLocalMonitorForEvents（MRUKeyMonitor）が最優先**。Ctrl+M / Cmd+P / Cmd+Shift+F は vim/claude の中でも握る
+- **NSEvent.addLocalMonitorForEvents（MRUKeyMonitor）が最優先**。Ctrl+M / Cmd+P / Cmd+Shift+F / Cmd+J / (ツリーにフォーカス時) Cmd+R は vim/claude の中でも握る
 - `Ctrl+M` は `keyCode == 46` で判定（macOS が Ctrl+letter を CR にマップする問題回避）
 
 ---

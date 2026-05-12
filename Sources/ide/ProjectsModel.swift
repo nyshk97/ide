@@ -36,6 +36,10 @@ final class ProjectsModel: ObservableObject {
     /// プロジェクトごとのファイルインデックス（Cmd+P 用）。
     @Published private(set) var fileIndexes: [UUID: FileIndex] = [:]
 
+    /// 中央ペインのファイルツリーがキーボードフォーカスを持っているか。
+    /// `FileTreeView` が @FocusState を同期する。`MRUKeyMonitor` の Cmd+R 判定に使う。
+    @Published var fileTreeFocused: Bool = false
+
     /// Cmd+P クイック検索のオーバーレイ状態。
     @Published var quickSearchVisible: Bool = false
     @Published var quickSearchQuery: String = ""
@@ -218,6 +222,13 @@ final class ProjectsModel: ObservableObject {
     func togglePreview() {
         guard let active = activeProject else { return }
         preview(for: active).toggle()
+    }
+
+    /// アクティブプロジェクトのファイルツリーを再スキャン。
+    /// Cmd+R（ツリーにフォーカスがあるとき）と toolbar の 🔄 ボタンが呼ぶ。
+    func reloadActiveFileTree() {
+        guard let active = activeProject else { return }
+        fileTree(for: active).reload()
     }
 
     /// プロジェクトに紐付く FileIndex を返す。なければ新規作成（バックグラウンドで再帰スキャン開始）。

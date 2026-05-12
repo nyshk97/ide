@@ -128,7 +128,8 @@ WorkspaceModel(project: ide)
 ### MRUKeyMonitor
 
 - `NSEvent.addLocalMonitorForEvents` でアプリ全体のキー入力を**最優先**で握る
-- `Ctrl+M` / `Cmd+P` / `Cmd+Shift+F` / overlay 表示中の `Esc` `↑` `↓`
+- `Ctrl+M` / `Cmd+P` / `Cmd+Shift+F` / `Cmd+J` / overlay 表示中の `Esc` `↑` `↓`
+- `Cmd+R` は `ProjectsModel.fileTreeFocused`（`FileTreeView` の `@FocusState` を同期）が `true` のときだけ握ってツリー再スキャン。フォーカスが端末側にあるときは素通し
 - Ghostty NSView の `performKeyEquivalent` より先に呼ばれるので、vim/claude 等の TUI 内でも IDE が捕捉できる（要件 3）
 - `Ctrl+M` の判定は `keyCode == 46`（macOS が `Ctrl+letter` を CR にマップする問題回避）
 
@@ -143,7 +144,7 @@ WorkspaceModel(project: ide)
 
 ```
 NSEvent.addLocalMonitorForEvents (MRUKeyMonitor)
-  → Ctrl+M / Cmd+P / Cmd+Shift+F / overlay 中の Esc/↑/↓ を握って終了
+  → Ctrl+M / Cmd+P / Cmd+Shift+F / Cmd+J / (ツリーにフォーカス時) Cmd+R / overlay 中の Esc/↑/↓ を握って終了
   ↓
 SwiftUI の View 階層
   → SwiftUI Button の keyboardShortcut（プレビューの「← ツリーに戻る」「Cursor で開く」 等）

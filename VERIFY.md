@@ -746,6 +746,7 @@ rm -f "$HOME/Library/Application Support/ide-dev/projects.json"*
 - `.gitignore` 対象（例: `Sources/ide/build` や `.refs/`）が薄表示になっている
 - 👁 ボタンを押すと gitignore 対象が完全非表示になる、もう一度押すと薄表示に戻る
 - 🔄 ボタンを押すと再スキャンされる（変更が反映される）
+- 行を一度クリックしてツリーにフォーカスを当てた状態で **Cmd+R** を押しても再スキャンされる（端末ペインにフォーカスがあるときは無反応 = 端末側に素通る）
 - ファイルを右クリック → 「相対パスをコピー」「ターミナルで開く」
   - 相対パスをコピー: pasteboard に project root からの相対パスが入る
   - ターミナルで開く: 暫定実装（pasteboard に `cd <絶対パス>\n` が入る、step8 以降で active terminal に直接送る予定）
@@ -781,7 +782,7 @@ rm -f "$HOME/Library/Application Support/ide-dev/projects.json"*
 要件「fs watcher でツリー差分反映」は Phase 2.5 で導入予定。MVP では手動 reload で代替:
 - ターミナルで新規ファイル `touch newfile.txt` を作成
 - ツリーには即時反映されない（FSEvents 未統合）
-- ツリー右上の 🔄 ボタンを押すと再スキャンされて新規ファイルが現れる
+- ツリー右上の 🔄 ボタンを押す（またはツリーにフォーカスを当てて Cmd+R）と再スキャンされて新規ファイルが現れる
 - 新規ファイルなら `?` バッジが付く（次の git status polling サイクル後）
 
 ### 25. ファイルプレビュー（自動）

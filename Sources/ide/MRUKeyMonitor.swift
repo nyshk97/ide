@@ -59,6 +59,12 @@ enum MRUKeyMonitor {
             return true
         }
 
+        // Cmd+R: ファイルツリーにフォーカスがあるとき再スキャン（toolbar の 🔄 ボタンと同等）。
+        if mods == .command, event.keyCode == 15, model.fileTreeFocused {  // 15 = R
+            model.reloadActiveFileTree()
+            return true
+        }
+
         // クイック検索表示中のキー操作
         if model.quickSearchVisible {
             // Cmd+C: 選択中エントリの相対パスをコピー（選択が無ければ素通り）
