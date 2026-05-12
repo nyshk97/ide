@@ -24,6 +24,7 @@
 
 ### 事前準備 [人間👨‍💻]
 - [x] 特になし（Phase 7 の Release 検証だけ後段で人間作業）
+- Phase 7 検証（`automation.apple-events` 削除後のターミナル描画/IME/クリップボード確認）は **単体でリリースを切らず、次に何かの理由でリリースするタイミングに相乗り**させて消化する。低リスク変更なのでブロッカー扱いしない。NG なら `Resources/IDE.entitlements` に entitlement を戻してログに残す。
 
 ### Phase 1: `ProcessRunner` + `BinaryLocator` を作る [AI🤖]
 （参照: SIMPLIFICATION P0-2）
