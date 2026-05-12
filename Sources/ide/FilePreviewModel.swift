@@ -34,6 +34,85 @@ final class FilePreviewModel: ObservableObject {
     /// プレビューを閉じてツリーに戻る。履歴は保持。
     func close() {
         currentURL = nil
+        if findBarVisible { hideFindBar() }
+    }
+
+    // MARK: - ファイル内検索 (Cmd+F)
+
+    /// プレビュー内検索バーを表示しているか。
+    @Published var findBarVisible = false
+    /// 検索語。FilePreviewView の TextField とバインドする。
+    @Published var findQuery = "" {
+        didSet {
+            guard findBarVisible, findQuery != oldValue else { return }
+            scheduleFind()
+        }
+    }
+    /// マッチ総数。
+    @Published private(set) var findMatchCount = 0
+    /// 現在のマッチ位置（1-based、マッチなしは 0）。
+    @Published private(set) var findMatchIndex = 0
+    /// Cmd+F が押されるたびに増える。FilePreviewView が監視して TextField へ再フォーカスする。
+    @Published private(set) var findFocusTick = 0
+
+    private var findDebounceTask: Task<Void, Never>?
+
+    /// Cmd+F: 検索バーを表示（既に表示中なら TextField へ再フォーカスし、検索語があれば再ハイライト）。
+    func showFindBar() {
+        findBarVisible = true
+        findFocusTick &+= 1
+        if !findQuery.isEmpty { scheduleFind() }
+    }
+
+    /// Esc / ✕: 検索バーを閉じてハイライトを消す（プレビュー自体は閉じない）。
+    func hideFindBar() {
+        guard findBarVisible else { return }
+        findBarVisible = false
+        findDebounceTask?.cancel()
+        findMatchCount = 0
+        findMatchIndex = 0
+        PreviewWebController.shared.clearFind()
+    }
+
+    /// 次（forward=true）/ 前のマッチへ移動する。
+    func findNext(forward: Bool) {
+        guard findBarVisible, !findQuery.isEmpty else { return }
+        Task { [weak self] in
+            let r = await PreviewWebController.shared.findNext(forward: forward)
+            guard let self, self.findBarVisible else { return }
+            self.findMatchCount = r.count
+            self.findMatchIndex = r.index
+        }
+    }
+
+    /// 別ファイルを描画した後など、検索バーが開いていればハイライトとマッチ数を同期する。
+    func refreshFindAfterContentChange() {
+        guard findBarVisible, !findQuery.isEmpty else { return }
+        Task { [weak self] in
+            let r = await PreviewWebController.shared.findState()
+            guard let self, self.findBarVisible, !self.findQuery.isEmpty else { return }
+            if r.count > 0 {
+                self.findMatchCount = r.count
+                self.findMatchIndex = r.index
+            } else {
+                // viewer.js 側が再適用していない（直前に検索していなかった等）→ 改めて検索する
+                self.scheduleFind()
+            }
+        }
+    }
+
+    private func scheduleFind() {
+        findDebounceTask?.cancel()
+        let q = findQuery
+        findDebounceTask = Task { [weak self] in
+            try? await Task.sleep(for: .milliseconds(120))
+            if Task.isCancelled { return }
+            let r = await PreviewWebController.shared.find(q)
+            if Task.isCancelled { return }
+            guard let self, self.findBarVisible else { return }
+            self.findMatchCount = r.count
+            self.findMatchIndex = r.index
+        }
     }
 
     var canGoBack: Bool { historyIndex > 0 }

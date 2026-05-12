@@ -59,6 +59,16 @@ enum MRUKeyMonitor {
             return true
         }
 
+        // Cmd+F: プレビュー表示中ならファイル内検索バーを開く（既に開いていれば再フォーカス）。
+        // Cmd+Shift+F（全文検索）は上で先に処理済みなので、ここに来るのは Shift なしの Cmd+F のみ。
+        if mods == .command, event.keyCode == 3 {  // 3 = F
+            if let preview = model.activePreview, preview.currentURL != nil {
+                preview.showFindBar()
+                return true
+            }
+            return false
+        }
+
         // Cmd+R: ファイルツリーにフォーカスがあるとき再スキャン（toolbar の 🔄 ボタンと同等）。
         if mods == .command, event.keyCode == 15, model.fileTreeFocused {  // 15 = R
             model.reloadActiveFileTree()
@@ -110,6 +120,30 @@ enum MRUKeyMonitor {
                 return true
             default:
                 break
+            }
+        }
+
+        // プレビュー内検索バー表示中のキー操作（モーダルなオーバーレイが出ていないときだけ）。
+        if model.mruOverlay == nil, !model.quickSearchVisible, !model.fullSearchVisible,
+           let preview = model.activePreview, preview.findBarVisible {
+            switch event.keyCode {
+            case 53:  // Esc: 検索バーを閉じる（プレビュー自体は閉じない）
+                preview.hideFindBar()
+                return true
+            case 36, 76:  // Return / Enter: 次のマッチ（Shift で前へ）
+                preview.findNext(forward: !mods.contains(.shift))
+                return true
+            default:
+                break
+            }
+            // Cmd+G / Cmd+Shift+G: 次 / 前のマッチ
+            if mods == .command, event.keyCode == 5 {  // 5 = G
+                preview.findNext(forward: true)
+                return true
+            }
+            if mods == [.command, .shift], event.keyCode == 5 {
+                preview.findNext(forward: false)
+                return true
             }
         }
 

@@ -111,6 +111,15 @@ final class ProjectsModel: ObservableObject {
             }
         }
 
+        if let query = env["IDE_TEST_PREVIEW_FIND"], let active = activeProject {
+            let p = preview(for: active)
+            if p.currentURL != nil {
+                p.findQuery = query
+                p.showFindBar()
+                Logger.shared.debug("[projects] test-preview-find \(query)")
+            }
+        }
+
         if let query = env["IDE_TEST_AUTO_FULLSEARCH"] {
             openFullSearch()
             fullSearchQuery = query
@@ -222,6 +231,13 @@ final class ProjectsModel: ObservableObject {
     func togglePreview() {
         guard let active = activeProject else { return }
         preview(for: active).toggle()
+    }
+
+    /// アクティブプロジェクトのファイルプレビュー状態（無ければ nil）。
+    /// `MRUKeyMonitor` が Cmd+F / 検索バーのキー操作で参照する。
+    var activePreview: FilePreviewModel? {
+        guard let active = activeProject else { return nil }
+        return preview(for: active)
     }
 
     /// アクティブプロジェクトのファイルツリーを再スキャン。

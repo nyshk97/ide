@@ -136,6 +136,50 @@ final class PreviewWebController: NSObject, ObservableObject {
         webView.evaluateJavaScript("document.getElementById('root').innerHTML = '';", completionHandler: nil)
     }
 
+    // MARK: - ファイル内検索 (Cmd+F)
+
+    /// `query` にマッチする箇所をすべてハイライトし、最初のマッチへスクロールする。
+    /// 戻り値: (マッチ総数, 現在位置 = 1-based / マッチなしは 0)。
+    func find(_ query: String) async -> (count: Int, index: Int) {
+        await evalFind("(window.viewer && window.viewer.find) ? window.viewer.find(\(Self.jsString(query))) : {count:0,index:0}")
+    }
+
+    /// 次（forward=true）/ 前（false）のマッチへ移動する。
+    func findNext(forward: Bool) async -> (count: Int, index: Int) {
+        await evalFind("(window.viewer && window.viewer.findNext) ? window.viewer.findNext(\(forward)) : {count:0,index:0}")
+    }
+
+    /// 現在のハイライト状態（マッチ総数・現在位置）を取得する。コンテンツ再描画後の同期用。
+    func findState() async -> (count: Int, index: Int) {
+        await evalFind("(window.viewer && window.viewer.findState) ? window.viewer.findState() : {count:0,index:0}")
+    }
+
+    /// ハイライトを消す（検索バーを閉じるとき）。
+    func clearFind() {
+        guard isReady else { return }
+        webView.evaluateJavaScript("window.viewer && window.viewer.clearFind && window.viewer.clearFind();", completionHandler: nil)
+    }
+
+    private func evalFind(_ js: String) async -> (count: Int, index: Int) {
+        guard isReady else { return (0, 0) }
+        return await withCheckedContinuation { cont in
+            webView.evaluateJavaScript(js) { result, _ in
+                let dict = result as? [String: Any]
+                let count = (dict?["count"] as? NSNumber)?.intValue ?? 0
+                let index = (dict?["index"] as? NSNumber)?.intValue ?? 0
+                cont.resume(returning: (count, index))
+            }
+        }
+    }
+
+    /// 文字列を JS のリテラルとして安全に埋め込む（JSON 文字列 ≒ JS 文字列）。
+    private static func jsString(_ s: String) -> String {
+        guard let data = try? JSONEncoder().encode(s), let str = String(data: data, encoding: .utf8) else {
+            return "\"\""
+        }
+        return str
+    }
+
     /// マークダウン内のリンクが踏まれたときの分岐:
     ///   - `#section` 等の同一文書フラグメント: WebView 側にそのまま流す
     ///   - file:// のローカルパス: cancel して `onNavigateToFile` にディスパッチ

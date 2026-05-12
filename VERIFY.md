@@ -908,6 +908,43 @@ rm -rf "$TD"
 - `huge60mb.txt` → 「ファイルサイズが大きいか UTF-8 でないため外部で開いてください」+「Cursor で開く」のみ
 - ※「読み込む」を押した後に実際の種別で表示されるか・Markdown のプロジェクト外リンクのコピー挙動・overlay 上の Cmd+C は、クリック / キーストロークが要るので手動確認（IDE 内 Claude Code からは osascript の補助アクセスが効かないため自動化不可）
 
+### 26-b. プレビューのファイル内検索 Cmd+F（半自動・スクショ + 手動）
+
+`IDE_TEST_PREVIEW_FIND` で「プレビューを開いた状態 + 検索バーに語を入れてハイライト済み」の状態で起動できる。
+
+```bash
+BACKUP_DIR=$(mktemp -d); cp -a "$HOME/Library/Application Support/ide-dev" "$BACKUP_DIR/ide-dev" 2>/dev/null || true
+mkdir -p "$HOME/Library/Application Support/ide-dev"
+cat > "$HOME/Library/Application Support/ide-dev/projects.json" <<'JSON'
+{"projects":[{"displayName":"ide","id":"11111111-1111-1111-1111-111111111111","isPinned":true,"lastOpenedAt":"2026-05-09T01:00:00Z","path":"/Users/d0ne1s/ide"}],"schemaVersion":1}
+JSON
+rm -f "$HOME/Library/Application Support/ide-dev"/projects.json.[0-9]
+APP="/tmp/ide-build/Build/Products/Debug/IDE Dev.app"
+# コード（hljs ハイライト下でも mark が乗るか）
+pkill -x "IDE Dev" 2>/dev/null; sleep 0.6
+IDE_TEST_AUTO_ACTIVATE_INDEX=0 IDE_TEST_AUTO_PREVIEW="Sources/ide/ProjectsModel.swift" IDE_TEST_PREVIEW_FIND="preview" "$APP/Contents/MacOS/IDE Dev" >/dev/null 2>&1 &
+sleep 5; ./scripts/ide-screenshot.sh /tmp/v26b-code.png
+# Markdown
+pkill -x "IDE Dev" 2>/dev/null; sleep 0.6
+IDE_TEST_AUTO_ACTIVATE_INDEX=0 IDE_TEST_AUTO_PREVIEW="REQUIREMENTS.md" IDE_TEST_PREVIEW_FIND="プレビュー" "$APP/Contents/MacOS/IDE Dev" >/dev/null 2>&1 &
+sleep 5; ./scripts/ide-screenshot.sh /tmp/v26b-md.png
+pkill -x "IDE Dev" 2>/dev/null
+rm -rf "$HOME/Library/Application Support/ide-dev"; mv "$BACKUP_DIR/ide-dev" "$HOME/Library/Application Support/ide-dev" 2>/dev/null || true
+```
+
+期待（スクショで目視）:
+- プレビュー右上に検索バー（🔍 + 入力欄 + `現在/総数` + ↑↓ + ✕）が浮いている
+- マッチが全部ハイライト（半透明イエロー）、現在のマッチだけオレンジ。最初のマッチが画面中央に来るようスクロールされている
+- 検索語が 0 件のときは件数表示が赤の `0`（手動: 入力欄に適当な語を打って確認）
+
+手動で確認（IDE 内 Claude Code からは osascript の補助アクセスが効かず自動化不可）:
+- プレビュー表示中に **Cmd+F** で検索バーが開き、入力欄にフォーカスが入る（ターミナル/WebView がフォーカスを握っていても奪える）。開いている状態でもう一度 Cmd+F で入力欄に再フォーカス
+- 入力するたびにハイライトが更新される（120ms デバウンス）
+- **Enter** / **Cmd+G** で次のマッチ、**Shift+Enter** / **Cmd+Shift+G** で前のマッチへ。↑↓ ボタンも同じ
+- **Esc** で検索バーが閉じてハイライトが消える（プレビュー自体は閉じない）。もう一度 Esc でツリーに戻る
+- 検索バーを開いたまま別ファイルへ（Cmd+P 等）移動しても、新しいファイルで同じ語が再ハイライトされる
+- `Cmd+Shift+F`（全文検索）は従来どおり別物として動く
+
 ### 27. プレビュー履歴ナビ（手動）
 
 実機で確認:

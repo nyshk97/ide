@@ -28,6 +28,9 @@ struct FilePreviewView: View {
     /// ファイル名パンくずのホバー状態。クリックで相対パスをコピーできることを示す。
     @State private var nameHovered = false
 
+    /// ファイル内検索バー（Cmd+F）の入力欄フォーカス。
+    @FocusState private var findFieldFocused: Bool
+
     var body: some View {
         VStack(spacing: 0) {
             toolbar
@@ -36,6 +39,12 @@ struct FilePreviewView: View {
                 content
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .overlay(alignment: .topTrailing) {
+                if preview.findBarVisible && isTextContent {
+                    findBar
+                        .padding(10)
+                }
+            }
         }
         .task(id: url) {
             forceLoadLarge = false
@@ -43,11 +52,14 @@ struct FilePreviewView: View {
             if !(loadedURL == url && kind != nil) {
                 await classifyAndApply()
             }
+            // 検索バーが開いたまま別ファイルに移ってきたら、描画が落ち着いてから再ハイライト
+            reapplyFindAfterRenderSettles()
             // 表示中ファイルがディスク上で更新されたら自動でリロード。
             // url が変わる / ツリーに戻ると .task が cancel され、watcher も止まる。
             for await _ in FileChangeWatcher.events(for: url) {
                 if Task.isCancelled { break }
                 await classifyAndApply(isReload: true)
+                reapplyFindAfterRenderSettles()
             }
         }
         // 「読み込む」確認を経たら、サイズしきい値を無視して再分類する。
@@ -56,6 +68,28 @@ struct FilePreviewView: View {
             if allow {
                 Task { await classifyAndApply() }
             }
+        }
+        // Cmd+F のたびに findFocusTick が増える → 入力欄へ（再）フォーカス。
+        .onChange(of: preview.findFocusTick) { _, _ in
+            if preview.findBarVisible { focusFindField() }
+        }
+    }
+
+    /// 描画が落ち着くのを少し待ってから、検索バーが開いていれば再ハイライトする。
+    private func reapplyFindAfterRenderSettles() {
+        guard preview.findBarVisible else { return }
+        Task {
+            try? await Task.sleep(for: .milliseconds(150))
+            preview.refreshFindAfterContentChange()
+        }
+    }
+
+    /// ファイル内検索が効くコンテンツ（コード / Markdown）を表示中か。
+    private var isTextContent: Bool {
+        guard loadedURL == url, let kind else { return false }
+        switch kind {
+        case .code, .markdown: return true
+        default: return false
         }
     }
 
@@ -248,6 +282,76 @@ struct FilePreviewView: View {
         process.executableURL = URL(fileURLWithPath: cursorPath)
         process.arguments = [url.path]
         try? process.run()
+    }
+
+    // MARK: - ファイル内検索バー (Cmd+F)
+
+    private var findBar: some View {
+        HStack(spacing: 6) {
+            Image(systemName: "magnifyingglass")
+                .font(.system(size: 11))
+                .foregroundStyle(.secondary)
+
+            TextField("検索", text: $preview.findQuery)
+                .textFieldStyle(.plain)
+                .font(.system(size: 12))
+                .frame(width: 150)
+                .focused($findFieldFocused)
+                .onSubmit { preview.findNext(forward: true) }
+
+            Text(matchLabel)
+                .font(.system(size: 11).monospacedDigit())
+                .foregroundStyle(matchLabelColor)
+                .frame(minWidth: 34, alignment: .trailing)
+
+            Divider().frame(height: 13)
+
+            Button { preview.findNext(forward: false) } label: {
+                Image(systemName: "chevron.up").font(.system(size: 10, weight: .semibold))
+            }
+            .buttonStyle(.plain)
+            .disabled(preview.findMatchCount == 0)
+            .help("前のマッチ (Shift+Enter / Cmd+Shift+G)")
+
+            Button { preview.findNext(forward: true) } label: {
+                Image(systemName: "chevron.down").font(.system(size: 10, weight: .semibold))
+            }
+            .buttonStyle(.plain)
+            .disabled(preview.findMatchCount == 0)
+            .help("次のマッチ (Enter / Cmd+G)")
+
+            Button { preview.hideFindBar() } label: {
+                Image(systemName: "xmark").font(.system(size: 10, weight: .semibold))
+            }
+            .buttonStyle(.plain)
+            .help("閉じる (Esc)")
+        }
+        .padding(.horizontal, 9)
+        .padding(.vertical, 5)
+        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 7))
+        .overlay(
+            RoundedRectangle(cornerRadius: 7)
+                .strokeBorder(Color.primary.opacity(0.12))
+        )
+        .shadow(color: .black.opacity(0.12), radius: 6, y: 2)
+        .onAppear { focusFindField() }
+    }
+
+    private var matchLabel: String {
+        if preview.findQuery.isEmpty { return "" }
+        if preview.findMatchCount == 0 { return "0" }
+        return "\(preview.findMatchIndex)/\(preview.findMatchCount)"
+    }
+
+    private var matchLabelColor: Color {
+        (!preview.findQuery.isEmpty && preview.findMatchCount == 0) ? .red : .secondary
+    }
+
+    private func focusFindField() {
+        // ターミナル(Ghostty NSView) / WebView が AppKit の first responder を握っているので
+        // 一度外してから SwiftUI の @FocusState を立てる（1 tick 遅延が必要）。QuickSearchView と同じ手順。
+        NSApp.keyWindow?.makeFirstResponder(nil)
+        DispatchQueue.main.async { findFieldFocused = true }
     }
 }
 

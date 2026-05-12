@@ -4,6 +4,8 @@
   const root = document.getElementById("root");
   let pending = null;
   let ready = false;
+  // ファイル内検索 (Cmd+F) の状態。{ query, marks: [HTMLElement], index } | null
+  let findState = null;
 
   function escapeHtml(s) {
     return s
@@ -142,8 +144,117 @@
     }
   }
 
+  // --- ファイル内検索 (Cmd+F) ---------------------------------------------
+  // root 配下のテキストノードを走査してマッチを <mark class="ide-find"> でラップする。
+  // hljs のトークン span 等、要素境界をまたぐマッチは拾わない（実用上は十分）。
+
+  function collectSearchableTextNodes() {
+    const out = [];
+    if (!root) return out;
+    const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
+      acceptNode: function (n) {
+        if (!n.nodeValue) return NodeFilter.FILTER_REJECT;
+        const p = n.parentNode;
+        if (p && (p.nodeName === "SCRIPT" || p.nodeName === "STYLE" || p.nodeName === "MARK")) {
+          return NodeFilter.FILTER_REJECT;
+        }
+        return NodeFilter.FILTER_ACCEPT;
+      },
+    });
+    let n;
+    while ((n = walker.nextNode())) out.push(n);
+    return out;
+  }
+
+  function wrapMatchesInTextNode(node, query) {
+    const text = node.nodeValue;
+    if (!text) return [];
+    const lower = text.toLowerCase();
+    const q = query.toLowerCase();
+    let idx = lower.indexOf(q);
+    if (idx === -1) return [];
+    const frag = document.createDocumentFragment();
+    const marks = [];
+    let last = 0;
+    while (idx !== -1) {
+      if (idx > last) frag.appendChild(document.createTextNode(text.slice(last, idx)));
+      const mark = document.createElement("mark");
+      mark.className = "ide-find";
+      mark.appendChild(document.createTextNode(text.slice(idx, idx + q.length)));
+      frag.appendChild(mark);
+      marks.push(mark);
+      last = idx + q.length;
+      idx = lower.indexOf(q, last);
+    }
+    if (last < text.length) frag.appendChild(document.createTextNode(text.slice(last)));
+    if (node.parentNode) node.parentNode.replaceChild(frag, node);
+    return marks;
+  }
+
+  function clearHighlights() {
+    if (!findState) return;
+    const parents = new Set();
+    for (let i = 0; i < findState.marks.length; i++) {
+      const m = findState.marks[i];
+      const p = m.parentNode;
+      if (!p) continue;
+      p.replaceChild(document.createTextNode(m.textContent), m);
+      parents.add(p);
+    }
+    parents.forEach(function (p) {
+      try { p.normalize(); } catch (e) {}
+    });
+    findState = null;
+  }
+
+  function setCurrentMatch(i) {
+    if (!findState || findState.marks.length === 0) return;
+    const marks = findState.marks;
+    const prev = marks[findState.index];
+    if (prev) prev.classList.remove("ide-find-current");
+    const n = marks.length;
+    findState.index = ((i % n) + n) % n;
+    const cur = marks[findState.index];
+    cur.classList.add("ide-find-current");
+    try {
+      cur.scrollIntoView({ block: "center", inline: "nearest" });
+    } catch (e) {
+      cur.scrollIntoView();
+    }
+  }
+
+  function findStateResult() {
+    if (!findState || findState.marks.length === 0) return { count: 0, index: 0 };
+    return { count: findState.marks.length, index: findState.index + 1 };
+  }
+
+  function runFind(query) {
+    clearHighlights();
+    if (!query) return { count: 0, index: 0 };
+    const marks = [];
+    const nodes = collectSearchableTextNodes();
+    for (let i = 0; i < nodes.length; i++) {
+      const found = wrapMatchesInTextNode(nodes[i], query);
+      for (let j = 0; j < found.length; j++) marks.push(found[j]);
+    }
+    findState = { query: query, marks: marks, index: 0 };
+    if (marks.length === 0) return { count: 0, index: 0 };
+    setCurrentMatch(0);
+    return { count: marks.length, index: 1 };
+  }
+
+  function findNextMatch(forward) {
+    if (!findState || findState.marks.length === 0) return { count: 0, index: 0 };
+    setCurrentMatch(findState.index + (forward ? 1 : -1));
+    return findStateResult();
+  }
+
   function apply(payload) {
     if (!payload) return;
+    // 検索バーが開いたまま別ファイルを描画したときのために検索語を引き継ぐ。
+    // 旧コンテンツの <mark> は innerHTML 差し替えで消えるので unwrap は不要。
+    const prevFindQuery = findState ? findState.query : null;
+    findState = null;
     if (payload.theme) setTheme(payload.theme);
     setBaseHref(payload.kind === "markdown" ? payload.baseHref || "" : "");
     switch (payload.kind) {
@@ -159,6 +270,7 @@
       default:
         renderError("unknown kind: " + payload.kind);
     }
+    if (prevFindQuery) runFind(prevFindQuery);
   }
 
   window.viewer = {
@@ -171,6 +283,19 @@
     },
     isReady: function () {
       return ready;
+    },
+    find: function (query) {
+      return runFind(typeof query === "string" ? query : "");
+    },
+    findNext: function (forward) {
+      return findNextMatch(forward !== false);
+    },
+    clearFind: function () {
+      clearHighlights();
+      return { count: 0, index: 0 };
+    },
+    findState: function () {
+      return findStateResult();
     },
   };
 
