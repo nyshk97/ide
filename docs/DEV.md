@@ -38,8 +38,20 @@
 | `scripts/ide-keystroke.sh [--enter|--keycode N] "text"` | osascript（補助アクセス権限が必要）でキー送信 |
 | `scripts/ide-screenshot.sh <path>` | `CGWindowList` でウィンドウ ID を引いて `screencapture -l` でキャプチャ（取れなければメイン画面全体にフォールバック） |
 
-- **TCC（プライバシー）権限の罠**: `osascript` / `screencapture` は SIP 配下のバイナリで、IDE 内ターミナル（Ghostty）はシェルを `/usr/bin/login` 経由で起動する。この `login` のせいで TCC の「責任プロセス」が IDE.app に解決されず、`osascript`/`screencapture` 自体に権限を求めるポップアップが毎回出る（恒久付与できない）。`ide-screenshot.sh` は `osascript` を捨てて `CGWindowList`（補助アクセス不要）+ `screencapture -l` にしてあるので「アクセシビリティ」のポップアップは出ない（「画面収録」は依然必要）。`ide-keystroke.sh` は合成キー入力のため補助アクセスが不可避。**キーストローク込みの検証を安定して回したいなら、IDE の中ではなく Terminal.app / iTerm から実行**し、そのターミナルアプリに一度「アクセシビリティ」「画面収録」を付与する（普通に署名された安定アプリ & `login` 介在なしなので付与が効き続ける）。
-- **Claude Code の Bash 環境では画面収録権限が無く、ネットワークもサンドボックスされる**: `ide-screenshot.sh` は `could not create image from display` で落ちる。`scripts/build.sh` も codesign の `--timestamp`（`timestamp.apple.com` 不達 → `A timestamp was expected but was not found` で archive 失敗）や `xcrun notarytool`（Apple 不達）で落ちるので、エージェントから走らせるときは Bash ツールのサンドボックスを無効化して実行する。エージェント側の通常検証は `/tmp/ide-poc.log`（Debug ビルドの Logger ミラー）・起動ログ・テスト用環境変数に倒し、目視スクショが要るものはユーザーに依頼する
+### TCC（プライバシー）権限の罠
+
+「IDE の中で IDE を開発する」（IDE 内ターミナルで Claude Code を動かす）には、`/Applications/IDE.app` に下記 2 つの TCC 許可が必須。Release ビルドは安定した Developer ID 署名（固定 team `VYDUR99LAM` / bundle ID `local.d0ne1s.ide` / `CODE_SIGN_STYLE: Manual`）なので、一度付与すれば **brew 更新を跨いで残る**。macOS アップデート等で剥がれたら再付与（→ いずれも `IDE.app` を Cmd+Q & 再起動。TCC は起動時に読まれる）。
+
+- **画面収録（`screencapture` / `ide-screenshot.sh`）が要るもの**:
+  `screencapture` の TCC「責任プロセス」は、起動したプロセスのツリーを遡って最初の非システムバイナリに解決される。**IDE 内で Claude Code を動かしている場合は `IDE.app` 自身**（`login` でも `claude.exe` でもない。プロンプトも「"IDE.app" でこのコンピュータの画面を記録しようとしています」と出る）。なので **System Settings → プライバシーとセキュリティ → 画面収録 に `/Applications/IDE.app` を追加して ON**。剥がれたらリストから `IDE.app` を削除 → `screencapture`（or `ide-screenshot.sh`）を再実行 → 出た再プロンプトの「システム設定を開く」→ 新規追加された `IDE.app` を ON → IDE.app 再起動。
+  - `ide-screenshot.sh` は `osascript` を捨てて `CGWindowList`（補助アクセス不要）+ `screencapture -l` にしてあるので「アクセシビリティ」は不要、「画面収録」だけでよい。
+  - Claude Code を **IDE の外**（素の Terminal.app 等）から動かしている場合は責任プロセスがその端末アプリ（or `claude.exe`）になるので、そっちに画面収録を付与する必要がある。`claude.exe`（`com.anthropic.claude-code`）は CUI でプロンプトを出せないため、その経路だと「could not create image from display」と無言で失敗する。
+- **フルディスクアクセス（`~/.zshrc` 等の dotfiles 読み込み）が要るもの**:
+  dotfiles は実体が `~/Library/CloudStorage/Dropbox/dotfiles/` にあり symlink で配置されている（`~/.claude/CLAUDE.md` 参照）。`~/Library/CloudStorage/` 配下は TCC 保護なので、**`IDE.app` にフルディスクアクセスが無いと IDE 内ターミナルのログインシェルが `~/.zshrc` を辿れず `EPERM`（`source: operation not permitted`）で無言スキップ** → デフォルトプロンプト・mise 未起動・`claude` not found になる（subprocess は `IDE.app` の責任プロセス属性を継ぐので Claude Code も巻き込まれる）。**System Settings → プライバシーとセキュリティ → フルディスクアクセス に `/Applications/IDE.app` を追加して ON**（→ IDE.app 再起動）すれば直る。IDE 内 Claude Code が `~/Library/CloudStorage/Dropbox/` の `Brewfile` / `dotfiles/` / `settings/` を読むのにも必要。
+- **アクセシビリティ（`osascript` / `ide-keystroke.sh`）は IDE 内では諦める**:
+  合成キー入力には `osascript` の補助アクセスが要るが、IDE 内ターミナルは `/usr/bin/login` 経由でシェルを起動するため TCC 責任プロセスが `IDE.app` に解決されず（ここだけ `login` が効く）、`osascript` 自体に毎回ポップアップが出る（恒久付与できない）。スクショ自体は `ide-screenshot.sh` が `osascript` を使わないので影響しないが、`ide-keystroke.sh`（キーストローク送信）が要る検証だけは Terminal.app / iTerm から `claude` を起動して回す（普通に署名された安定アプリ & `login` 介在なしで付与が効き続ける）。
+
+- **`scripts/build.sh`（Release ビルド）はネットワークが要る**: codesign の `--timestamp`（`timestamp.apple.com`）や `xcrun notarytool`（Apple）が、Claude Code の Bash サンドボックスだと不達で落ちる（`A timestamp was expected but was not found` 等）。エージェントから走らせるときは Bash ツールのサンドボックスを無効化する。これ自体は人間検証向け。
 
 詳しい確認手順は [VERIFY.md](../VERIFY.md)。
 
