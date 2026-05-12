@@ -29,6 +29,20 @@ final class GhosttyManager: @unchecked Sendable {
     /// foreground プロセスを polling するタイマー。
     private var foregroundPollTimer: Timer?
 
+    /// 「バッジ表示中(.claude/.codex) → 非表示(.shell/.other)」への遷移を即座に反映すると、
+    /// 一過性の pid 解決失敗や claude が一瞬子コマンドにフォアグラウンドを渡したときに
+    /// バッジがチラつく。surface ごとに「直近に観測したダウングレード候補と連続回数」を持ち、
+    /// `downgradeStableTicks` 回連続で同じ判定が続くまで反映を保留する。
+    private var pendingDowngrade: [ghostty_surface_t: (program: TerminalTab.ForegroundProgram, count: Int)] = [:]
+    private static let downgradeStableTicks = 2
+
+    private static func showsBadge(_ p: TerminalTab.ForegroundProgram) -> Bool {
+        switch p {
+        case .claude, .codex: return true
+        case .shell, .other: return false
+        }
+    }
+
     private final class WeakTabRef {
         weak var value: TerminalTab?
         init(_ tab: TerminalTab) { self.value = tab }
@@ -88,19 +102,32 @@ final class GhosttyManager: @unchecked Sendable {
     private func tickForegroundPolling() {
         // 死んだ参照は除去
         surfaceToTab = surfaceToTab.filter { $0.value.value != nil }
+        pendingDowngrade = pendingDowngrade.filter { surfaceToTab[$0.key] != nil }
 
         for (surface, ref) in surfaceToTab {
             guard let tab = ref.value else { continue }
             let pid = ghostty_surface_foreground_pid(surface)
-            let program = ForegroundProcessInspector.classify(pid: pid_t(pid))
+            let observed = ForegroundProcessInspector.classify(pid: pid_t(pid))
+
+            // バッジを失う方向の遷移だけデバウンス。逆方向（バッジが付く）は即時。
+            var effective = observed
+            if Self.showsBadge(tab.foregroundProgram), !Self.showsBadge(observed) {
+                let count = (pendingDowngrade[surface]?.program == observed)
+                    ? (pendingDowngrade[surface]!.count + 1) : 1
+                pendingDowngrade[surface] = (observed, count)
+                if count < Self.downgradeStableTicks { effective = tab.foregroundProgram }
+            } else {
+                pendingDowngrade[surface] = nil
+            }
+
             #if DEBUG
-            if tab.foregroundProgram != program {
+            if tab.foregroundProgram != effective {
                 let path = ForegroundProcessInspector.executablePath(for: pid_t(pid)) ?? "(nil)"
-                Logger.shared.debug("[fg] tab=\(tab.title) pid=\(pid) path=\(path) -> \(program)")
+                Logger.shared.debug("[fg] tab=\(tab.title) pid=\(pid) path=\(path) observed=\(observed) -> \(effective)")
             }
             #endif
-            if tab.foregroundProgram != program {
-                tab.foregroundProgram = program
+            if tab.foregroundProgram != effective {
+                tab.foregroundProgram = effective
             }
         }
     }
