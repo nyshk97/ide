@@ -20,6 +20,7 @@ macOS 用 IDE。
 - **ファイルプレビュー** — シンタックスハイライト付きコード（WKWebView + highlight.js）/ Markdown / 画像 / PDF / バイナリ自動判定 / サイズしきい値 / 戻る進む履歴 / `Cmd+Option+O` で Cursor 起動 / `Cmd+J` でツリーとトグル
 - **`Cmd+P` クイック検索** — ファジーマッチ + 直近開いたものを優先
 - **`Cmd+Shift+F` 全文検索** — `grep` ベース（`ripgrep` 同梱は予定）
+- **`Cmd+D` Diff overlay** — アクティブプロジェクトの `git diff` をサイドバイサイドで表示。中央ペイン上部のバッジで件数表示
 - **エラー toast** — 単発エラーと継続的な状態異常を出し分け
 - **ログ** — `~/Library/Logs/ide/`（日次ローテーション）
 

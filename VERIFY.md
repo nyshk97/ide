@@ -1210,3 +1210,77 @@ rm -f "$HOME/Library/Application Support/ide-dev/projects.json"*
 ```
 
 期待出力: `a,b,c`（c が先頭に移動していない）。
+
+## 33. Diff overlay (Cmd+D)
+
+中央ペイン上部の diff バッジが「変更あり=通常色+件数」「変更なし=薄め」で出し分けされ、Cmd+D / バッジクリックで overlay が開くことを確認する。
+
+### 33-A. 差分あり状態のバッジ（自動）
+
+ide リポジトリ自身を active にすれば、IDE 内で変更ファイルがある状態を作りやすい（このセクションを実行する前提として、ide リポジトリに `git status` で見える変更が 1 件以上あること）。
+
+```bash
+mkdir -p "$HOME/Library/Application Support/ide-dev"
+cat > "$HOME/Library/Application Support/ide-dev/projects.json" <<'JSON'
+{"projects":[
+  {"displayName":"ide","id":"AAAAAAAA-1111-1111-1111-111111111111","isPinned":true,"lastOpenedAt":"2026-05-14T01:00:00Z","path":"/Users/d0ne1s/ide"}
+],"schemaVersion":1}
+JSON
+pkill -x "IDE Dev" 2>/dev/null; sleep 0.4
+APP="/tmp/ide-build/Build/Products/Debug/IDE Dev.app"
+IDE_TEST_AUTO_ACTIVATE_INDEX=0 "$APP/Contents/MacOS/IDE Dev" >/tmp/ide-launch.log 2>&1 &
+sleep 5
+./scripts/ide-screenshot.sh /tmp/diff-badge-on.png
+```
+
+期待: スクショの中央ペイン右上に `±` 系アイコン + 件数 Capsule（青背景・白文字）が出ている。
+
+### 33-B. overlay 表示（自動）
+
+`IDE_TEST_AUTO_OPEN_DIFF=1` を加えて再起動すると、起動直後に overlay が開く。
+
+```bash
+pkill -x "IDE Dev" 2>/dev/null; sleep 0.4
+IDE_TEST_AUTO_ACTIVATE_INDEX=0 IDE_TEST_AUTO_OPEN_DIFF=1 "$APP/Contents/MacOS/IDE Dev" >/tmp/ide-launch.log 2>&1 &
+sleep 6
+./scripts/ide-screenshot.sh /tmp/diff-overlay.png
+```
+
+期待: ヘッダーに `Diff` `ide` `<件数> 件` `reload` `×` が並び、本体に各ファイルがサイドバイサイドで表示される（追加=緑、削除=赤、context=透明）。staged / unstaged バッジも色分けされる。
+
+### 33-C. 差分なし状態のバッジ（自動）
+
+clean な repo を一時的に作って active にする。
+
+```bash
+pkill -x "IDE Dev" 2>/dev/null; sleep 0.4
+CLEAN_DIR=$(mktemp -d)
+cd "$CLEAN_DIR" && git init -q && git config user.email "t@example.com" && git config user.name "t" && echo "clean" > README.md && git add . && git commit -q -m "init" && cd -
+
+cat > "$HOME/Library/Application Support/ide-dev/projects.json" <<JSON
+{"projects":[
+  {"displayName":"clean","id":"AAAAAAAA-1111-1111-1111-111111111111","isPinned":true,"lastOpenedAt":"2026-05-14T01:00:00Z","path":"$CLEAN_DIR"}
+],"schemaVersion":1}
+JSON
+
+IDE_TEST_AUTO_ACTIVATE_INDEX=0 "$APP/Contents/MacOS/IDE Dev" >/tmp/ide-launch.log 2>&1 &
+sleep 5
+./scripts/ide-screenshot.sh /tmp/diff-badge-empty.png
+
+pkill -x "IDE Dev" 2>/dev/null
+rm -rf "$CLEAN_DIR"
+rm -f "$HOME/Library/Application Support/ide-dev/projects.json"*
+```
+
+期待: 中央ペイン右上のバッジが薄い色（secondary）で、件数 Capsule なし。
+
+### 33-D. ショートカット動作（手動）
+
+`ide-keystroke.sh` は IDE 内 Claude Code からは動かないので、以下は実機 / 別ターミナルから確認する。
+
+- ターミナル / ファイルツリーどちらにフォーカスがあっても `Cmd+D` で overlay が開く
+- もう一度 `Cmd+D` を押すと閉じる（トグル）
+- overlay 表示中の `Esc` で閉じる
+- overlay 表示中の `Cmd+R` で `git diff` を取り直す（ヘッダーの reload アイコンと同じ挙動）
+- バッジのクリックで overlay が開く
+- ファイル名右の `±` アイコンで「ファイル全体表示 ↔ 差分のみ」がトグルできる

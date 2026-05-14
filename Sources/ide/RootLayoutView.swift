@@ -68,6 +68,15 @@ struct RootLayoutView: View {
                 )
                 .padding(.top, 80)
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+            } else if projects.diffOverlayVisible, let active = projects.activeProject {
+                DiffOverlayView(
+                    viewModel: projects.diffViewModel,
+                    repoPath: active.path,
+                    projectName: active.displayName,
+                    onClose: { projects.closeDiffOverlay() }
+                )
+                .padding(40)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
         }
         .overlay {

@@ -53,6 +53,26 @@ enum MRUKeyMonitor {
             return true
         }
 
+        // Cmd+D: diff オーバーレイをトグル。
+        // Ghostty のデフォルト cmd+d=new_split:right と競合するが、ide は libghostty の split を
+        // 使っていないので localMonitor で先取りして問題ない。
+        if mods == .command, event.keyCode == 2 {  // 2 = D
+            model.toggleDiffOverlay()
+            return true
+        }
+
+        // diff overlay 表示中の Cmd+R: 再ロード（既存の Cmd+R fileTreeFocused より優先）。
+        if model.diffOverlayVisible, mods == .command, event.keyCode == 15 {  // 15 = R
+            model.diffViewModel.reload()
+            return true
+        }
+
+        // diff overlay 表示中の Esc: 閉じる。
+        if model.diffOverlayVisible, event.keyCode == 53 {  // 53 = Esc
+            model.closeDiffOverlay()
+            return true
+        }
+
         // Cmd+J: 中央ペインを ツリー ↔ プレビュー でトグル。
         if mods == .command, event.keyCode == 38 {  // 38 = J
             model.togglePreview()

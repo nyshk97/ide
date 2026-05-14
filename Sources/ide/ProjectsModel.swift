@@ -52,6 +52,11 @@ final class ProjectsModel: ObservableObject {
     @Published var fullSearchSelection: Int = 0
     @Published var fullSearchInProgress: Bool = false
 
+    /// Cmd+D で表示する diff オーバーレイの状態。
+    @Published var diffOverlayVisible: Bool = false
+    /// overlay 表示中だけ生きている diff データ。閉じたら `clear()` で空にする。
+    let diffViewModel = DiffViewModel()
+
     /// 「最近使ったプロジェクト」MRU スタック。先頭が最新。確定したタイミングで先頭に push される。
     /// 最大 5 件保持。Ctrl+M オーバーレイの候補ソースに使う。
     @Published private(set) var mruStack: [UUID] = []
@@ -124,6 +129,11 @@ final class ProjectsModel: ObservableObject {
             openFullSearch()
             fullSearchQuery = query
             runFullSearch()
+        }
+
+        if env["IDE_TEST_AUTO_OPEN_DIFF"] != nil, activeProject != nil {
+            openDiffOverlay()
+            Logger.shared.debug("[projects] test-auto-open-diff")
         }
 
         if let toast = env["IDE_TEST_TOAST"] {
@@ -346,6 +356,31 @@ final class ProjectsModel: ObservableObject {
     func fullSearchSelectedPath() -> String? {
         guard fullSearchHits.indices.contains(fullSearchSelection) else { return nil }
         return relativePath(of: fullSearchHits[fullSearchSelection].url)
+    }
+
+    // MARK: - Cmd+D Diff オーバーレイ
+
+    /// active project がなければ何もしない（ボタンも本来 disabled だがガード）。
+    /// 開いた瞬間に `git diff` を走らせる（先読みはしない方針）。
+    func openDiffOverlay() {
+        guard let active = activeProject else { return }
+        diffViewModel.load(project: active)
+        diffOverlayVisible = true
+    }
+
+    func closeDiffOverlay() {
+        diffOverlayVisible = false
+        // 閉じたタイミングでメモリ解放。次に開いたとき取り直す。
+        diffViewModel.clear()
+    }
+
+    /// Cmd+D 押下時のトグル。MRUKeyMonitor から呼ばれる。
+    func toggleDiffOverlay() {
+        if diffOverlayVisible {
+            closeDiffOverlay()
+        } else {
+            openDiffOverlay()
+        }
     }
 
     /// active project ルートからの相対パス。配下でなければ絶対パスを返す。
