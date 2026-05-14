@@ -131,6 +131,12 @@ final class ProjectsModel: ObservableObject {
             runFullSearch()
         }
 
+        if let query = env["IDE_TEST_AUTO_QUICKSEARCH"] {
+            openQuickSearch()
+            quickSearchQuery = query
+            Logger.shared.debug("[projects] test-auto-quicksearch \(query)")
+        }
+
         if env["IDE_TEST_AUTO_OPEN_DIFF"] != nil, activeProject != nil {
             openDiffOverlay()
             Logger.shared.debug("[projects] test-auto-open-diff")
@@ -308,6 +314,14 @@ final class ProjectsModel: ObservableObject {
         return results[quickSearchSelection].relativePath
     }
 
+    /// Enter で現在選択中のエントリを開いてオーバーレイを閉じる。
+    func quickSearchConfirm() {
+        guard let active = activeProject else { return }
+        let results = fileIndex(for: active).search(quickSearchQuery)
+        guard results.indices.contains(quickSearchSelection) else { return }
+        quickSearchSelect(results[quickSearchSelection])
+    }
+
     // MARK: - Cmd+Shift+F 全文検索
 
     func openFullSearch() {
@@ -332,8 +346,14 @@ final class ProjectsModel: ObservableObject {
         Task.detached { [weak self] in
             let result = FullTextSearcher.run(query: q, in: path)
             await MainActor.run {
-                self?.fullSearchHits = result
-                self?.fullSearchInProgress = false
+                guard let self = self else { return }
+                // 検索中にクエリが書き換わっていたら古い結果は破棄。
+                // FullSearchView 側の onChange(of: query) で hits を空にしているので、
+                // ここで上書きすると消したはずの古い結果が復活してしまう。
+                if self.fullSearchQuery == q {
+                    self.fullSearchHits = result
+                }
+                self.fullSearchInProgress = false
             }
         }
     }

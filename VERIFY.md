@@ -1059,7 +1059,7 @@ rm -f "$HOME/Library/Application Support/ide-dev/projects.json"*
 
 実機で確認:
 - Cmd+P でオーバーレイ起動
-- ↓↑ で選択を移動
+- ↓↑ または Ctrl+N / Ctrl+P で選択を移動
 - Enter で選んだファイルを preview に開く
 - Esc でキャンセル
 - スラッシュを含むクエリ（例: `sources/i`）はパスマッチに自動切替で精度が変わる
@@ -1089,7 +1089,7 @@ rm -f "$HOME/Library/Application Support/ide-dev/projects.json"*
 実機で確認:
 - Cmd+Shift+F でオーバーレイ起動
 - 文字を入力して Enter で検索実行（AppleScript 経由では onSubmit が効かないので手動必須）
-- ↑↓ で結果選択、Enter / クリックで preview 切替
+- ↑↓ または Ctrl+N / Ctrl+P で結果選択、Enter / クリックで preview 切替
 - Esc でキャンセル
 
 ### 32. プロジェクト一覧のドラッグ並び替え（手動 / 半自動）

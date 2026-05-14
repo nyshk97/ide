@@ -219,6 +219,17 @@ final class GhosttyTerminalNSView: NSView {
     /// Cmd+V や Cmd+C などのメニューショートカットは AppKit が menu chain で先に消費する。
     /// Ghostty 側のキーバインドにマッチする場合はこちらで捕捉して surface に流す。
     override func performKeyEquivalent(with event: NSEvent) -> Bool {
+        // モーダル overlay（Cmd+P 検索 / Cmd+Shift+F 全文検索 / diff / MRU）表示中は
+        // Ghostty で Cmd+V や Cmd+A 等を握らない。performKeyEquivalent は responder chain
+        // ではなく view 階層を深さ優先で走るため、ここで握ると overlay の TextField が
+        // first responder でもターミナル側に paste が流れてしまう。false を返して
+        // AppKit 標準の Edit メニュー → 検索窓の field editor に paste: を届ける。
+        let model = ProjectsModel.shared
+        if model.quickSearchVisible || model.fullSearchVisible
+            || model.diffOverlayVisible || model.mruOverlay != nil {
+            return false
+        }
+
         let mods = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
         let chars = event.charactersIgnoringModifiers ?? ""
 

@@ -48,17 +48,27 @@ struct QuickSearchView: View {
 
             if !results.isEmpty {
                 Divider()
-                ScrollView {
-                    LazyVStack(alignment: .leading, spacing: 0) {
-                        ForEach(Array(results.enumerated()), id: \.element.id) { idx, entry in
-                            row(entry: entry, isSelected: idx == selection)
-                                .onTapGesture {
-                                    onSelect(entry)
-                                }
+                ScrollViewReader { proxy in
+                    ScrollView {
+                        LazyVStack(alignment: .leading, spacing: 0) {
+                            ForEach(Array(results.enumerated()), id: \.element.id) { idx, entry in
+                                row(entry: entry, isSelected: idx == selection)
+                                    .onTapGesture {
+                                        onSelect(entry)
+                                    }
+                            }
                         }
                     }
+                    .frame(maxHeight: 320)
+                    .onChange(of: selection) { _, newValue in
+                        // Ctrl+N / ↓ などで選択が画面外に出たらスクロール追従。
+                        // scrollTo は ForEach の id (= entry.id = URL) を target にする。
+                        // ここで .id(idx) を別途付けると ForEach の identity と二重になり
+                        // LazyVStack の diffing が壊れる（古い row が表示される）。
+                        guard results.indices.contains(newValue) else { return }
+                        proxy.scrollTo(results[newValue].id, anchor: .center)
+                    }
                 }
-                .frame(maxHeight: 320)
             } else if !query.isEmpty {
                 Text("該当なし").foregroundStyle(.secondary).padding()
             }

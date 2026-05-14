@@ -104,9 +104,25 @@ enum MRUKeyMonitor {
                     return true
                 }
             }
-            // IME 変換中（marked text あり）は Esc/矢印を IME に渡して候補移動・キャンセルさせる。
+            // Ctrl+N / Ctrl+P: ↓↑ と同じく選択を移動（Emacs バインド）。
+            // 修飾キー付きなので IME 変換中でも横取りして OK。
+            if mods == .control, event.keyCode == 45 {  // 45 = N
+                model.quickSearchMoveSelection(1)
+                return true
+            }
+            if mods == .control, event.keyCode == 35 {  // 35 = P
+                model.quickSearchMoveSelection(-1)
+                return true
+            }
+            // IME 変換中（marked text あり）は Esc/矢印/Enter を IME に渡して候補移動・キャンセル・確定させる。
+            // Enter をここで握る理由: SwiftUI TextField の .onSubmit は IME 確定の Enter でも発火する
+            // 場合があり、その瞬間にファイルが開いてしまう。composing 中は素通りさせて IME に確定させ、
+            // 確定後の通常 Enter のみ「選択を開く」に倒す。
             if !isComposingInTextField() {
                 switch event.keyCode {
+                case 36, 76:  // Return / Enter
+                    model.quickSearchConfirm()
+                    return true
                 case 53:  // Esc
                     model.closeQuickSearch()
                     return true
@@ -130,6 +146,15 @@ enum MRUKeyMonitor {
                     copyPath(path)
                     return true
                 }
+            }
+            // Ctrl+N / Ctrl+P: ↓↑ と同じく選択を移動（Emacs バインド）。
+            if mods == .control, event.keyCode == 45 {  // 45 = N
+                model.fullSearchMoveSelection(1)
+                return true
+            }
+            if mods == .control, event.keyCode == 35 {  // 35 = P
+                model.fullSearchMoveSelection(-1)
+                return true
             }
             // IME 変換中（marked text あり）は Esc/矢印を IME に渡して候補移動・キャンセルさせる。
             if !isComposingInTextField() {
