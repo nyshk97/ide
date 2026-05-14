@@ -118,13 +118,9 @@ Sparkle 採用の利点:
 
 ### Phase 3: ドキュメント整備 [AI🤖]
 
-- [ ] `docs/DEV.md` に「Sparkle 関連の運用」セクションを追加:
-  - Sparkle 鍵生成 (`generate_keys`)
-  - 秘密鍵のバックアップ場所 (Dropbox)
-  - `release.sh` がどこに push するか
-  - 鍵紛失時のリカバリ手順 (= ない。新鍵を発行して古いユーザーには手動再インストールを案内)
-- [ ] `VERIFY.md` に Check for Updates の検証手順を追加 (実機で押す手順 + Debug ビルドでの期待エラー)
-- [ ] `docs/BACKLOG.md` に「商用化時のライセンス検証/アクティベーション設計」を積む
+- [x] `docs/DEV.md` の「リリース」セクションを 2-repo 配信に更新 + 「Sparkle 自前アップデート」「EdDSA 鍵」「Sparkle のツール」サブセクションを追加 (秘密鍵バックアップ場所、紛失時のリカバリ困難性、SwiftPM 同梱の `generate_keys` / `sign_update` 場所)
+- [x] `VERIFY.md` に「34. Sparkle "Check for Updates…"」セクションを追加 (Sparkle 統合の自動検証、メニュー目視、release.sh ドライラン、本番リリース後の更新フロー)
+- [x] `docs/BACKLOG.md` に「商用化（有償配布）を見据えた検討項目」セクションを追加 (ライセンス検証、トライアル、専用ドメイン化、本体 repo private 化、EdDSA 鍵紛失リカバリ)
 - [ ] コミット (Phase 3 完了)
 
 ### 動作確認 [人間👨‍💻]

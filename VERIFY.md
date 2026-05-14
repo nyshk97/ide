@@ -1284,3 +1284,58 @@ rm -f "$HOME/Library/Application Support/ide-dev/projects.json"*
 - overlay 表示中の `Cmd+R` で `git diff` を取り直す（ヘッダーの reload アイコンと同じ挙動）
 - バッジのクリックで overlay が開く
 - ファイル名右の `±` アイコンで「ファイル全体表示 ↔ 差分のみ」がトグルできる
+
+## 34. Sparkle "Check for Updates…"
+
+メニュー > `IDE Dev` > `Check for Updates…` で自前アップデートのチェックが走る。AppleScript でメニュー操作はできないので、メニュー目視と更新フローの完走確認は実機から行う。
+
+### 34-A. Sparkle 統合（自動）
+
+```bash
+./scripts/ide-launch.sh
+sleep 3
+pgrep -lf "IDE Dev.app/Contents/MacOS/IDE Dev" || echo "FAIL: not running"
+# Info.plist の Sparkle キーが反映されていること
+plutil -p "/tmp/ide-build/Build/Products/Debug/IDE Dev.app/Contents/Info.plist" | grep -E "^\s*\"SU"
+# Sparkle.framework が embed されていること（dylib + Updater.app + XPCServices）
+ls "/tmp/ide-build/Build/Products/Debug/IDE Dev.app/Contents/Frameworks/Sparkle.framework/Versions/B/" | grep -E "Sparkle|Updater.app|XPCServices"
+```
+
+期待:
+- IDE Dev プロセスが生存
+- `SUFeedURL` = `https://github.com/nyshk97/ide-releases/releases/latest/download/appcast.xml`
+- `SUPublicEDKey` が空でない Base64 文字列
+- `SUEnableAutomaticChecks` = false
+- `Sparkle`（dylib）、`Updater.app`、`XPCServices` の 3 つが見える
+
+### 34-B. メニュー表示（手動）
+
+メニューバー > `IDE Dev` を開き、`About IDE Dev` の **直下** に `Check for Updates…` がある。`SUFeedURL` が設定済みなら enable（クリック可）。空文字なら disable（グレーアウト）。
+
+### 34-C. release.sh のドライラン（自動）
+
+実リリースを走らせる前に、`sign_update` と appcast 挿入ロジックだけ単体で確認できる:
+
+```bash
+# Sparkle ツール群が DerivedData にあること
+ls /tmp/ide-build/SourcePackages/artifacts/sparkle/Sparkle/bin/ | grep -E "generate_keys|sign_update"
+
+# ダミー zip に EdDSA 署名を打って、edSignature と length が抽出できるか
+cd /tmp && echo test > _t.txt && zip -q _t.zip _t.txt
+SIG=$(/tmp/ide-build/SourcePackages/artifacts/sparkle/Sparkle/bin/sign_update _t.zip)
+echo "$SIG" | grep -E 'sparkle:edSignature="[^"]+"' && echo "PASS"
+rm -f _t.txt _t.zip
+cd -
+```
+
+### 34-D. 古いバージョンが新版を検出する（手動・本番リリース後）
+
+実リリースを 1 本通したあとに以下を実機で確認:
+
+1. 現状の `/Applications/IDE.app` を退避: `mv /Applications/IDE.app /Applications/IDE.app.bak`
+2. 旧バージョン（例: `1.0.9`）の zip を `gh release download v1.0.9 --repo nyshk97/ide -p 'ide.zip' -O /tmp/old-ide.zip` で取得し `/Applications/` に展開
+3. `/Applications/IDE.app` を起動 → メニュー > `IDE` > `Check for Updates…`
+4. 「新版 X.X.X が利用可能」ダイアログ → `Install Update` → ダウンロード → 自動再起動
+5. 起動した IDE.app の `About` を見て新版になっていることを確認
+
+退避したバックアップを戻すなら: `rm -rf /Applications/IDE.app && mv /Applications/IDE.app.bak /Applications/IDE.app`

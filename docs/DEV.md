@@ -33,11 +33,43 @@
 ## リリース
 
 1. `project.yml` の `MARKETING_VERSION` を bump → コミット（`fix:` 系とは別に `chore: バージョンを X に bump`）
-2. `scripts/release.sh <version>` — Release ビルド（Developer ID 署名 + notarize + staple）→ `git push origin main` → `gh release create v<version>`。notarize / codesign の timestamp がネットワークを使うので **Bash サンドボックスを無効化して**走らせる（下の「`scripts/build.sh` はネットワークが要る」参照）
-3. release.sh が末尾に出す `version` / `sha256` で homebrew-tap の cask を更新する: `"$(brew --repository)/Library/Taps/nyshk97/homebrew-tap/Casks/ide.rb`（このローカル clone がそのまま作業ツリー。origin = `github.com/nyshk97/homebrew-tap`）の `version` と `sha256` を書き換えて commit & push
-4. ローカルに最新版を入れる → **`scripts/install.sh`**（`/Applications/IDE.app` をバンドルごと差し替え。`build/ide.zip` が無ければ build から走る）
+2. `scripts/release.sh <version>` — Release ビルド（Developer ID 署名 + notarize + staple）→ `git push origin main` → **2 つの repo に release を作成**:
+   - `nyshk97/ide` — 既存どおり zip を asset として上げる（homebrew cask の URL 互換）
+   - `nyshk97/ide-releases` — Sparkle 配信用。zip + `appcast.xml` を上げる
+3. release.sh が `sign_update` で zip を **EdDSA 署名** し、過去の `appcast.xml` を取得 → 新 `<item>` を `</channel>` 直前に挿入してアップロードする（累積）
+4. notarize / codesign の timestamp や `gh release upload` がネットワークを使うので **Bash サンドボックスを無効化して**走らせる（下の「`scripts/build.sh` はネットワークが要る」参照）
+5. release.sh が末尾に出す `version` / `sha256` で homebrew-tap の cask を更新する: `"$(brew --repository)/Library/Taps/nyshk97/homebrew-tap/Casks/ide.rb"`（このローカル clone がそのまま作業ツリー。origin = `github.com/nyshk97/homebrew-tap`）の `version` と `sha256` を書き換えて commit & push
+6. ローカルに最新版を入れる → **`scripts/install.sh`**（`/Applications/IDE.app` をバンドルごと差し替え。`build/ide.zip` が無ければ build から走る）
 
 **dogfooding 中（IDE.app の中で Claude Code を回している）に `brew upgrade --cask ide` を打つと、cask が実行中の IDE.app を quit してそのセッションごと死ぬ**。`scripts/install.sh` はバンドルを上書きするだけで実行中プロセスは生かしたまま（macOS は使用中の .app バンドルを unlink してもプロセスは動き続ける）なので、こちらを使う。どちらにしても修正の反映には IDE.app の手動再起動が必要。`install.sh` 経由だと `brew` 側のバージョン表示はズレるが実害なし（次に `brew upgrade --cask ide` を打てば揃う）。
+
+### Sparkle 自前アップデート
+
+メニュー > `IDE` > `Check for Updates…` から手動で更新できる（要件「起動時に通信しない」を満たすため自動チェックは無効。`SUEnableAutomaticChecks=false`）。
+
+- **配信フィード URL**: `https://github.com/nyshk97/ide-releases/releases/latest/download/appcast.xml`
+- **配信 zip URL**: `https://github.com/nyshk97/ide-releases/releases/download/v<version>/ide.zip`
+- 配信用 repo（`nyshk97/ide-releases`）は **public** 必須。Sparkle は匿名で curl する。本体 repo（`nyshk97/ide`）は将来 private 化しても更新フィードは動く
+
+### EdDSA 鍵
+
+- 公開鍵は `Resources/Info.plist` の `SUPublicEDKey` に Base64 で埋まっている: `VnvTM72yjjc1FY/nzLI5uT/3mSxkOdG7k4dJqAPgZo8=`
+- ペアの秘密鍵は **macOS Keychain** に保存されている（`sign_update` が暗黙的に参照する）
+- 安全のため `~/Library/CloudStorage/Dropbox/secrets/sparkle-ed25519-private.key`（`chmod 600`）にバックアップ
+- **秘密鍵を失うと、旧バージョンに配ったユーザーの自動アップデートが恒久的に壊れる**（新鍵で署名し直した zip は受理されない）。新鍵を作ってリリースしても、ユーザー側は手動で新版 IDE.app を入れ直すまで詰む。Dropbox バックアップは消さないこと
+
+### Sparkle のツール（generate_keys / sign_update）
+
+SwiftPM が落としてくる artifact 内に同梱されている（`homebrew-cask` の `sparkle` は deprecated 且つ Test App しか入れないので使わない）:
+
+```
+/tmp/ide-build-release/SourcePackages/artifacts/sparkle/Sparkle/bin/
+├── generate_keys     # 鍵ペア生成（一度だけ。Keychain 登録）
+├── sign_update       # zip を EdDSA 署名（release.sh が自動で叩く）
+└── BinaryDelta       # 差分更新の生成（今は使わない）
+```
+
+`build.sh` が `-derivedDataPath /tmp/ide-build-release` を固定しているので、`release.sh` からはこの絶対パスで `sign_update` を直接呼べる。`mise run build` の DerivedData は `/tmp/ide-build` で別なので注意（こっちで `generate_keys` を叩く分には問題ない）。
 
 ---
 
