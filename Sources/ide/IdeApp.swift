@@ -4,6 +4,9 @@ import Sparkle
 
 @main
 struct IdeApp: App {
+    // メインメニューの実行時整理（AppKit が動的に足す項目の除去）。
+    @NSApplicationDelegateAdaptor(IdeAppDelegate.self) private var appDelegate
+
     // Sparkle の updater controller。`startingUpdater: true` で起動時に Sparkle 本体が
     // 立ち上がるが、Info.plist で SUEnableAutomaticChecks=false にしてあるので、
     // ネットワークアクセスはメニューを押した時だけ走る。
@@ -30,18 +33,43 @@ struct IdeApp: App {
                 .frame(minWidth: 1000, minHeight: 500)
         }
         .commands {
-            // メニュー > IDE > Check for Updates…（About と Quit の間、macOS 標準位置）
+            // ---- IDE (app) メニュー ----
+            // About と Quit の間に Check for Updates… と 最近のログを開く。
+            // 「最近のログを開く」は元 Help メニューにあったが、Help の検索ボックスを
+            // 確実に消す手段が無かったため Help メニュー自体を AppDelegate で削除し、
+            // この項目だけ IDE Dev メニューへ移した。
             CommandGroup(after: .appInfo) {
                 CheckForUpdatesView(updater: updaterController.updater)
-            }
-            // メニュー > Help > 最近のログを開く
-            CommandGroup(after: .help) {
+                Divider()
                 Button("最近のログを開く") {
                     let url = Logger.shared.directory
                     NSWorkspace.shared.activateFileViewerSelecting([url])
                 }
                 .keyboardShortcut("L", modifiers: [.command, .shift])
             }
+            // Services を消す
+            CommandGroup(replacing: .systemServices) { }
+            // Hide IDE / Hide Others / Show All を消す
+            CommandGroup(replacing: .appVisibility) { }
+
+            // ---- File メニュー ----
+            // New Window を消す（File メニュー自体は AppDelegate で削除）
+            CommandGroup(replacing: .newItem) { }
+
+            // ---- Edit メニュー ----
+            // Undo / Redo を消す（Cut/Copy/Paste/Delete/Select All は残す）
+            CommandGroup(replacing: .undoRedo) { }
+
+            // ---- Window メニュー ----
+            // 中身を空に（Window メニュー自体は AppDelegate で削除）
+            CommandGroup(replacing: .windowSize) { }
+            CommandGroup(replacing: .windowArrangement) { }
+            CommandGroup(replacing: .windowList) { }
+
+            // ---- Help メニュー ----
+            // 中身は IDE Help だけ残るが Search ボックスを SwiftUI/AppKit からは
+            // 消せないため、メニュー自体を AppDelegate でまるごと削除する。
+            CommandGroup(replacing: .help) { }
         }
     }
 }
