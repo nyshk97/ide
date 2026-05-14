@@ -16,6 +16,14 @@ settings:
     CODE_SIGN_IDENTITY: "-"
     ENABLE_HARDENED_RUNTIME: YES
 
+# 自前アップデート用。"Check for Updates…" メニューと EdDSA 署名検証付きの
+# zip 配信を Sparkle に任せる。Release ビルドのみ実際にフィードを参照し、
+# Debug ビルドは SUFeedURL を空にして手動チェック時にエラーを返す。
+packages:
+  Sparkle:
+    url: https://github.com/sparkle-project/Sparkle
+    from: "2.9.1"
+
 targets:
   ide:
     type: application
@@ -48,6 +56,10 @@ targets:
       - sdk: IOSurface.framework
       - sdk: UniformTypeIdentifiers.framework
       - sdk: Carbon.framework
+      # 自前アップデート（"Check for Updates…"）。SwiftPM 経由なので
+      # XcodeGen が自動で embed する。Sparkle 内蔵の XPC は hardened runtime + 既存の
+      # disable-library-validation entitlement で動く。
+      - package: Sparkle
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: local.d0ne1s.ide
