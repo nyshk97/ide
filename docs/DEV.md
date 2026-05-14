@@ -32,7 +32,7 @@
 
 ## リリース
 
-1. `project.yml` の `MARKETING_VERSION` を bump → コミット（`fix:` 系とは別に `chore: バージョンを X に bump`）
+1. `project.yml` の `MARKETING_VERSION` を bump → コミット（`fix:` 系とは別に `chore: バージョンを X に bump`）。`CURRENT_PROJECT_VERSION` は `$(MARKETING_VERSION)` で連動するので bump 不要
 2. `scripts/release.sh <version>` — Release ビルド（Developer ID 署名 + notarize + staple）→ `git push origin main` → **2 つの repo に release を作成**:
    - `nyshk97/ide` — 既存どおり zip を asset として上げる（homebrew cask の URL 互換）
    - `nyshk97/ide-releases` — Sparkle 配信用。zip + `appcast.xml` を上げる
@@ -52,6 +52,12 @@
 - 配信用 repo（`nyshk97/ide-releases`）は **public** 必須。Sparkle は匿名で curl する。本体 repo（`nyshk97/ide`）は将来 private 化しても更新フィードは動く
 
 ### EdDSA 鍵
+
+### Sparkle は `CFBundleVersion` で比較する（MARKETING_VERSION と連動させる）
+
+Sparkle の version 比較は appcast の `sparkle:version` と app の `CFBundleVersion` で行う（`shortVersionString` は表示用）。`CFBundleVersion` (= `CURRENT_PROJECT_VERSION`) を bump しないと、新版 zip を配っても「現バージョンと同じ」と判定されたり、逆に **app が自分自身を新版として offer** する（1.0.10 リリース後に CFBundleVersion=1 のままだと「build 1 のユーザーに 1.0.10 を案内」が初回 Check で発火する）。
+
+そのため `project.yml` は `CURRENT_PROJECT_VERSION: "$(MARKETING_VERSION)"` で連動させてある。bump 時は `MARKETING_VERSION` だけ書き換えれば足りる。`release.sh` は built `.app/Contents/Info.plist` から `CFBundleVersion` / `CFBundleShortVersionString` を直接読んで appcast に書く（sanity check 付き）。
 
 ### `build.sh` の zip 化と `install.sh` の展開は `ditto` を使う（`zip` / `unzip` ではない）
 

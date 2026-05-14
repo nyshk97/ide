@@ -146,6 +146,7 @@ Sparkle 採用の利点:
 - 2026-05-14: notarize は Apple Notary Service で約 1-2 分。`Submission ID c173947d-7917-4a40-ab66-687271b45309` で Accepted
 - 2026-05-14: **大ハマり** — `build.sh` の `zip -r -q ide.zip IDE.app` が **Sparkle.framework の symlink を実体ファイルに展開** してしまい、Gatekeeper で「壊れているため開けません」エラー。Sparkle が無かった 1.0.9 以前は plain zip で問題なかったが、framework が増えた 1.0.10 で顕在化。`build.sh` と `install.sh` を `ditto -c -k --sequesterRsrc --keepParent` / `ditto -x -k` に置き換え。原本 `/tmp/ide-export/IDE.app` (staple 済) から再 zip して GitHub の両 release の asset を入れ替え、`/Applications/IDE.app` も再インストール。EdDSA 署名は `z5DD4EomAO9srdHY1AD/anP8Mmh9uEIog1QswKzTrNXVDx01UgmxI5OlXV6Rb2fMejR3g4QKyP1mwY2uxxbZBw==` (16,421,007 bytes、ditto 圧縮で約 10% 小さくなった)
 - 2026-05-14: もう 1 つの罠 — `release.sh` の `pubDate` を `date -u` で生成していたが、caller の `LANG=ja_JP.UTF-8` だと曜日 / 月名が「木, 14 5月 2026」になり Sparkle が RFC 822 として parse できない。`LC_ALL=C date` で英語固定に修正
+- 2026-05-14: さらに 1 つの罠 — `project.yml` の `CURRENT_PROJECT_VERSION: "1"` が未 bump で、1.0.10 リリース後の app の `CFBundleVersion` が "1" のまま。一方 appcast には `sparkle:version="1.0.10"` を入れていたため、起動直後の Check for Updates で **app が自分自身を新版として offer** するダイアログが出た。修正: `CURRENT_PROJECT_VERSION: "$(MARKETING_VERSION)"` で連動、`release.sh` は built Info.plist から `CFBundleVersion` を読んで `sparkle:version` に入れる。1.0.10 リリースの appcast は緊急で `sparkle:version=1` に手書き修正してアップロードし直し（次回 1.0.11 からは正規ルートで通る）
 
 ### 方針変更
 

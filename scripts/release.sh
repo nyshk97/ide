@@ -57,6 +57,24 @@ if [ -z "$ED_SIG" ] || [ -z "$LENGTH" ]; then
   exit 1
 fi
 
+# sparkle:version は CFBundleVersion / sparkle:shortVersionString は
+# CFBundleShortVersionString を入れる（Sparkle は前者で比較する）。
+# project.yml の MARKETING_VERSION と CURRENT_PROJECT_VERSION (= $(MARKETING_VERSION))
+# を bump したかをここで sanity check する。zip 内ではなく export 済み .app から読む。
+BUILT_APP="/tmp/ide-export/IDE.app"
+BUNDLE_VERSION=$(plutil -extract CFBundleVersion raw "${BUILT_APP}/Contents/Info.plist")
+SHORT_VERSION=$(plutil -extract CFBundleShortVersionString raw "${BUILT_APP}/Contents/Info.plist")
+if [ "$SHORT_VERSION" != "$VERSION" ]; then
+  echo "ERROR: built CFBundleShortVersionString ($SHORT_VERSION) != requested <version> ($VERSION)"
+  echo "       project.yml の MARKETING_VERSION を $VERSION に bump し忘れていませんか?"
+  exit 1
+fi
+if [ "$BUNDLE_VERSION" = "1" ] && [ "$VERSION" != "1" ]; then
+  echo "ERROR: CFBundleVersion=1 のまま。project.yml の CURRENT_PROJECT_VERSION が"
+  echo "       MARKETING_VERSION と連動しているか確認（'\$(MARKETING_VERSION)' になっているか）"
+  exit 1
+fi
+
 echo "==> Generating appcast.xml..."
 # pubDate は RFC 822。LC_ALL=C で曜日 / 月名を英語に固定する（caller の LANG が ja_JP 等だと「木」「5月」になり Sparkle がパースできない）
 PUB_DATE=$(LC_ALL=C date -u "+%a, %d %b %Y %H:%M:%S +0000")
@@ -86,10 +104,10 @@ EOF
 fi
 
 NEW_ITEM="    <item>
-      <title>${VERSION}</title>
+      <title>${SHORT_VERSION}</title>
       <pubDate>${PUB_DATE}</pubDate>
-      <sparkle:version>${VERSION}</sparkle:version>
-      <sparkle:shortVersionString>${VERSION}</sparkle:shortVersionString>
+      <sparkle:version>${BUNDLE_VERSION}</sparkle:version>
+      <sparkle:shortVersionString>${SHORT_VERSION}</sparkle:shortVersionString>
       <sparkle:minimumSystemVersion>${MIN_OS}</sparkle:minimumSystemVersion>
       <enclosure
         url=\"${DOWNLOAD_URL}\"
