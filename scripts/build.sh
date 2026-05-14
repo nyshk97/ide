@@ -18,6 +18,10 @@ ARCHIVE_PATH="/tmp/ide.xcarchive"
 EXPORT_PATH="/tmp/ide-export"
 OUTPUT_DIR="$PROJECT_ROOT/build"
 NOTARY_PROFILE="${NOTARY_PROFILE:-ide-notary}"
+# DerivedData を固定パスにしておく。release.sh が SwiftPM 経由でチェックアウト
+# された Sparkle の sign_update を `${DERIVED_DATA}/SourcePackages/artifacts/sparkle/...`
+# から呼ぶため、archive 後にパスが特定できる必要がある（既定の ~/Library/Developer/Xcode/DerivedData/<hash>/ だと毎回パスが変わる）。
+DERIVED_DATA="${IDE_RELEASE_DERIVED_DATA:-/tmp/ide-build-release}"
 
 cd "$PROJECT_ROOT"
 
@@ -30,6 +34,7 @@ xcodebuild -project "$PROJECT" \
   -scheme ide \
   -configuration Release \
   -archivePath "$ARCHIVE_PATH" \
+  -derivedDataPath "$DERIVED_DATA" \
   archive \
   -quiet
 

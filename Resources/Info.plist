@@ -28,14 +28,16 @@
   <true/>
   <!--
     Sparkle 2: 自前アップデート（"Check for Updates…"）。
-    - SUFeedURL は Phase 2 で確定する。空のままだと押下時にフィードエラーが出る（期待動作）。
-    - SUPublicEDKey は Phase 2 で `generate_keys -p` の出力に差し替える。
+    - 配信は public な別 repo `nyshk97/ide-releases` の `latest/download/appcast.xml` 経由。
+      本体 repo (`nyshk97/ide`) は将来 private 化しても、配信側は public のまま機能する。
+    - SUPublicEDKey は `generate_keys -p` の出力（Base64）。
+      ペアの秘密鍵は macOS Keychain（`~/Library/CloudStorage/Dropbox/secrets/sparkle-ed25519-private.key` にバックアップ）。
     - 起動時の自動チェックは無効（要件: 手動メニュー実行のみ）。
   -->
   <key>SUFeedURL</key>
-  <string></string>
+  <string>https://github.com/nyshk97/ide-releases/releases/latest/download/appcast.xml</string>
   <key>SUPublicEDKey</key>
-  <string></string>
+  <string>VnvTM72yjjc1FY/nzLI5uT/3mSxkOdG7k4dJqAPgZo8=</string>
   <key>SUEnableAutomaticChecks</key>
   <false/>
   <key>SUEnableInstallerLauncherService</key>

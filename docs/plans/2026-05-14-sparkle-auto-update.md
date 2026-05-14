@@ -28,15 +28,22 @@ Sparkle 採用の利点:
 - 鍵管理: Sparkle の **EdDSA**。秘密鍵は keychain、公開鍵は `Info.plist` の `SUPublicEDKey` に Base64 で埋め込み
 - brew cask 配布は当面継続。Sparkle は並走させる
 
-### 未決事項 (Phase 2 前の人間判断ポイント)
+### 決定: appcast.xml / zip のホスト先
 
-appcast.xml / zip のホスト先 (private リポでも動くこと必須):
+**A 案を採用** (2026-05-14): 公開用の別 GitHub repo `nyshk97/ide-releases` を新設し public にする。本体 `nyshk97/ide` は将来 private 化可能。
 
-| 案 | 概要 | メリット | デメリット |
-|---|---|---|---|
-| A | 公開用の別 GitHub repo (`nyshk97/ide-releases`) を新設し public にする。本体 `nyshk97/ide` は将来 private 化可能 | 既存 `gh release` ワークフロー流用可。コスト 0 円 | release.sh が両 repo を扱う必要あり |
-| B | Cloudflare R2 + 独自サブドメイン (`updates.<your-domain>/ide/`) | 商用化前提の構成。配信が高速。ドメイン自由 | ドメイン取得 + R2 設定の初期工数。月数 GB は無料 |
-| C | 当面 `nyshk97/ide` (public) の Release Asset を使い続け、private 化時に移行 | 最小工数。今すぐ動く | private 化したタイミングで appcast/zip が 404 になる。SUFeedURL を変えるとユーザーの手元の Sparkle が古い URL を叩き続ける問題が出る |
+- SUFeedURL: `https://github.com/nyshk97/ide-releases/releases/latest/download/appcast.xml`
+- 配信 zip: `https://github.com/nyshk97/ide-releases/releases/download/v<version>/ide.zip`
+- release.sh が `gh release create --repo nyshk97/ide-releases` で zip と appcast.xml をまとめてアップロード
+- 本体 `nyshk97/ide` の release はソース紐付け用に従来通り (tag だけ) 残す案もあるが、Phase 2 の release.sh 改修で整理する
+
+候補比較 (採用判断時の記録):
+
+| 案 | 概要 | 採否 |
+|---|---|---|
+| A | 公開用の別 GitHub repo (`nyshk97/ide-releases`) を新設し public 化。本体 `nyshk97/ide` は将来 private 化可能 | **採用** |
+| B | Cloudflare R2 + 独自サブドメイン (`updates.<domain>/ide/`)。商用化前提なら本命 | 不採用 (ドメイン/CDN 設定の初期工数を将来に倒す) |
+| C | 当面 `nyshk97/ide` (public) の Release Asset を使い続け、private 化時に移行 | 不採用 (private 化時に旧 URL が 404 になり Sparkle が壊れるリスク) |
 
 ### 既存コードの該当箇所
 
@@ -83,33 +90,30 @@ appcast.xml / zip のホスト先 (private リポでも動くこと必須):
 
 ### Phase 2 前の準備 [人間👨‍💻]
 
-- [ ] **appcast/zip ホスト先を A / B / C から選ぶ** (Phase 1 で動作確認できた後、有償化スケジュールを見ながら決める)
-- [ ] 選んだ案に応じて以下を準備:
-  - 案 A: GitHub で `nyshk97/ide-releases` repo を作成 (public)。`gh repo create nyshk97/ide-releases --public`
-  - 案 B: ドメイン取得 → Cloudflare R2 バケット作成 → カスタムサブドメイン設定 → 書き込み用 API トークン取得 → 1Password などに保管
-  - 案 C: 何もしない (現状維持)
-- [ ] `brew install --cask sparkle` を実行して `generate_keys` / `sign_update` が PATH に通ることを確認 (Brewfile にも追加)
-  - `~/Library/CloudStorage/Dropbox/Brewfile` に `cask 'sparkle'` を追記
-  - `brew bundle --file=~/Library/CloudStorage/Dropbox/Brewfile`
-- [ ] **EdDSA 鍵ペアを生成**: `generate_keys`。秘密鍵は macOS keychain (`https://sparkle-project.org/sparkle/eddsa-public-key`) に保存される
-- [ ] 公開鍵 (`generate_keys -p` の出力) を控える
-- [ ] 秘密鍵を **Dropbox の安全な場所にバックアップ** (`~/Library/CloudStorage/Dropbox/secrets/sparkle-ed25519-private.key` を `chmod 600`)
+- [x] **appcast/zip ホスト先**: A 案 (`nyshk97/ide-releases` を新設) で確定 (2026-05-14)
+- [x] ~~`~/Library/CloudStorage/Dropbox/Brewfile` の cask セクションに `cask 'sparkle'` を追記~~ → 不要。**SwiftPM が `generate_keys` / `sign_update` を `SourcePackages/artifacts/sparkle/Sparkle/bin/` に同梱**するため (homebrew cask 版は deprecated 且つ Test App のみ)。release.sh は `DerivedData/SourcePackages/artifacts/sparkle/Sparkle/bin/sign_update` を絶対参照する
+- [ ] GitHub で `nyshk97/ide-releases` repo を作成 (public):
+  ```sh
+  gh repo create nyshk97/ide-releases --public --description "Update feed for IDE.app (Sparkle appcast + signed zips)"
+  ```
+- [ ] **EdDSA 鍵ペアを生成**: `/tmp/ide-build/SourcePackages/artifacts/sparkle/Sparkle/bin/generate_keys`。秘密鍵は macOS Keychain に保存される (`sign_update` が自動参照)
+- [ ] 公開鍵を控える: `generate_keys -p` の出力 (Base64) を Phase 2 で `SUPublicEDKey` に貼る
+- [ ] 秘密鍵を **Dropbox の安全な場所にバックアップ**: `generate_keys -x ~/Library/CloudStorage/Dropbox/secrets/sparkle-ed25519-private.key` → `chmod 600`
 
 ### Phase 2: appcast.xml 自動生成と sign_update [AI🤖]
 
-- [ ] `Resources/Info.plist` の `SUPublicEDKey` を確定した公開鍵に差し替え
-- [ ] `Resources/Info.plist` の `SUFeedURL` を確定した URL に差し替え (例: 案 A なら `https://github.com/nyshk97/ide-releases/releases/latest/download/appcast.xml`)
-- [ ] `scripts/release.sh` を拡張:
-  - 既存の zip 生成のあとに `sign_update build/ide.zip` を実行して EdDSA 署名と length を取得
-  - `build/appcast.xml` を生成 (既存の `appcast.xml` を取得 → 新エントリを追加 → 上書き)
-    - 取得元は選んだホスト先 (A: `gh release download` で旧 appcast を取り出す、B: `curl https://updates.example/ide/appcast.xml`)
-  - ホスト先に push:
-    - 案 A: `gh release upload --repo nyshk97/ide-releases <tag> build/ide.zip build/appcast.xml`
-    - 案 B: `rclone copy build/appcast.xml r2:ide/`, `rclone copy build/ide.zip r2:ide/<version>/`
-    - 案 C: 既存の `gh release create` に `build/appcast.xml` をアセットとして追加
-- [ ] 1 度実リリースを試して、Sparkle が新版を検出 → ダウンロード → 自動再起動まで通ることを確認
-  - 比較用に古いバージョン (例: `1.0.9`) を `/Applications/IDE.app` に置いて起動し、Check for Updates… を押す
-  - 新版 (`1.0.10` 仮) をリリースしてある状態で、Sparkle がアップデートダイアログを出し、Install → 再起動まで通る
+- [x] `Resources/Info.plist` の `SUPublicEDKey` を `VnvTM72yjjc1FY/nzLI5uT/3mSxkOdG7k4dJqAPgZo8=` に差し替え
+- [x] `Resources/Info.plist` の `SUFeedURL` を `https://github.com/nyshk97/ide-releases/releases/latest/download/appcast.xml` に設定
+- [x] `scripts/build.sh` で `-derivedDataPath /tmp/ide-build-release` を固定 (release.sh が sign_update をフルパスで叩けるように)
+- [x] `scripts/release.sh` を全面改修:
+  - build.sh 実行後、`/tmp/ide-build-release/SourcePackages/artifacts/sparkle/Sparkle/bin/sign_update` で zip を EdDSA 署名
+  - `https://github.com/nyshk97/ide-releases/releases/latest/download/appcast.xml` を curl で取得 (なければ template から作る)
+  - python3 で `</channel>` の直前に新 `<item>` を挿入 → `build/appcast.xml`
+  - `gh release create` を 2 回:
+    - `nyshk97/ide`: 従来通り zip だけ (homebrew cask 互換)
+    - `nyshk97/ide-releases`: zip + appcast.xml
+- [x] dry-run で `sign_update` / `</channel>` 挿入ロジックを検証 (`/tmp/dummy.zip` + `/tmp/test-appcast.xml`)
+- [ ] 1 度実リリースを試して、Sparkle が新版を検出 → ダウンロード → 自動再起動まで通ることを確認 (人間作業: `project.yml` の `MARKETING_VERSION` を `1.0.10` に bump → コミット → `./scripts/release.sh 1.0.10`)
 - [ ] コミット (Phase 2 完了)
 
 ### Phase 3: ドキュメント整備 [AI🤖]
@@ -136,6 +140,11 @@ appcast.xml / zip のホスト先 (private リポでも動くこと必須):
 - 2026-05-14: Sparkle 2 の最新版は 2.9.1。`from: "2.9.1"` で固定
 - 2026-05-14: SwiftPM 経由なら XcodeGen が自動で `IDE Dev.app/Contents/Frameworks/Sparkle.framework` を embed する。`Updater.app` と `XPCServices` も同梱されることを確認
 - 2026-05-14: Debug ビルド (ad-hoc 署名) でも Sparkle.framework のリンクは通り、起動も成功
+- 2026-05-14: `homebrew-cask` の `sparkle` cask は **deprecated** で且つ「Sparkle Test App.app」しか入れない (`generate_keys` バイナリは含まれない)。一方 SwiftPM 経由でチェックアウトされた Sparkle artifact (`DerivedData/SourcePackages/artifacts/sparkle/Sparkle/bin/`) には `generate_keys` / `sign_update` / `BinaryDelta` が同梱されている。これを直接叩けば良い (Brewfile 不要)
+- 2026-05-14: SwiftPM の DerivedData は xcodebuild がデフォルトで `~/Library/Developer/Xcode/DerivedData/<hash>/` に作るのでパスが不定。`build.sh` に `-derivedDataPath /tmp/ide-build-release` を明示して固定し、`release.sh` が `${DERIVED_DATA}/SourcePackages/artifacts/sparkle/Sparkle/bin/sign_update` を直接叩けるようにした
+- 2026-05-14: EdDSA 公開鍵 = `VnvTM72yjjc1FY/nzLI5uT/3mSxkOdG7k4dJqAPgZo8=`。秘密鍵は macOS Keychain (`sign_update` が暗黙参照) + `~/Library/CloudStorage/Dropbox/secrets/sparkle-ed25519-private.key` にバックアップ
+- 2026-05-14: appcast.xml は累積運用 (過去エントリも残す) = Sparkle 標準。release.sh は `latest/download/appcast.xml` を curl で取得 → 新 `<item>` を `</channel>` 直前に挿入 → アップロードし直す
+- 2026-05-14: 配信は 2 repo に zip を上げる構成にした。`nyshk97/ide` は既存の homebrew cask URL 互換のため (cask が `nyshk97/ide/releases/download/...` を参照しているので壊さない)、`nyshk97/ide-releases` は Sparkle 用に zip + appcast.xml。将来 cask の URL を ide-releases に向け直したら本体 repo の release asset は不要になる
 
 ### 方針変更
 
