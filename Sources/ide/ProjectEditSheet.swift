@@ -27,11 +27,11 @@ struct ProjectEditSheet: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
-            Text("プロジェクトを編集")
+            Text("Edit Project")
                 .font(.headline)
 
             VStack(alignment: .leading, spacing: 6) {
-                Text("名前").font(.caption).foregroundStyle(.secondary)
+                Text("Name").font(.caption).foregroundStyle(.secondary)
                 TextField("", text: $name)
                     .textFieldStyle(.roundedBorder)
                     .focused($nameFocused)
@@ -39,7 +39,7 @@ struct ProjectEditSheet: View {
             }
 
             VStack(alignment: .leading, spacing: 8) {
-                Text("色").font(.caption).foregroundStyle(.secondary)
+                Text("Color").font(.caption).foregroundStyle(.secondary)
                 colorSwatches
             }
 
@@ -51,9 +51,9 @@ struct ProjectEditSheet: View {
 
             HStack {
                 Spacer()
-                Button("キャンセル", action: onCancel)
+                Button("Cancel", action: onCancel)
                     .keyboardShortcut(.cancelAction)
-                Button("完了", action: save)
+                Button("Done", action: save)
                     .keyboardShortcut(.defaultAction)
             }
         }
@@ -98,7 +98,7 @@ struct ProjectEditSheet: View {
             )
         }
         .buttonStyle(.plain)
-        .help("自動 (名前から決定)")
+        .help("Auto (derived from name)")
     }
 
     private func swatch(color: Color, label: String, isSelected: Bool, action: @escaping () -> Void) -> some View {

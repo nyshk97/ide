@@ -94,7 +94,7 @@ struct RootLayoutView: View {
                 Image(systemName: "terminal")
                     .font(.system(size: 32))
                     .foregroundStyle(.tertiary)
-                Text("プロジェクトを開くとターミナルが起動します")
+                Text("Open a project to launch the terminal")
                     .font(.callout)
                     .foregroundStyle(.tertiary)
                 Spacer()

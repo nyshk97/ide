@@ -78,7 +78,7 @@ struct ProjectsStore: Sendable {
         } catch {
             Logger.shared.debug("[projects] save failed: \(error)")
             DispatchQueue.main.async {
-                ErrorBus.shared.notify("プロジェクト一覧の保存に失敗しました: \(error.localizedDescription)")
+                ErrorBus.shared.notify("Failed to save project list: \(error.localizedDescription)")
             }
         }
     }

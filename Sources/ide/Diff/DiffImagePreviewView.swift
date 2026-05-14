@@ -11,15 +11,15 @@ struct DiffImagePreviewView: View {
     var body: some View {
         HStack(spacing: 0) {
             if file.changeType == .deleted {
-                imagePanel(title: "削除", image: oldImage, borderColor: GitHubDark.deletionBackground)
+                imagePanel(title: "Deleted", image: oldImage, borderColor: GitHubDark.deletionBackground)
             } else if file.changeType == .new {
-                imagePanel(title: "追加", image: newImage, borderColor: GitHubDark.additionBackground)
+                imagePanel(title: "Added", image: newImage, borderColor: GitHubDark.additionBackground)
             } else {
-                imagePanel(title: "変更前", image: oldImage, borderColor: GitHubDark.deletionBackground)
+                imagePanel(title: "Before", image: oldImage, borderColor: GitHubDark.deletionBackground)
                 Rectangle()
                     .fill(GitHubDark.border)
                     .frame(width: 1)
-                imagePanel(title: "変更後", image: newImage, borderColor: GitHubDark.additionBackground)
+                imagePanel(title: "After", image: newImage, borderColor: GitHubDark.additionBackground)
             }
         }
         .frame(minHeight: 100)
@@ -49,7 +49,7 @@ struct DiffImagePreviewView: View {
                     .font(.system(size: 10, design: .monospaced))
                     .foregroundColor(GitHubDark.textSecondary)
             } else {
-                Text("(読み込めません)")
+                Text("(unavailable)")
                     .font(.system(size: 12))
                     .foregroundColor(GitHubDark.textSecondary)
             }

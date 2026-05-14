@@ -27,6 +27,8 @@ struct FilePreviewView: View {
     @State private var treeHovered = false
     /// ファイル名パンくずのホバー状態。クリックで相対パスをコピーできることを示す。
     @State private var nameHovered = false
+    /// 「Open in Editor」ボタンのホバー状態。
+    @State private var openInEditorHovered = false
 
     /// ファイル内検索バー（Cmd+F）の入力欄フォーカス。
     @FocusState private var findFieldFocused: Bool
@@ -119,7 +121,7 @@ struct FilePreviewView: View {
                 }
                 .buttonStyle(.plain)
                 .keyboardShortcut(.escape, modifiers: [])
-                .help("Esc でツリーに戻る")
+                .help("Back to tree (Esc)")
                 .onHover { treeHovered = $0 }
 
                 Text("/")
@@ -133,7 +135,7 @@ struct FilePreviewView: View {
                         .underline(nameHovered)
                 }
                 .buttonStyle(.plain)
-                .help("クリックで相対パスをコピー")
+                .help("Click to copy relative path")
                 .onHover { nameHovered = $0 }
             }
 
@@ -143,26 +145,37 @@ struct FilePreviewView: View {
             }
             .buttonStyle(.plain)
             .disabled(!preview.canGoBack)
-            .help("前のファイル")
+            .help("Previous file")
 
             Button { preview.goForward() } label: {
                 Image(systemName: "arrow.right")
             }
             .buttonStyle(.plain)
             .disabled(!preview.canGoForward)
-            .help("次のファイル")
+            .help("Next file")
 
             Spacer()
 
             Button {
                 openInCursor(url)
             } label: {
-                Image(systemName: "arrow.up.forward.app")
-                Text("Cursor で開く")
+                HStack(spacing: 4) {
+                    Image(systemName: "arrow.up.forward.app")
+                    Text("Open in Editor")
+                }
+                .foregroundStyle(openInEditorHovered ? Color.primary : Color.secondary)
+                .padding(.horizontal, 8)
+                .padding(.vertical, 4)
+                .background(
+                    RoundedRectangle(cornerRadius: 5)
+                        .fill(openInEditorHovered ? Color.primary.opacity(0.08) : Color.clear)
+                )
+                .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
             .keyboardShortcut("o", modifiers: [.command, .option])
-            .help("Cmd+Option+O で Cursor を起動")
+            .help("Launch external editor (Cmd+Option+O)")
+            .onHover { openInEditorHovered = $0 }
         }
         .padding(.horizontal, 10)
         .frame(height: 30)
@@ -191,13 +204,13 @@ struct FilePreviewView: View {
                 PDFPreview(url: url)
                     .id(reloadGen)
             case .binary:
-                externalPrompt(message: "バイナリファイルです（プレビュー非対応）")
+                externalPrompt(message: "Binary file (preview not supported)")
             case .tooLarge(let bytes):
                 // 「読み込む」を押すと forceLoadLarge=true → 再分類で実際の種別に変わるので、
                 // ここに来ている時点では常に確認 UI を出す。
                 largeFilePrompt(bytes: bytes)
             case .external:
-                externalPrompt(message: "ファイルサイズが大きいか UTF-8 でないため外部で開いてください")
+                externalPrompt(message: "File is too large or not UTF-8 — open it externally")
             case .error(let msg):
                 VStack {
                     Spacer()
@@ -230,7 +243,7 @@ struct FilePreviewView: View {
                 .font(.system(size: 36))
                 .foregroundStyle(.tertiary)
             Text(message).foregroundStyle(.secondary)
-            Button("Cursor で開く") { openInCursor(url) }
+            Button("Open in Editor") { openInCursor(url) }
             Spacer()
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -243,11 +256,11 @@ struct FilePreviewView: View {
             Image(systemName: "exclamationmark.triangle")
                 .font(.system(size: 36))
                 .foregroundStyle(.orange)
-            Text(String(format: "%.1f MB のファイルです。読み込みますか？", mb))
+            Text(String(format: "This file is %.1f MB. Load it?", mb))
                 .foregroundStyle(.secondary)
             HStack(spacing: 10) {
-                Button("読み込む") { forceLoadLarge = true }
-                Button("Cursor で開く") { openInCursor(url) }
+                Button("Load") { forceLoadLarge = true }
+                Button("Open in Editor") { openInCursor(url) }
             }
             Spacer()
         }
@@ -268,7 +281,7 @@ struct FilePreviewView: View {
         let pb = NSPasteboard.general
         pb.clearContents()
         pb.setString(rel, forType: .string)
-        ErrorBus.shared.notify("相対パスをコピーしました: \(rel)", kind: .info)
+        ErrorBus.shared.notify("Copied relative path: \(rel)", kind: .info)
     }
 
     private func openInCursor(_ url: URL) {
@@ -292,7 +305,7 @@ struct FilePreviewView: View {
                 .font(.system(size: 11))
                 .foregroundStyle(.secondary)
 
-            TextField("検索", text: $preview.findQuery)
+            TextField("Find", text: $preview.findQuery)
                 .textFieldStyle(.plain)
                 .font(.system(size: 12))
                 .frame(width: 150)
@@ -311,20 +324,20 @@ struct FilePreviewView: View {
             }
             .buttonStyle(.plain)
             .disabled(preview.findMatchCount == 0)
-            .help("前のマッチ (Shift+Enter / Cmd+Shift+G)")
+            .help("Previous match (Shift+Enter / Cmd+Shift+G)")
 
             Button { preview.findNext(forward: true) } label: {
                 Image(systemName: "chevron.down").font(.system(size: 10, weight: .semibold))
             }
             .buttonStyle(.plain)
             .disabled(preview.findMatchCount == 0)
-            .help("次のマッチ (Enter / Cmd+G)")
+            .help("Next match (Enter / Cmd+G)")
 
             Button { preview.hideFindBar() } label: {
                 Image(systemName: "xmark").font(.system(size: 10, weight: .semibold))
             }
             .buttonStyle(.plain)
-            .help("閉じる (Esc)")
+            .help("Close (Esc)")
         }
         .padding(.horizontal, 9)
         .padding(.vertical, 5)
@@ -419,7 +432,7 @@ private struct ImagePreview: View {
                     .padding(8)
             }
         } else {
-            Text("画像を読み込めませんでした").foregroundStyle(.secondary)
+            Text("Could not load image").foregroundStyle(.secondary)
         }
     }
 }

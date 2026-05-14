@@ -21,7 +21,7 @@ struct FullSearchView: View {
             HStack {
                 Image(systemName: "text.magnifyingglass")
                     .foregroundStyle(.secondary)
-                TextField("プロジェクト全体を grep（Enter で実行）", text: $query)
+                TextField("Grep across project (Enter to run)", text: $query)
                     .textFieldStyle(.plain)
                     .focused($fieldFocused)
                     .font(.system(size: 14))
@@ -65,12 +65,12 @@ struct FullSearchView: View {
                     }
                 }
                 Divider()
-                Text("\(hits.count) 件" + (hits.count >= FullTextSearcher.resultLimit ? "（上限到達）" : ""))
+                Text("\(hits.count) results" + (hits.count >= FullTextSearcher.resultLimit ? " (limit reached)" : ""))
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .padding(.vertical, 4)
             } else if !query.isEmpty && !isSearching && hasSearched {
-                Text("該当なし").foregroundStyle(.secondary).padding()
+                Text("No matches").foregroundStyle(.secondary).padding()
             }
         }
         .frame(width: 560)

@@ -209,13 +209,13 @@ final class PreviewWebController: NSObject, ObservableObject {
                 let pb = NSPasteboard.general
                 pb.clearContents()
                 pb.setString(url.path, forType: .string)
-                ErrorBus.shared.notify("プロジェクト外のリンクはコピーしました: \(url.path)", kind: .info)
+                ErrorBus.shared.notify("Copied external link: \(url.path)", kind: .info)
             }
         } else {
             let pb = NSPasteboard.general
             pb.clearContents()
             pb.setString(url.absoluteString, forType: .string)
-            ErrorBus.shared.notify("URLをコピーしました: \(url.absoluteString)", kind: .info)
+            ErrorBus.shared.notify("Copied URL: \(url.absoluteString)", kind: .info)
         }
         return .cancel
     }

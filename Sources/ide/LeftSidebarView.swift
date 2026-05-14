@@ -52,7 +52,7 @@ struct LeftSidebarView: View {
                     .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
-            .help("フォルダを追加")
+            .help("Add Folder")
             .accessibilityIdentifier("AddProjectButton")
             .frame(height: 28)
         }
@@ -65,7 +65,7 @@ struct LeftSidebarView: View {
         if projects.allOrdered.isEmpty {
             VStack {
                 Spacer()
-                Text("プロジェクトを追加")
+                Text("Add a project")
                     .font(.caption)
                     .foregroundStyle(.tertiary)
                 Spacer()
@@ -152,25 +152,25 @@ struct LeftSidebarView: View {
                 Self.unreadAccent.frame(width: 3)
             }
         }
-        .help(missing ? "パスが見つかりません: \(project.path.path)" : project.path.path)
+        .help(missing ? "Path not found: \(project.path.path)" : project.path.path)
         .contentShape(Rectangle())
         .onTapGesture {
             // missing なプロジェクトは setActive 側で弾かれ、toast が出る（要件 2: クリックしても開けない）。
             projects.setActive(project)
         }
         .contextMenu {
-            Button(project.isPinned ? "ピン解除" : "ピン留め") {
+            Button(project.isPinned ? "Unpin" : "Pin") {
                 projects.togglePin(project)
             }
-            Button("編集…") {
+            Button("Edit…") {
                 editingProject = project
             }
             if missing {
-                Button("再選択…") {
+                Button("Relocate…") {
                     relocateProject(project)
                 }
             }
-            Button("閉じる") {
+            Button("Close") {
                 projects.close(project)
             }
         }
@@ -262,8 +262,8 @@ struct LeftSidebarView: View {
         panel.canChooseFiles = false
         panel.canChooseDirectories = true
         panel.allowsMultipleSelection = false
-        panel.message = "プロジェクトのフォルダを選択"
-        panel.prompt = "追加"
+        panel.message = "Select a project folder"
+        panel.prompt = "Add"
         if panel.runModal() == .OK, let url = panel.url {
             projects.addTemporary(path: url)
         }
@@ -274,8 +274,8 @@ struct LeftSidebarView: View {
         panel.canChooseFiles = false
         panel.canChooseDirectories = true
         panel.allowsMultipleSelection = false
-        panel.message = "「\(project.displayName)」のフォルダを再選択"
-        panel.prompt = "選択"
+        panel.message = "Relocate folder for \"\(project.displayName)\""
+        panel.prompt = "Select"
         if panel.runModal() == .OK, let url = panel.url {
             projects.relocate(project, to: url)
         }

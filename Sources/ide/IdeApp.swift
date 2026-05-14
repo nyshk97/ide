@@ -41,7 +41,7 @@ struct IdeApp: App {
             CommandGroup(after: .appInfo) {
                 CheckForUpdatesView(updater: updaterController.updater)
                 Divider()
-                Button("ログファイルを開く") {
+                Button("Open Log Folder") {
                     let url = Logger.shared.directory
                     NSWorkspace.shared.activateFileViewerSelecting([url])
                 }

@@ -18,7 +18,7 @@ struct CenterPaneView: View {
                 } else if let active = projects.activeProject {
                     placeholder(for: active)
                 } else {
-                    Text("左からプロジェクトを選択")
+                    Text("Select a project from the left")
                         .foregroundStyle(.tertiary)
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                 }
@@ -50,10 +50,10 @@ struct CenterPaneView: View {
             Image(systemName: "folder.badge.plus")
                 .font(.system(size: 40))
                 .foregroundStyle(.tertiary)
-            Text("フォルダを追加して始めよう")
+            Text("Add a folder to get started")
                 .font(.title3)
                 .foregroundStyle(.secondary)
-            Text("左サイドバー上部の「+」からフォルダを選択してください。")
+            Text("Use the \"+\" button at the top of the left sidebar to choose a folder.")
                 .font(.callout)
                 .foregroundStyle(.tertiary)
         }
@@ -134,7 +134,7 @@ private struct DiffBadgeButton: View {
         }
         .buttonStyle(.plain)
         .onHover { hovered = $0 }
-        .help(count > 0 ? "Diff を開く (\(count) 件・Cmd+D)" : "差分なし (Cmd+D で確認)")
+        .help(count > 0 ? "Open Diff (\(count) files · Cmd+D)" : "No changes (Cmd+D to check)")
     }
 }
 

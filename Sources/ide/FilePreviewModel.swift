@@ -169,7 +169,7 @@ enum FilePreviewClassifier {
     static func classify(_ url: URL, allowLarge: Bool = false) -> FilePreviewKind {
         let fm = FileManager.default
         guard fm.fileExists(atPath: url.path) else {
-            return .error("ファイルが見つかりません")
+            return .error("File not found")
         }
 
         // サイズチェックを拡張子判定より前に行う（巨大な画像/PDF が素通りしてメモリを食わないように）。
@@ -193,7 +193,7 @@ enum FilePreviewClassifier {
 
         // 中身を読んでバイナリ判定（NUL 含むかどうか）
         guard let data = try? Data(contentsOf: url) else {
-            return .error("読み込みに失敗しました")
+            return .error("Failed to load")
         }
         let limit = min(data.count, 8192)
         let head = data.prefix(limit)

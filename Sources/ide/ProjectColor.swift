@@ -26,16 +26,16 @@ enum ProjectColor: String, CaseIterable, Identifiable {
 
     var label: String {
         switch self {
-        case .red: return "レッド"
-        case .orange: return "オレンジ"
-        case .yellow: return "イエロー"
-        case .green: return "グリーン"
-        case .mint: return "ミント"
-        case .teal: return "ティール"
-        case .blue: return "ブルー"
-        case .indigo: return "インディゴ"
-        case .purple: return "パープル"
-        case .pink: return "ピンク"
+        case .red: return "Red"
+        case .orange: return "Orange"
+        case .yellow: return "Yellow"
+        case .green: return "Green"
+        case .mint: return "Mint"
+        case .teal: return "Teal"
+        case .blue: return "Blue"
+        case .indigo: return "Indigo"
+        case .purple: return "Purple"
+        case .pink: return "Pink"
         }
     }
 

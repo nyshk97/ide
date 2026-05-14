@@ -11,13 +11,13 @@ struct ExitedOverlayView: View {
             Image(systemName: "xmark.octagon.fill")
                 .font(.system(size: 28))
                 .foregroundStyle(.red.opacity(0.85))
-            Text("シェルが終了しました")
+            Text("Shell exited")
                 .font(.system(size: 14, weight: .semibold))
             Text("exit code: \(exitCode)")
                 .font(.system(size: 12, design: .monospaced))
                 .foregroundStyle(.secondary)
             Button(action: onRestart) {
-                Label("再起動", systemImage: "arrow.clockwise")
+                Label("Restart", systemImage: "arrow.clockwise")
                     .padding(.horizontal, 8)
             }
             .keyboardShortcut(.defaultAction)

@@ -482,7 +482,7 @@ final class ProjectsModel: ObservableObject {
         // パスが消えている / マウント未接続なら開かない（要件 2: クリックしても開けない）。
         // ここで弾くことで、存在しない cwd で shell を起動しに行く workspace(for:) を呼ばない。
         if project.isMissing {
-            ErrorBus.shared.notify("プロジェクトのパスが見つかりません: \(project.path.path)")
+            ErrorBus.shared.notify("Project path not found: \(project.path.path)")
             return
         }
         let didSwitch = activeProject?.id != project.id

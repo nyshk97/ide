@@ -87,7 +87,7 @@ struct FileTreeView: View {
             }
             .buttonStyle(.plain)
             .disabled(!preview.canRestorePreview)
-            .help("Cmd+J で最後に見たファイルを表示")
+            .help("Show last viewed file (Cmd+J)")
 
             Text(model.project.displayName)
                 .lineLimit(1)
@@ -101,7 +101,7 @@ struct FileTreeView: View {
                     .foregroundStyle(model.hideIgnored ? .orange : .secondary)
             }
             .buttonStyle(.plain)
-            .help(model.hideIgnored ? ".gitignore 対象を表示" : ".gitignore 対象を非表示")
+            .help(model.hideIgnored ? "Show .gitignored items" : "Hide .gitignored items")
             Button {
                 model.reload()
             } label: {
@@ -109,7 +109,7 @@ struct FileTreeView: View {
                     .foregroundStyle(.secondary)
             }
             .buttonStyle(.plain)
-            .help("再スキャン（ツリーにフォーカス時 Cmd+R）")
+            .help("Rescan (Cmd+R when tree focused)")
         }
         .padding(.horizontal, 10)
         .frame(height: 30)
@@ -197,8 +197,8 @@ struct FileTreeView: View {
             }
         }
         .contextMenu {
-            Button("相対パスをコピー") { copyRelativePath(node) }
-            Button("Finder で開く") { openInFinder(node) }
+            Button("Copy Relative Path") { copyRelativePath(node) }
+            Button("Reveal in Finder") { openInFinder(node) }
         }
     }
 

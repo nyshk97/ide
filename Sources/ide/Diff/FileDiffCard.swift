@@ -91,7 +91,7 @@ struct FileDiffCard: View {
                                 .contentShape(Rectangle())
                         }
                         .buttonStyle(.plain)
-                        .help(showFullFile ? "差分のみ表示" : "ファイル全体を表示")
+                        .help(showFullFile ? "Show diff only" : "Show full file")
                         .onHover { hovering in
                             if hovering {
                                 NSCursor.pointingHand.push()

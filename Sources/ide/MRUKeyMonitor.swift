@@ -223,7 +223,7 @@ enum MRUKeyMonitor {
         let pb = NSPasteboard.general
         pb.clearContents()
         pb.setString(path, forType: .string)
-        ErrorBus.shared.notify("パスをコピーしました: \(path)", kind: .info)
+        ErrorBus.shared.notify("Copied path: \(path)", kind: .info)
     }
 
     /// Ctrl 離しで確定。.flagsChanged は modifier の変化通知。

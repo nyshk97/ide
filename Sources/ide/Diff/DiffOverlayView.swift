@@ -40,7 +40,7 @@ struct DiffOverlayView: View {
                 .font(.system(size: 12, design: .monospaced))
                 .foregroundColor(GitHubDark.textSecondary)
             if !viewModel.files.isEmpty {
-                Text("\(viewModel.files.count) 件")
+                Text("\(viewModel.files.count) files")
                     .font(.system(size: 11, design: .monospaced))
                     .foregroundColor(GitHubDark.textSecondary)
             }
@@ -56,7 +56,7 @@ struct DiffOverlayView: View {
             }
             .buttonStyle(.plain)
             .disabled(viewModel.isLoading)
-            .help("再読み込み (Cmd+R)")
+            .help("Reload (Cmd+R)")
 
             Button(action: onClose) {
                 Image(systemName: "xmark")
@@ -65,7 +65,7 @@ struct DiffOverlayView: View {
                     .frame(width: 28, height: 28)
             }
             .buttonStyle(.plain)
-            .help("閉じる (Esc / Cmd+D)")
+            .help("Close (Esc / Cmd+D)")
         }
         .padding(.horizontal, 16)
         .frame(height: 44)
@@ -99,7 +99,7 @@ struct DiffOverlayView: View {
                 Image(systemName: "checkmark.circle")
                     .font(.system(size: 48))
                     .foregroundColor(GitHubDark.textSecondary)
-                Text("変更なし")
+                Text("No changes")
                     .font(.system(size: 16, design: .monospaced))
                     .foregroundColor(GitHubDark.textSecondary)
                 Spacer()

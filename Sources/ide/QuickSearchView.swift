@@ -19,7 +19,7 @@ struct QuickSearchView: View {
             HStack {
                 Image(systemName: "magnifyingglass")
                     .foregroundStyle(.secondary)
-                TextField("ファイル名 or パスで検索", text: $query)
+                TextField("Search by file name or path", text: $query)
                     .textFieldStyle(.plain)
                     .focused($fieldFocused)
                     .font(.system(size: 14))
@@ -40,8 +40,8 @@ struct QuickSearchView: View {
                 .buttonStyle(.plain)
                 .focusable(false)
                 .help(index.includeIgnored
-                      ? "ignored を検索結果から除く"
-                      : "ignored も検索結果に含める")
+                      ? "Exclude ignored files from results"
+                      : "Include ignored files in results")
             }
             .padding(.horizontal, 12)
             .frame(height: 36)
@@ -70,7 +70,7 @@ struct QuickSearchView: View {
                     }
                 }
             } else if !query.isEmpty {
-                Text("該当なし").foregroundStyle(.secondary).padding()
+                Text("No matches").foregroundStyle(.secondary).padding()
             }
         }
         .frame(width: 480)
