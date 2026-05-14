@@ -12,11 +12,11 @@ if [ ! -f "$ZIP_PATH" ]; then
   "$SCRIPT_DIR/build.sh"
 fi
 
-echo "==> Installing to /Applications..."
-cd /tmp
-rm -rf IDE.app
-unzip -q -o "$ZIP_PATH"
+echo "==> Installing to /Applications (ditto preserves framework symlinks; plain unzip flattens them and breaks codesign)..."
+STAGE=$(mktemp -d)
+ditto -x -k "$ZIP_PATH" "$STAGE"
 rm -rf /Applications/IDE.app
-mv IDE.app /Applications/
+mv "$STAGE/IDE.app" /Applications/
+rm -rf "$STAGE"
 
 echo "==> Done: /Applications/IDE.app"

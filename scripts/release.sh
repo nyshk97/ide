@@ -58,7 +58,8 @@ if [ -z "$ED_SIG" ] || [ -z "$LENGTH" ]; then
 fi
 
 echo "==> Generating appcast.xml..."
-PUB_DATE=$(date -u "+%a, %d %b %Y %H:%M:%S +0000")
+# pubDate は RFC 822。LC_ALL=C で曜日 / 月名を英語に固定する（caller の LANG が ja_JP 等だと「木」「5月」になり Sparkle がパースできない）
+PUB_DATE=$(LC_ALL=C date -u "+%a, %d %b %Y %H:%M:%S +0000")
 DOWNLOAD_URL="https://github.com/${RELEASES_REPO}/releases/download/${TAG}/ide.zip"
 MIN_OS=$(awk -F'"' '/macOS:/ {print $2; exit}' "$PROJECT_ROOT/project.yml")
 MIN_OS="${MIN_OS:-14.0}"

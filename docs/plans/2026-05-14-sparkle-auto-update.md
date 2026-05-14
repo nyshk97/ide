@@ -143,7 +143,9 @@ Sparkle 採用の利点:
 - 2026-05-14: appcast.xml は累積運用 (過去エントリも残す) = Sparkle 標準。release.sh は `latest/download/appcast.xml` を curl で取得 → 新 `<item>` を `</channel>` 直前に挿入 → アップロードし直す
 - 2026-05-14: 配信は 2 repo に zip を上げる構成にした。`nyshk97/ide` は既存の homebrew cask URL 互換のため (cask が `nyshk97/ide/releases/download/...` を参照しているので壊さない)、`nyshk97/ide-releases` は Sparkle 用に zip + appcast.xml。将来 cask の URL を ide-releases に向け直したら本体 repo の release asset は不要になる
 - 2026-05-14: 初回リリース `1.0.10` 実施。本体 repo は問題なし。**`ide-releases` repo は空リポだと `gh release create` が `HTTP 422: Repository is empty.` で落ちる** ため、最小コミット (README.md) を手動 push してからリトライした。次回以降は既存コミットがあるので発生しない。release.sh は `2>&1 | tee` 越しに呼ぶと `tee` の exit code (0) が見え、本来の release.sh の失敗が見えなくなる罠あり (呼び出し側で `set -o pipefail` を有効にするか PIPESTATUS を見ること)
-- 2026-05-14: notarize は Apple Notary Service で約 1-2 分。`Submission ID c173947d-7917-4a40-ab66-687271b45309` で Accepted。EdDSA 署名は `B7onX+IiCFBGQhAzaXjQkGuE0j0c/l6eg4yusXLHWC2zsqDHurP1R+4fv3PwGm75qu7BOWWxLWGFcmQur+fRCg==` (18,184,510 bytes)
+- 2026-05-14: notarize は Apple Notary Service で約 1-2 分。`Submission ID c173947d-7917-4a40-ab66-687271b45309` で Accepted
+- 2026-05-14: **大ハマり** — `build.sh` の `zip -r -q ide.zip IDE.app` が **Sparkle.framework の symlink を実体ファイルに展開** してしまい、Gatekeeper で「壊れているため開けません」エラー。Sparkle が無かった 1.0.9 以前は plain zip で問題なかったが、framework が増えた 1.0.10 で顕在化。`build.sh` と `install.sh` を `ditto -c -k --sequesterRsrc --keepParent` / `ditto -x -k` に置き換え。原本 `/tmp/ide-export/IDE.app` (staple 済) から再 zip して GitHub の両 release の asset を入れ替え、`/Applications/IDE.app` も再インストール。EdDSA 署名は `z5DD4EomAO9srdHY1AD/anP8Mmh9uEIog1QswKzTrNXVDx01UgmxI5OlXV6Rb2fMejR3g4QKyP1mwY2uxxbZBw==` (16,421,007 bytes、ditto 圧縮で約 10% 小さくなった)
+- 2026-05-14: もう 1 つの罠 — `release.sh` の `pubDate` を `date -u` で生成していたが、caller の `LANG=ja_JP.UTF-8` だと曜日 / 月名が「木, 14 5月 2026」になり Sparkle が RFC 822 として parse できない。`LC_ALL=C date` で英語固定に修正
 
 ### 方針変更
 

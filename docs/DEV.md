@@ -53,6 +53,18 @@
 
 ### EdDSA 鍵
 
+### `build.sh` の zip 化と `install.sh` の展開は `ditto` を使う（`zip` / `unzip` ではない）
+
+`Sparkle.framework` は **シンボリックリンクで構成された framework バンドル**（`Resources -> Versions/Current/Resources` など）。`zip -r` のデフォルトは symlink を辿って実体ファイルに展開してしまい、framework 構造を壊す（codesign が "bundle format is ambiguous (could be app or framework)" を返し、Gatekeeper は「壊れているため開けません。ゴミ箱に入れる必要があります」を出す）。
+
+そのため:
+- ビルド側: `ditto -c -k --sequesterRsrc --keepParent IDE.app ide.zip`
+- インストール側: `ditto -x -k ide.zip <dest>`
+
+を使う。**Sparkle が embed されていなかった旧バージョン (1.0.9 以前) は plain zip でも動いていたが、Sparkle.framework が入った 1.0.10 から罠が顕在化**。同じ理由で `release.sh` 内の pubDate は `LC_ALL=C date` で英語に固定する（`LANG=ja_JP` だと「木, 14 5月 2026」になり Sparkle が parse 失敗する）。
+
+### EdDSA 鍵
+
 - 公開鍵は `Resources/Info.plist` の `SUPublicEDKey` に Base64 で埋まっている: `VnvTM72yjjc1FY/nzLI5uT/3mSxkOdG7k4dJqAPgZo8=`
 - ペアの秘密鍵は **macOS Keychain** に保存されている（`sign_update` が暗黙的に参照する）
 - 安全のため `~/Library/CloudStorage/Dropbox/secrets/sparkle-ed25519-private.key`（`chmod 600`）にバックアップ

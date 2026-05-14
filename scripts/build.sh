@@ -62,11 +62,10 @@ echo "==> Stapling..."
 xcrun stapler staple "$APP"
 xcrun stapler validate "$APP"
 
-echo "==> Packaging..."
+echo "==> Packaging (ditto preserves framework symlinks; plain zip flattens them and breaks codesign)..."
 mkdir -p "$OUTPUT_DIR"
 rm -f "$OUTPUT_DIR/ide.zip"
-cd "$EXPORT_PATH"
-zip -r -q "$OUTPUT_DIR/ide.zip" IDE.app
+ditto -c -k --sequesterRsrc --keepParent "$APP" "$OUTPUT_DIR/ide.zip"
 
 echo "==> Done: $OUTPUT_DIR/ide.zip"
 shasum -a 256 "$OUTPUT_DIR/ide.zip"
