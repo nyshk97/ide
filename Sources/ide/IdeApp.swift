@@ -34,14 +34,14 @@ struct IdeApp: App {
         }
         .commands {
             // ---- IDE (app) メニュー ----
-            // About と Quit の間に Check for Updates… と 最近のログを開く。
-            // 「最近のログを開く」は元 Help メニューにあったが、Help の検索ボックスを
+            // About と Quit の間に Check for Updates… と ログファイルを開く。
+            // 「ログファイルを開く」は元 Help メニューにあったが、Help の検索ボックスを
             // 確実に消す手段が無かったため Help メニュー自体を AppDelegate で削除し、
             // この項目だけ IDE Dev メニューへ移した。
             CommandGroup(after: .appInfo) {
                 CheckForUpdatesView(updater: updaterController.updater)
                 Divider()
-                Button("最近のログを開く") {
+                Button("ログファイルを開く") {
                     let url = Logger.shared.directory
                     NSWorkspace.shared.activateFileViewerSelecting([url])
                 }

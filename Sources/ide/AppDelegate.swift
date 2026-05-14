@@ -52,7 +52,7 @@ final class IdeAppDelegate: NSObject, NSApplicationDelegate {
 
         // File / Window / Help メニューは中身を全部消すか、検索ボックスを
         // SwiftUI/AppKit 両方から消す確実な手段が無いため、まるごと削除する。
-        // 「最近のログを開く」は IDE Dev メニューに移している。
+        // 「ログファイルを開く」は IDE Dev メニューに移している。
         for title in ["File", "Window", "Help"] {
             if let item = main.items.first(where: { $0.submenu?.title == title }) {
                 main.removeItem(item)
