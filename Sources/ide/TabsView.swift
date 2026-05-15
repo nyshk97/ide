@@ -4,6 +4,11 @@ struct TabsView: View {
     @ObservedObject var pane: PaneState
     @ObservedObject var workspace: WorkspaceModel
 
+    @State private var hoveredTabID: TerminalTab.ID?
+    @State private var renamingTabID: TerminalTab.ID?
+    @State private var renameDraft: String = ""
+    @FocusState private var renameFieldFocused: Bool
+
     /// ForEach のループ内で各 tab を `@ObservedObject` 化するため、ヘルパで個別に観測する
     private struct TabObserver<Content: View>: View {
         @ObservedObject var tab: TerminalTab
@@ -61,41 +66,54 @@ struct TabsView: View {
     }
 
     private func tabButton(index: Int, tab: TerminalTab) -> some View {
-        let active = index == pane.activeIndex
-        let focused = active && paneIsActive
-        return TabObserver(tab: tab) { tab in
-            Button(action: {
-                self.pane.selectTab(at: index)
-                self.workspace.setActive(self.pane)
-            }) {
-                HStack(spacing: 5) {
-                    if let icon = programIcon(tab.foregroundProgram) {
-                        icon
-                            .font(.system(size: 11, weight: .semibold))
-                            .frame(width: 14, height: 14)
-                    }
-                    Text(tab.title)
-                        .lineLimit(1)
-                        .font(.system(size: 12))
-                    if tab.hasUnreadNotification {
-                        Circle()
-                            .fill(Color.blue)
-                            .frame(width: 6, height: 6)
-                    }
+        TabObserver(tab: tab) { tab in
+            TabButton(
+                tab: tab,
+                index: index,
+                isActive: index == pane.activeIndex,
+                isFocused: index == pane.activeIndex && paneIsActive,
+                isHovered: hoveredTabID == tab.id,
+                isRenaming: renamingTabID == tab.id,
+                renameDraft: $renameDraft,
+                renameFieldFocused: $renameFieldFocused,
+                onSelect: {
+                    self.pane.selectTab(at: index)
+                    self.workspace.setActive(self.pane)
+                },
+                onClose: { self.pane.closeTab(at: index) },
+                onBeginRename: { beginRename(tab: tab) },
+                onCommitRename: { commitRename(tab: tab) },
+                onCancelRename: { cancelRename() },
+                programIcon: programIcon(tab.foregroundProgram)
+            )
+            .onHover { hovering in
+                if hovering {
+                    hoveredTabID = tab.id
+                } else if hoveredTabID == tab.id {
+                    hoveredTabID = nil
                 }
-                .padding(.horizontal, 10)
-                .frame(height: 22)
-                .background(active ? Color.accentColor.opacity(focused ? 0.30 : 0.12) : Color.clear)
-                .overlay(alignment: .leading) {
-                    if focused {
-                        Color.accentColor
-                            .frame(width: 3)
-                    }
-                }
-                .clipShape(RoundedRectangle(cornerRadius: 4))
             }
-            .buttonStyle(.plain)
         }
+    }
+
+    private func beginRename(tab: TerminalTab) {
+        renameDraft = tab.title
+        renamingTabID = tab.id
+        DispatchQueue.main.async { renameFieldFocused = true }
+    }
+
+    private func commitRename(tab: TerminalTab) {
+        let trimmed = renameDraft.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !trimmed.isEmpty {
+            tab.title = trimmed
+        }
+        renamingTabID = nil
+        renameFieldFocused = false
+    }
+
+    private func cancelRename() {
+        renamingTabID = nil
+        renameFieldFocused = false
     }
 
     private var paneIsActive: Bool { workspace.isActive(pane) }
@@ -110,5 +128,95 @@ struct TabsView: View {
             // shell とその他は無印
             return nil
         }
+    }
+}
+
+/// タブ 1 件分の見た目。型推論を軽くするため TabsView の外に切り出している。
+private struct TabButton: View {
+    @ObservedObject var tab: TerminalTab
+    let index: Int
+    let isActive: Bool
+    let isFocused: Bool
+    let isHovered: Bool
+    let isRenaming: Bool
+    @Binding var renameDraft: String
+    var renameFieldFocused: FocusState<Bool>.Binding
+    let onSelect: () -> Void
+    let onClose: () -> Void
+    let onBeginRename: () -> Void
+    let onCommitRename: () -> Void
+    let onCancelRename: () -> Void
+    let programIcon: Text?
+
+    var body: some View {
+        HStack(spacing: 5) {
+            if let icon = programIcon {
+                icon
+                    .font(.system(size: 11, weight: .semibold))
+                    .frame(width: 14, height: 14)
+            }
+            titleView
+            if tab.hasUnreadNotification {
+                Circle()
+                    .fill(Color.blue)
+                    .frame(width: 6, height: 6)
+            }
+            closeButton
+        }
+        .padding(.leading, 10)
+        .padding(.trailing, 4)
+        .frame(height: 22)
+        .background(background)
+        .overlay(alignment: .leading) {
+            if isFocused {
+                Color.accentColor.frame(width: 3)
+            }
+        }
+        .clipShape(RoundedRectangle(cornerRadius: 4))
+        .contentShape(Rectangle())
+        .onTapGesture(count: 2) { onBeginRename() }
+        .onTapGesture { if !isRenaming { onSelect() } }
+        .contextMenu {
+            Button("Rename…") { onBeginRename() }
+            Button("Close Tab") { onClose() }
+        }
+    }
+
+    @ViewBuilder
+    private var titleView: some View {
+        if isRenaming {
+            TextField("", text: $renameDraft, onCommit: onCommitRename)
+                .textFieldStyle(.plain)
+                .font(.system(size: 12))
+                .focused(renameFieldFocused)
+                .frame(minWidth: 40, maxWidth: 160)
+                .fixedSize(horizontal: true, vertical: false)
+                .onExitCommand { onCancelRename() }
+        } else {
+            Text(tab.title)
+                .lineLimit(1)
+                .font(.system(size: 12))
+        }
+    }
+
+    private var background: Color {
+        if isActive {
+            return Color.accentColor.opacity(isFocused ? 0.30 : 0.12)
+        }
+        return .clear
+    }
+
+    /// ホバー時に表示する × ボタン。非表示時も frame を確保してタブ幅のジャンプを避ける。
+    private var closeButton: some View {
+        Button(action: onClose) {
+            Image(systemName: "xmark")
+                .font(.system(size: 9, weight: .bold))
+                .frame(width: 16, height: 16)
+                .contentShape(Rectangle())
+                .opacity(isHovered && !isRenaming ? 1 : 0)
+        }
+        .buttonStyle(.plain)
+        .allowsHitTesting(isHovered && !isRenaming)
+        .help("Close tab (⌘W)")
     }
 }
