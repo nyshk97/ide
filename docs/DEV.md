@@ -207,6 +207,16 @@ open -n "/tmp/ide-build/Build/Products/Debug/IDE Dev.app" \
 - **確認**: ビルド後 `find "<app>/Contents/Resources/terminfo" -type f` で2ファイル出る / アプリ内シェルで `infocmp xterm-ghostty` が成功し `clear` がエラーを出さず実際に画面がクリアされる。**※シェルは起動時に terminfo を読んでキャッシュするので、必ず新しいタブ（Cmd+T）で確認する** — terminfo 修正前に開いていたタブは壊れたまま見えるので「直ってない」と誤判定しやすい
 - xcframework を更新したら（`.ghostty_sha` が変わったら）`./scripts/fetch-ghostty-terminfo.sh` を再実行（差分は git で確認）
 
+### libghostty の設定マージ（bundled config + user config）
+
+`GhosttyManager.start()` は bundled `Resources/ghostty/config` を `ghostty_config_load_file` で先にロードしてから `ghostty_config_load_default_files` でユーザー設定を読む。後勝ちなので **多くのキーはユーザー設定が override する** が、list 型のキーには罠がある。
+
+- **`font-family` は `RepeatableString`（append される）**: 複数回書くと list に追加される。bundled で書いた値が user の値より **前** に残るため、bundled が優先順位で勝ってしまう（Ghostty は list 先頭から glyph を探すので、bundled の "JetBrains Mono" が user の "SF Mono" を押しのける）。user 設定を真に優先したいなら、bundled の load 後・user の load 前に `ghostty_config_load_string(cfg, "font-family = \"\"", ...)` で list を reset する必要がある。`GhosttyManager.userConfigSpecifiesFontFamily()` がそのための判定。`font-family-bold` / `font-family-italic` / `font-family-bold-italic` も同様の `RepeatableString`
+- **`theme` は単一値（`?Theme = null`）なので普通に last-wins**: 単一値フィールドは load 順だけで決まる。bundled に書いた theme は user の theme で素直に上書きされる
+- **設定キーの型を調べる**: Ghostty 本家 `src/config/Config.zig` のフィールド定義を見れば `RepeatableString` か `?T = null` か `T = default` か分かる。`curl -sL https://raw.githubusercontent.com/ghostty-org/ghostty/main/src/config/Config.zig` で取れる
+- **config の load API は 5 つ**: `ghostty_config_load_file(cfg, path)` / `_string(cfg, str, len, source)` / `_default_files(cfg)` / `_recursive_files(cfg)` / `_cli_args(cfg)`。load 順序は呼び出し順そのまま。ヘッダは `GhosttyKit.xcframework/macos-arm64_x86_64/Headers/ghostty.h:1083-1087`
+- **確認**: `grep "ghostty" /tmp/ide-poc.log` で `loaded bundled config: ...` の行が出る。user 設定で font-family を override しているケースは `user config has font-family; reset bundled font-family list` も追加で出る。`config diagnostics: 0` なら parse error なし
+
 ---
 
 ## キー入力の優先順位
