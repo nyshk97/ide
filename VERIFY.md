@@ -372,7 +372,6 @@ sleep 0.5
 
 期待:
 - スクショに 3 カラム（左 `Projects` / 中央 `Tree / Preview` / 右 ターミナル）が表示される
-- 起動時の幅は サイドバー 約240px、中央 約480px、残りがターミナル
 - 右ペインは上下 2 タブ（VSplitView）が引き続き動作
 - `echo phase2-step1-ok` の出力が右ペインのアクティブターミナルに表示される
 
@@ -380,6 +379,43 @@ sleep 0.5
 - 左サイドバーと中央ペインの境界をドラッグで動かせる
 - 中央ペインと右ペインの境界をドラッグで動かせる
 - ウィンドウ最小幅は 1000px（それ以下に縮められない）
+
+#### 9-a. 初期比率 (center : right = 2 : 3) と autosave 永続化
+
+過去に何度も壊した箇所。回帰しやすいので必ず確認する。詳細は [docs/DEV.md の SwiftUI まわりのクセ](docs/DEV.md#swiftui-まわりのクセ) を参照。
+
+```bash
+# autosave をクリアして初回起動を再現する
+pkill -x "IDE Dev" 2>/dev/null; sleep 0.5
+defaults delete local.d0ne1s.ide.dev "NSSplitView Subview Frames ide.rootSplit" 2>/dev/null || true
+./scripts/ide-launch.sh && sleep 2
+echo "--- 初期 divider 位置 ---"
+defaults read local.d0ne1s.ide.dev "NSSplitView Subview Frames ide.rootSplit"
+```
+
+期待 (1000pt ウィンドウ):
+```
+(
+    "0.000000, 0.000000, 140.000000, ..., NO, NO",   ← left = 140
+    "141.000000, 0.000000, 343.000000, ..., NO, NO", ← center = 343
+    "485.000000, 0.000000, 515.000000, ..., NO, NO"  ← right = 515
+)
+```
+
+判定:
+- left = 140 (`leftInitial` と一致)
+- `center : right = 343 : 515 ≈ 40 : 60` (= 2 : 3)
+- ウィンドウ幅が変わっても比率が同じ (= 残り幅 × 0.4 / × 0.6)
+
+ありがちな fail パターン:
+- left = 120 (= 最小幅にクランプ): `userHasDragged` 検知が起動直後に勝手に true になっている → `DragDetectingSplitView.mouseDown` の divider 矩形判定を疑う
+- center が極端に狭い / 広い: `viewDidLayout` で初期比率を 1 回だけセットして固定している → 中間サイズで先に発火している。`didSetInitial` で 1 回ロックする実装に戻したら NG
+- 結果が出ない / 値が変: `defaults` 読み出し前に IDE Dev が完全終了していない (autosave は quit 時に書き出される) → `pkill` のあとに数秒待ってから読み直す
+
+ドラッグ位置の永続化確認 (手動):
+1. divider をドラッグして任意の位置に動かす
+2. `pkill -x "IDE Dev" && sleep 1 && ./scripts/ide-launch.sh`
+3. ドラッグした位置が復元されること
 
 ### 10. プロジェクト追加（インメモリ・自動）
 
