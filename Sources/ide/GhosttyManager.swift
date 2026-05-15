@@ -160,6 +160,48 @@ final class GhosttyManager: @unchecked Sendable {
         Logger.shared.debug("[ghostty] no resources dir with themes/ found; themes will not resolve")
     }
 
+    /// bundle 同梱の `Resources/ghostty/config` を libghostty に読み込ませる。
+    /// `~/.config/ghostty/config` を持たないユーザーに対する見た目のベースライン。
+    private func loadBundledConfig(_ cfg: ghostty_config_t) {
+        guard let url = Bundle.main.resourceURL?
+            .appendingPathComponent("ghostty", isDirectory: true)
+            .appendingPathComponent("config")
+        else { return }
+        guard FileManager.default.fileExists(atPath: url.path) else {
+            Logger.shared.debug("[ghostty] no bundled config at \(url.path)")
+            return
+        }
+        url.path.withCString { ghostty_config_load_file(cfg, $0) }
+        Logger.shared.debug("[ghostty] loaded bundled config: \(url.path)")
+
+        // `font-family` は Ghostty 内部で RepeatableString（append される list）なので、
+        // bundled で書いた JetBrains Mono がユーザーの SF Mono より先頭に残り、
+        // ユーザー設定を上書きしてしまう。ユーザー config に font-family がある場合だけ
+        // 空文字で list を reset し、その後の user config load で user の値だけが残るようにする。
+        // ユーザー config に font-family が無い場合は bundled の値を維持（ボーナス効果）。
+        if userConfigSpecifiesFontFamily() {
+            let resetSnippet = "font-family = \"\"\n"
+            resetSnippet.withCString { cstr in
+                ghostty_config_load_string(cfg, cstr, UInt(resetSnippet.utf8.count), "ide-bundled-reset")
+            }
+            Logger.shared.debug("[ghostty] user config has font-family; reset bundled font-family list")
+        }
+    }
+
+    /// ユーザーが `~/.config/ghostty/config` で `font-family` を明示しているかを簡易判定する。
+    /// コメント行は除外。完全なパーサは要らず、bundled font-family を残すかの分岐に使うだけ。
+    private func userConfigSpecifiesFontFamily() -> Bool {
+        let url = FileManager.default.homeDirectoryForCurrentUser
+            .appendingPathComponent(".config/ghostty/config")
+        guard let text = try? String(contentsOf: url, encoding: .utf8) else { return false }
+        for raw in text.split(separator: "\n", omittingEmptySubsequences: true) {
+            let trimmed = raw.trimmingCharacters(in: .whitespaces)
+            if trimmed.hasPrefix("#") { continue }
+            if trimmed.hasPrefix("font-family") { return true }
+        }
+        return false
+    }
+
     func start() {
         configureResourcesDir()
         let result = ghostty_init(UInt(CommandLine.argc), CommandLine.unsafeArgv)
@@ -172,6 +214,10 @@ final class GhosttyManager: @unchecked Sendable {
             Logger.shared.debug("[ghostty] config_new returned nil")
             return
         }
+        // ide 同梱のデフォルト config を先に読む。Ghostty の設定は後勝ちなので、
+        // この後の load_default_files で読まれる ~/.config/ghostty/config の指定が
+        // 残らずユーザー設定として優先される。
+        loadBundledConfig(cfg)
         ghostty_config_load_default_files(cfg)
         ghostty_config_load_recursive_files(cfg)
         ghostty_config_finalize(cfg)

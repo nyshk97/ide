@@ -1,0 +1,20 @@
+# IDE 同梱のデフォルト ghostty 設定。
+# `GhosttyManager.start()` が `~/.config/ghostty/config`（ユーザー設定）より先に読み込む。
+# Ghostty は後勝ちなので、ユーザーが書いた値はここを上書きする。
+#
+# 方針: ide.app の見た目を最低限揃えるための「ベースライン」だけを書く。
+# ユーザーが部分的に override しても妙な見た目にならないよう、最小限に絞る。
+# cursor-color / selection-* など theme と紐づく色は書かない（theme 側の値を尊重する）。
+
+theme = "GitHub Dark"
+
+# bundle 同梱の JetBrains Mono を最優先で参照、無ければ macOS 標準にフォールバック。
+# 日本語グリフは JetBrains Mono / SF Mono / Menlo が持たないので Hiragino で補完。
+font-family = "JetBrains Mono"
+font-family = "SF Mono"
+font-family = "Menlo"
+font-family = "Hiragino Sans"
+font-size = 13
+
+# サイドバー・タブ等と背景色を揃える（左右に白枠が出ないように）。
+window-padding-color = background

@@ -51,6 +51,12 @@ targets:
       - path: Resources/terminfo
         type: folder
         buildPhase: resources
+      # バンドル同梱フォント（JetBrains Mono OFL）。Info.plist の ATSApplicationFontsPath = "Fonts"
+      # で macOS が起動時にプロセススコープで自動登録するので、Swift 側のコードは不要。
+      # ユーザーが ~/.config/ghostty/config を書いていない場合のデフォルトフォントとして使う。
+      - path: Resources/Fonts
+        type: folder
+        buildPhase: resources
     dependencies:
       - framework: GhosttyKit.xcframework
         embed: false

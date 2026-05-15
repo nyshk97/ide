@@ -27,6 +27,14 @@
   <key>NSHighResolutionCapable</key>
   <true/>
   <!--
+    バンドル同梱フォント（Resources/Fonts/ 配下の ttf）をプロセススコープで自動登録。
+    NSFontManager / CTFontManager を起動時に呼ばずとも、launch services が
+    <bundle>/Contents/Resources/Fonts/ の中身を register してくれる。
+    Ghostty を含む全てのフォント解決でこれらが見えるようになる。
+  -->
+  <key>ATSApplicationFontsPath</key>
+  <string>Fonts</string>
+  <!--
     Sparkle 2: 自前アップデート（"Check for Updates…"）。
     - 配信は public な別 repo `nyshk97/ide-releases` の `latest/download/appcast.xml` 経由。
       本体 repo (`nyshk97/ide`) は将来 private 化しても、配信側は public のまま機能する。
