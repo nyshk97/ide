@@ -9,7 +9,7 @@ options:
 settings:
   base:
     SWIFT_VERSION: "6.0"
-    MARKETING_VERSION: "1.0.11"
+    MARKETING_VERSION: "1.0.12"
     # Sparkle は CFBundleVersion で比較する。MARKETING_VERSION と連動させて
     # おかないと「1.0.10 が build 1 を offer する」みたいな自己更新が起きる。
     # Xcode が build settings 内でも $(MARKETING_VERSION) を解決するので
