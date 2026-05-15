@@ -118,6 +118,17 @@ mv "$BACKUP_DIR/ide-dev-backup" "$HOME/Library/Application Support/ide-dev" 2>/d
 
 ---
 
+## ショートカット追加時の更新箇所
+
+ショートカットの実装場所は次の 2 種類で、追加する場所によって付随する更新が変わる。
+
+- **リバインド可能にする**: `ShortcutAction` に case を足し、`ShortcutAction.defaults` に初期値を入れ、MRUKeyMonitor（または対応する場所）で `ShortcutsStore.shared.matches(event, .xxx)` 経由で発火させる。設定画面 (`ShortcutsSettingsView`) の表示は自動で乗る
+- **固定で実装する**: MRUKeyMonitor / SwiftUI .keyboardShortcut / Ghostty performKeyEquivalent のいずれかで直書きする。同時に `ShortcutsStore.swift` 末尾の `FixedShortcuts.all` に 1 行足す — これを忘れると Settings 画面の衝突警告が抜けて、ユーザーが既存固定キーと同じ組み合わせに気付かないまま割り当てられる
+
+MRU の確定タイミング（修飾キーの release）は `ShortcutsStore.shouldCommitMRU` 経由なので、`.mruOverlay` のバインドをリバインドしても自動で追随する。
+
+---
+
 ## 計画と実装の進め方
 
 新しい大きなタスクのときは:
