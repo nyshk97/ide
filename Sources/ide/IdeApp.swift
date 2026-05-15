@@ -71,6 +71,13 @@ struct IdeApp: App {
             // 消せないため、メニュー自体を AppDelegate でまるごと削除する。
             CommandGroup(replacing: .help) { }
         }
+
+        // ---- IDE > Settings… (Cmd+,) ----
+        // Settings シーンを宣言するとアプリメニューに自動で "Settings…" が追加され、
+        // Cmd+, で開ける。中身はキーボードショートカットの編集。
+        Settings {
+            ShortcutsSettingsView()
+        }
     }
 }
 

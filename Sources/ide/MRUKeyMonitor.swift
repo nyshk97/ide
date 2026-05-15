@@ -26,11 +26,13 @@ enum MRUKeyMonitor {
     @MainActor
     private static func handleKeyDown(_ event: NSEvent) -> Bool {
         let model = ProjectsModel.shared
+        let shortcuts = ShortcutsStore.shared
         let mods = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
 
-        // Ctrl+M: オーバーレイ起動 / 次の候補へサイクル。
-        // chars だと Ctrl+letter で CR(\r) にマップされるため keyCode で判定（46 = M）。
-        if mods == .control, event.keyCode == 46 {
+        // MRU オーバーレイ起動 / 次の候補へサイクル（default: Ctrl+M, keyCode 46）。
+        // chars だと Ctrl+letter で CR(\r) にマップされるため keyCode で判定する必要があり、
+        // ユーザーがリバインドした場合も同じ理由で keyCode 比較になる。
+        if shortcuts.matches(event, .mruOverlay) {
             model.openOrCycleMRUOverlay()
             return true
         }
@@ -53,10 +55,10 @@ enum MRUKeyMonitor {
             return true
         }
 
-        // Cmd+D: diff オーバーレイをトグル。
+        // Diff オーバーレイトグル（default: Cmd+D）。
         // Ghostty のデフォルト cmd+d=new_split:right と競合するが、ide は libghostty の split を
         // 使っていないので localMonitor で先取りして問題ない。
-        if mods == .command, event.keyCode == 2 {  // 2 = D
+        if shortcuts.matches(event, .diffOverlay) {
             model.toggleDiffOverlay()
             return true
         }
@@ -73,8 +75,8 @@ enum MRUKeyMonitor {
             return true
         }
 
-        // Cmd+J: 中央ペインを ツリー ↔ プレビュー でトグル。
-        if mods == .command, event.keyCode == 38 {  // 38 = J
+        // 中央ペインを ツリー ↔ プレビュー でトグル（default: Cmd+J）。
+        if shortcuts.matches(event, .togglePreview) {
             model.togglePreview()
             return true
         }
@@ -226,13 +228,13 @@ enum MRUKeyMonitor {
         ErrorBus.shared.notify("Copied path: \(path)", kind: .info)
     }
 
-    /// Ctrl 離しで確定。.flagsChanged は modifier の変化通知。
+    /// MRU shortcut の修飾キーが外れたら確定。`.flagsChanged` は modifier の変化通知。
+    /// デフォルトの Ctrl+M なら Ctrl 離しで確定、Cmd+M にリバインドしていれば Cmd 離しで確定。
     @MainActor
     private static func handleFlagsChanged(_ event: NSEvent) {
         let model = ProjectsModel.shared
         guard model.mruOverlay != nil else { return }
-        // Ctrl が外れたら確定
-        if !event.modifierFlags.contains(.control) {
+        if ShortcutsStore.shared.shouldCommitMRU(currentModifiers: event.modifierFlags) {
             model.commitMRUOverlay()
         }
     }
