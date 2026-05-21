@@ -121,6 +121,11 @@ struct LeftSidebarView: View {
                 .lineLimit(1)
                 .truncationMode(.middle)
             Spacer(minLength: 0)
+            if hasUnread {
+                Circle()
+                    .fill(Self.unreadAccent)
+                    .frame(width: 8, height: 8)
+            }
             if missing {
                 Image(systemName: "exclamationmark.triangle.fill")
                     .font(.system(size: 10))
