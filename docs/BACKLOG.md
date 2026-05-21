@@ -40,13 +40,7 @@ ide の今後の着手候補。基本機能は一通り揃っているので、�
 
 ## 商用化（有償配布）を見据えた検討項目
 
-「外部ユーザーに有料で使ってもらう」段階に入ったらまとめて着手する。今は Sparkle で自前アップデート基盤だけ整えた状態（appcast は `nyshk97/ide-releases` の `latest/download/appcast.xml` を使う / 詳細は [docs/DEV.md](./DEV.md#sparkle-自前アップデート) と [docs/plans/2026-05-14-sparkle-auto-update.md](./plans/2026-05-14-sparkle-auto-update.md)）。
-
-- **ライセンス検証 / アクティベーション** — 起動時に「メールアドレス + ライセンスキー」入力 → サーバーで検証 → ローカルに署名済みトークンを保存。Sparkle の `SUUpdaterDelegate` の `feedURLString(for:)` でユーザー毎に異なる appcast を返すこともできる（pro / beta チャネル分け）。サーバー側は最小なら Cloudflare Workers + D1 / KV で足りる。
-- **トライアル期間** — 起動時に install date を Application Support に書いて、N 日経過後はメニューと一部機能を制限。
-- **配信フィードの専用ドメイン化** — 今は `github.com/nyshk97/ide-releases/...` だが、いずれ `updates.<your-domain>/ide/appcast.xml` などにしたい。R2 + 独自ドメインへの移行は別途タスク。URL を変えるときは旧 SUFeedURL を踏むユーザーのために GitHub 側にも appcast を残しておく（リダイレクトが効かないので両方更新する運用）。
-- **本体 ide repo の private 化** — 配信を `nyshk97/ide-releases` に集約してあるので、機能的には今すぐ private 化できる。ただ homebrew cask (`nyshk97/homebrew-tap`) は `nyshk97/ide` の release zip を参照しているので、cask URL を `ide-releases` に向け直してから private 化する。
-- **EdDSA 秘密鍵紛失時のリカバリ** — Sparkle はパッケージ全体に新鍵で再署名するしか手段がない。旧版にいるユーザーは手動で新版 IDE.app を入れ直す必要がある。Dropbox バックアップ（`~/Library/CloudStorage/Dropbox/secrets/sparkle-ed25519-private.key`）を消さない運用ルールは [docs/DEV.md](./DEV.md#eddsa-鍵) に書いた。
+詳細は [docs/COMMERCIALIZATION.md](./COMMERCIALIZATION.md) に分離した。MUST / SHOULD / NICE と「先に決めておくべきオープン論点」がまとまっている。
 
 ---
 

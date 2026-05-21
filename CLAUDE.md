@@ -153,6 +153,7 @@ MRU の確定タイミング（修飾キーの release）は `ShortcutsStore.sho
 | `docs/ARCHITECTURE.md` | モジュール構成・データフロー |
 | `docs/DEV.md` | 開発時の手順・落とし穴 |
 | `docs/BACKLOG.md` | 残タスク・将来アイデア（優先度別） |
+| `docs/COMMERCIALIZATION.md` | 商用化（有償配布）に向けた MUST / SHOULD / NICE とオープン論点 |
 | `docs/plans/*.md` | フェーズ単位の実装計画 |
 
 新しい知見が出たら適切な場所に書き戻す。`docs/plans/` のログにも方針変更は残す。
