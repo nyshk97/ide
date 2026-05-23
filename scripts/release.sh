@@ -1,21 +1,24 @@
 #!/usr/bin/env bash
-# build.sh で作った zip を:
-#   1. 本体 repo (nyshk97/ide) の GitHub Release に上げる（homebrew cask の URL 互換）
-#   2. 配信 repo (nyshk97/polepole-releases) の GitHub Release に上げる + appcast.xml を生成
-# する。Sparkle は (2) の `latest/download/appcast.xml` を見て更新する。
+# build.sh で作った zip を配信 repo (nyshk97/polepole-releases) の GitHub Release に上げ、
+# appcast.xml を生成する。Sparkle は `latest/download/appcast.xml` を見て更新する。
 #
 # 注: 本体 repo の名前は歴史的事情で `nyshk97/ide` のまま（リネームしない方針）。
-#     配信 feed は新規 `nyshk97/polepole-releases` に切り替えている。
+#     polepole の配信は polepole-releases に集約していて、本体 repo には触らない
+#     （旧 v0.0.x〜v1.0.14 の release は ide 配布の凍結履歴として残している）。
 #
 # 使い方: scripts/release.sh <version>
 #   例: scripts/release.sh 1.0.0
+#
+# 注: このスクリプトは内部で build.sh を再実行する（fresh build を強制）。
+#     事前に build.sh 単体を叩く必要は無く、叩くと archive→notarize→zip を 2 回
+#     走らせて 10〜15 分無駄になる。release 作業は release.sh 1 発で十分。
 #
 # 前提:
 #   - `project.yml` の MARKETING_VERSION を <version> に bump してコミット済みであること
 #     （release.sh は project.yml をいじらない。タグ名と notes に <version> を使うだけ）
 #   - macOS Keychain に Sparkle の EdDSA 秘密鍵が登録済みであること
 #     （`generate_keys` で作成。`sign_update` が暗黙的に参照する）
-#   - `gh` で nyshk97/ide と nyshk97/polepole-releases の両方に push 権限があること
+#   - `gh` で nyshk97/polepole-releases に push 権限があること
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
