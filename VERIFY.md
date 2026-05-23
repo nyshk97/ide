@@ -120,7 +120,10 @@ sleep 4
 
 期待: タブ名「shell 1」の左に 🅒 アイコン（オレンジ tint）が出る。Esc で claude を抜けるとアイコンが消える。
 
-`codex` 起動時は 🅞（緑 tint）が出る。識別は `proc_pidpath` の basename から拡張子を除いて行う（claude のバイナリは `claude.exe` で来るので注意）。
+`codex` 起動時は 🅞（緑 tint）が出る。識別は `proc_pidpath` の basename から拡張子を除いて行う。注意点:
+
+- claude のバイナリは bun SEA で `proc_pidpath` が空を返すため `procComm` フォールバック（16文字制限の `claude` / `claude.exe`）にマッチする
+- Homebrew cask 経由の codex は `/opt/homebrew/Caskroom/codex/<ver>/codex-aarch64-apple-darwin` を `proc_pidpath` が返すので、basename は `codex-aarch64-apple-darwin` になる。`baseNoExt == "codex" || baseNoExt.hasPrefix("codex-")` で拾う
 
 ## 7. AI 完了通知（タブ青丸バッジ + サイドバーのリング）
 

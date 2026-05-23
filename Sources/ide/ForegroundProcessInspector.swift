@@ -10,11 +10,15 @@ enum ForegroundProcessInspector {
         // claude は npm の wrapper だと `claude.exe` のことがある（拡張子付き）。
         // 拡張子を取り除いて判定。
         let baseNoExt = (base as NSString).deletingPathExtension
+        // Homebrew cask 配布の codex は `codex-aarch64-apple-darwin` 等の triple 付き名で
+        // 入っており、`/opt/homebrew/bin/codex` はそこへの symlink。proc_pidpath は実体を返すので
+        // basename を prefix で判定する。
+        if baseNoExt == "codex" || baseNoExt.hasPrefix("codex-") {
+            return .codex
+        }
         switch baseNoExt {
         case "claude":
             return .claude
-        case "codex", "codex-cli":
-            return .codex
         case "zsh", "bash", "fish", "sh", "dash":
             return .shell
         default:
