@@ -1451,5 +1451,110 @@ grep license /tmp/polepole-poc.log | tail -3
 
 `Cmd+,` で Settings ウィンドウを開く → 上部に「Shortcuts」「License」の 2 タブが見える → 「License」をクリック。
 
-期待: ライセンスタブで「トライアル中 (残り N 日)」のステータス + メアド/キー入力フォーム + 「アクティベート」ボタン (現状は LicenseStore が stub なので押しても何も起きない、Phase 6 で実装) + 「購入ページを開く」リンクが見える。
+期待: ライセンスタブで「トライアル中 (残り N 日)」のステータス + メアド/キー入力フォーム + 「アクティベート」ボタン + 「購入ページを開く」リンクが見える。
+
+### 35-E. Backend + アプリ アクティベーション E2E（半自動）
+
+事前準備:
+```bash
+# backend を local D1 で起動
+cd backend && pnpm dev &
+sleep 4
+curl -s http://127.0.0.1:8787/healthz   # → {"ok":true,...}
+
+# D1 にテスト license を seed (キーは [A-Z2-9] 形式、0/1/I/L/O は不可)
+TEST_KEY="polepole-TEST-ABCD-EFGH-JKMN"
+pnpm exec wrangler d1 execute polepole-licenses --local --persist-to .wrangler/state \
+  --command "DELETE FROM device WHERE license_id = '$TEST_KEY'; DELETE FROM license WHERE id = '$TEST_KEY'; INSERT INTO license (id, email, stripe_session_id, stripe_payment_intent_id, amount, currency, status, created_at, updated_at, email_sent_at) VALUES ('$TEST_KEY', 'test@example.com', 'cs_test_e2e', 'pi_test_e2e', 11800, 'jpy', 'active', $(date +%s), $(date +%s), $(date +%s));"
+```
+
+アクティベート (curl 経由 — UI からの activate は手動目視 = 35-D で確認):
+```bash
+# このマシンの実 device_hash (= SHA256(IOPlatformUUID)) を取る
+REAL_DEVICE_HASH=$(/usr/bin/swift - <<'SWIFT'
+import IOKit; import CryptoKit; import Foundation
+let s = IOServiceGetMatchingService(kIOMainPortDefault, IOServiceMatching("IOPlatformExpertDevice"))
+let cf = IORegistryEntryCreateCFProperty(s, kIOPlatformUUIDKey as CFString, kCFAllocatorDefault, 0)
+IOObjectRelease(s)
+let uuid = (cf?.takeRetainedValue() as? String) ?? ""
+let h = SHA256.hash(data: Data(uuid.utf8))
+print(h.map { String(format: "%02x", $0) }.joined())
+SWIFT
+)
+RESPONSE=$(curl -s -X POST http://127.0.0.1:8787/v1/license/activate \
+  -H "Content-Type: application/json" \
+  -d "{\"key\":\"$TEST_KEY\",\"email\":\"test@example.com\",\"device_hash\":\"$REAL_DEVICE_HASH\",\"device_name\":\"polepole-dev-test\",\"os_version\":\"macOS test\",\"app_version\":\"1.0.0\"}")
+echo "$RESPONSE" | python3 -m json.tool   # → status:ok, token:..., device:{...}
+TOKEN=$(echo "$RESPONSE" | python3 -c 'import json,sys;print(json.load(sys.stdin)["token"])')
+mkdir -p "$HOME/Library/Application Support/polepole-dev"
+python3 -c "import json; print(json.dumps({'token':'$TOKEN'}))" > "$HOME/Library/Application Support/polepole-dev/token.json"
+```
+
+⚠️ **Keychain には直接書かない**: `security add-generic-password` で書き込んだ item は、その後アプリから `SecItemCopyMatching` した時に「アプリにアクセス許可するか」のダイアログが裏で出て、可視化されずに init を block する事故が起きやすい。token.json にだけ書けば、アプリの初回 load() で fallback として読み込まれ、その後アプリが自分で Keychain にも書き戻す。
+
+アプリ起動 & 検証:
+```bash
+pkill -9 -f "PolePole Dev" || true
+sleep 1
+# direct exec + env で起動 (open -n / launchctl setenv は前項の Keychain ダイアログ hang
+# 問題に当たることがあるため、env を子プロセスに渡したいときは direct exec が確実)
+POLEPOLE_BACKEND_URL="http://127.0.0.1:8787" \
+  "/tmp/polepole-build/Build/Products/Debug/PolePole Dev.app/Contents/MacOS/PolePole Dev" &
+sleep 4
+grep license "$HOME/Library/Logs/polepole-dev/polepole-dev-$(date -u +%Y-%m-%d).log" | tail -5
+```
+
+期待: ログに `[license] state = activated (expires in 30 days)`。Keychain の `activation-token` も自動で書かれている (= 補完書きが効いている)。
+```bash
+security find-generic-password -s "local.d0ne1s.polepole.dev" -a "activation-token" -w | head -c 80
+```
+
+`./scripts/polepole-screenshot.sh /tmp/v-activated.png` で PaywallView が出ていない = 通常の 3 カラム表示。
+
+### 35-F. Grace 切れ (issued_at + 31日) で deactivated（自動）
+
+```bash
+TOKEN=$(cat "$HOME/Library/Application Support/polepole-dev/token.json" | python3 -c 'import json,sys;print(json.load(sys.stdin)["token"])')
+ISSUED_AT=$(echo "$TOKEN" | cut -d. -f1 | python3 -c '
+import sys,base64,json
+b = sys.stdin.read().replace("-","+").replace("_","/")
+b += "=" * ((4 - len(b) % 4) % 4)
+print(json.loads(base64.b64decode(b))["issued_at"])
+')
+FAKE_NOW=$((ISSUED_AT + 31*86400))
+
+pkill -9 -f "PolePole Dev" || true
+sleep 1
+POLEPOLE_TEST_LICENSE_FAKE_NOW=$FAKE_NOW POLEPOLE_BACKEND_URL="http://127.0.0.1:8787" \
+  "/tmp/polepole-build/Build/Products/Debug/PolePole Dev.app/Contents/MacOS/PolePole Dev" &
+sleep 4
+grep license "$HOME/Library/Logs/polepole-dev/polepole-dev-$(date -u +%Y-%m-%d).log" | tail -3
+./scripts/polepole-screenshot.sh /tmp/v-deactivated.png
+```
+
+期待:
+- ログに `[license] token expired (issued_at + 30d < now), -> deactivated`
+- スクリーンショットに「ライセンスが無効化されました / 30 日以上オンライン検証ができなかったため、ロックされました」見出し
+- 背景の 3 カラムは暗く覆われていて、Paywall モーダルが前面 (Phase 5 の 35-C と同じレイアウト、ヘッドラインだけが違う)
+
+### 35-G. デバイス上限超過 → スワップ UI（手動）
+
+実マシンが 1 台しかない検証環境では sheet を出すのが難しいので、curl で 3 台分の架空デバイスを seed して、4 台目アクティベートで `device_limit` レスポンスが返ることだけ確認:
+
+```bash
+TEST_KEY="polepole-TEST-ABCD-EFGH-JKMN"
+for i in 1 2 3; do
+  HASH=$(printf "deadbeef%56s" "device$i" | tr ' ' '0')
+  curl -s -X POST http://127.0.0.1:8787/v1/license/activate \
+    -H "Content-Type: application/json" \
+    -d "{\"key\":\"$TEST_KEY\",\"email\":\"test@example.com\",\"device_hash\":\"$HASH\",\"device_name\":\"fake-dev-$i\",\"app_version\":\"1.0.0\"}" \
+    | python3 -c 'import json,sys; r=json.load(sys.stdin); print(r.get("status"), r.get("device", {}).get("id", r.get("error")))'
+done
+# 4 台目 (本物の device hash) で device_limit が返る
+REAL_DEVICE_HASH=$(...)  # 35-E と同じ手順で取得
+curl -s -X POST http://127.0.0.1:8787/v1/license/activate -H "Content-Type: application/json" \
+  -d "{\"key\":\"$TEST_KEY\",\"email\":\"test@example.com\",\"device_hash\":\"$REAL_DEVICE_HASH\",\"device_name\":\"4th\",\"app_version\":\"1.0.0\"}" | python3 -m json.tool
+```
+
+期待: 最後の呼び出しが HTTP 409 で `{"error":"device_limit","existing_devices":[{...}, {...}, {...}]}` を返す。UI からの sheet 表示・スワップ動作は手動で確認 (アプリの「アクティベート」ボタン押下 → DeviceSwapSheet が開いて 3 台が一覧表示 → 1 台選んで「選択したデバイスを外して、このマシンを追加」)。
 

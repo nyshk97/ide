@@ -6,24 +6,23 @@ import SwiftUI
 /// - 「14 日間のトライアルが終了しました」(or「ライセンスが無効化されました」) の見出し
 /// - 価格 (¥11,800 / Lifetime License)
 /// - 「購入する」ボタン (polepole.dev の購入ページへ)
-/// - ライセンスキー入力フォーム (Phase 5 では disabled、Phase 6 で activate へ繋ぐ)
+/// - ライセンスキー入力フォーム
 /// - サポートメール (support@polepole.dev)
 ///
 /// 要件 6 / 8.3 に従い、これが出ている間は背景の全機能 (メニュー操作も含む) を
-/// 受け付けない。`RootLayoutView` の overlay として ZStack で乗せる。
+/// 受け付けない。`ContentView` の ZStack overlay として最前面に重ねる。
 struct PaywallView: View {
     @ObservedObject private var licenseStore = LicenseStore.shared
 
     @State private var key: String = ""
     @State private var email: String = ""
-    @State private var isActivating: Bool = false
+    @State private var swapDevices: [LicenseClient.ExistingDevice] = []
+    @State private var showSwapSheet: Bool = false
 
     var body: some View {
         ZStack {
-            // 背景を黒で覆って完全に遮断する
             Color.black.opacity(0.85)
                 .ignoresSafeArea()
-                // 背景の hit-test を確実に吸う (overlay 下の view にイベントを通さない)
                 .contentShape(Rectangle())
                 .onTapGesture {}
 
@@ -74,15 +73,20 @@ struct PaywallView: View {
                         .disableAutocorrection(true)
                         .font(.system(.body, design: .monospaced))
                     Button(action: activate) {
-                        if isActivating {
+                        if licenseStore.activateInProgress {
                             ProgressView().controlSize(.small)
                         } else {
                             Text("アクティベート")
                         }
                     }
                     .controlSize(.large)
-                    .disabled(isActivating || !canActivate)
-                    // Phase 6 で実装するまでは押せても何も起きない (LicenseStore.activate は stub)
+                    .disabled(licenseStore.activateInProgress || !canActivate)
+
+                    if let err = licenseStore.activateError, let msg = errorMessage(err) {
+                        Text(msg)
+                            .font(.caption)
+                            .foregroundStyle(.red)
+                    }
                 }
 
                 Spacer().frame(height: 4)
@@ -95,10 +99,15 @@ struct PaywallView: View {
                     }
                     .buttonStyle(.link)
                     Button("ライセンスキーを再送") {
-                        // TODO(Phase 6): LicenseClient.resend を呼ぶ
+                        Task {
+                            let trimmed = email.trimmingCharacters(in: .whitespaces)
+                            if !trimmed.isEmpty {
+                                _ = await licenseStore.resendLicense(email: trimmed)
+                            }
+                        }
                     }
                     .buttonStyle(.link)
-                    .disabled(true)
+                    .disabled(!email.contains("@"))
                 }
                 .font(.caption)
             }
@@ -108,7 +117,22 @@ struct PaywallView: View {
             .clipShape(RoundedRectangle(cornerRadius: 16))
             .shadow(radius: 24)
         }
+        .onChange(of: licenseStore.activateError) { _, err in
+            if case .deviceLimit(let existing) = err {
+                swapDevices = existing
+                showSwapSheet = true
+            }
+        }
+        .sheet(isPresented: $showSwapSheet) {
+            DeviceSwapSheet(
+                existingDevices: swapDevices,
+                key: key.trimmingCharacters(in: .whitespaces),
+                email: email.trimmingCharacters(in: .whitespaces)
+            )
+        }
     }
+
+    // MARK: - Text
 
     private var headline: String {
         switch licenseStore.state {
@@ -143,10 +167,22 @@ struct PaywallView: View {
     private func activate() {
         let trimmedKey = key.trimmingCharacters(in: .whitespaces)
         let trimmedEmail = email.trimmingCharacters(in: .whitespaces)
-        isActivating = true
         Task {
             await licenseStore.activate(key: trimmedKey, email: trimmedEmail)
-            isActivating = false
+        }
+    }
+
+    private func errorMessage(_ err: LicenseClient.LicenseClientError) -> String? {
+        switch err {
+        case .invalidCredentials: return "メールアドレスまたはライセンスキーが正しくありません。"
+        case .licenseRevoked: return "このライセンスは無効化されています。サポートにお問い合わせください。"
+        case .licenseRefunded: return "このライセンスは返金処理されています。"
+        case .rateLimited: return "リクエストが多すぎます。しばらく待ってから再試行してください。"
+        case .deviceLimit: return nil  // sheet で扱う
+        case .network(let msg): return "ネットワークエラー: \(msg)"
+        case .server(let status, let msg): return "サーバエラー (\(status)): \(msg)"
+        case .invalidBody: return "入力内容に問題があります。"
+        case .unknownDevice, .deviceNotFound: return "デバイス情報が見つかりません。再度お試しください。"
         }
     }
 }

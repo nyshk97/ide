@@ -14,7 +14,8 @@ struct LicenseSettingsView: View {
 
     @State private var key: String = ""
     @State private var email: String = ""
-    @State private var isActivating: Bool = false
+    @State private var swapDevices: [LicenseClient.ExistingDevice] = []
+    @State private var showSwapSheet: Bool = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
@@ -36,6 +37,19 @@ struct LicenseSettingsView: View {
         }
         .padding(24)
         .frame(width: 520, height: 420)
+        .onChange(of: licenseStore.activateError) { _, err in
+            if case .deviceLimit(let existing) = err {
+                swapDevices = existing
+                showSwapSheet = true
+            }
+        }
+        .sheet(isPresented: $showSwapSheet) {
+            DeviceSwapSheet(
+                existingDevices: swapDevices,
+                key: key.trimmingCharacters(in: .whitespaces),
+                email: email.trimmingCharacters(in: .whitespaces)
+            )
+        }
     }
 
     // MARK: - Sections
@@ -88,13 +102,13 @@ struct LicenseSettingsView: View {
                 .font(.system(.body, design: .monospaced))
             HStack {
                 Button(action: activate) {
-                    if isActivating {
+                    if licenseStore.activateInProgress {
                         ProgressView().controlSize(.small)
                     } else {
                         Text("アクティベート")
                     }
                 }
-                .disabled(isActivating || !canActivate)
+                .disabled(licenseStore.activateInProgress || !canActivate)
                 Button("購入ページを開く") {
                     if let url = URL(string: "https://polepole.dev/") {
                         NSWorkspace.shared.open(url)
@@ -102,6 +116,12 @@ struct LicenseSettingsView: View {
                 }
                 .buttonStyle(.link)
                 Spacer()
+            }
+
+            if let err = licenseStore.activateError, let msg = errorMessage(err) {
+                Text(msg)
+                    .font(.caption)
+                    .foregroundStyle(.red)
             }
         }
     }
@@ -145,10 +165,22 @@ struct LicenseSettingsView: View {
     private func activate() {
         let trimmedKey = key.trimmingCharacters(in: .whitespaces)
         let trimmedEmail = email.trimmingCharacters(in: .whitespaces)
-        isActivating = true
         Task {
             await licenseStore.activate(key: trimmedKey, email: trimmedEmail)
-            isActivating = false
+        }
+    }
+
+    private func errorMessage(_ err: LicenseClient.LicenseClientError) -> String? {
+        switch err {
+        case .invalidCredentials: return "メールアドレスまたはライセンスキーが正しくありません。"
+        case .licenseRevoked: return "このライセンスは無効化されています。"
+        case .licenseRefunded: return "このライセンスは返金処理されています。"
+        case .rateLimited: return "リクエストが多すぎます。しばらく待ってから再試行してください。"
+        case .deviceLimit: return nil
+        case .network(let msg): return "ネットワークエラー: \(msg)"
+        case .server(let status, let msg): return "サーバエラー (\(status)): \(msg)"
+        case .invalidBody: return "入力内容に問題があります。"
+        case .unknownDevice, .deviceNotFound: return "デバイス情報が見つかりません。"
         }
     }
 

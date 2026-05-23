@@ -278,21 +278,24 @@ Phase 3 終了後の review で High 2 件 + Medium 2 件の指摘を受けた�
 - [x] Settings に「ライセンス」タブを追加 (`LicenseSettingsView`、Shortcuts と並列の TabView)。キー入力フォーム + アクティベート済み時の情報表示 (Phase 6 で activate 経路を有効化) + deactivate ボタン (Phase 6)
 
 ### Phase 6: アプリ側 - アクティベーション + ローカル検証 [AI🤖]
-- [ ] `LicenseClient` を新規実装 (`activate` / `deactivate` / `verify` / `resend` を叩く)
-- [ ] `DeviceIdentifier` 実装 — `IOPlatformExpertDevice` UUID を取って SHA256
-- [ ] `ActivationToken` のローカル保管
-  - [ ] Keychain に署名済みトークンを書く (Service: `local.d0ne1s.polepole(.dev)`、Account: `activation-token`)
-  - [ ] EdDSA 公開鍵をアプリにバンドル (`Resources/license-pubkey.pem` 等)
-  - [ ] CryptoKit の `Curve25519.Signing.PublicKey` で署名検証
-- [ ] 起動時に Keychain から token を読み → 検証 → `LicenseState.activated` を確定
-- [ ] 週1の再検証スケジューラ (`BackgroundActivityScheduler` or 単純な Timer)
-  - [ ] verify 成功時: レスポンスの新しい署名トークンを Keychain に上書き保存 (issued_at が更新される = 30 日 grace が自動延長)
-  - [ ] verify 失敗時: トークンは温存。`last_failure_at` は記録するが grace 切れ判定には使わない (トークンの `issued_at + 30 日` が真理値)
-  - [ ] ローカル検証で `issued_at + 30 日 < now()` なら `LicenseState.deactivated` に遷移
-  - [ ] 時計巻き戻し対策: Keychain に `last_observed_now` を書き、判定時は `max(now, last_observed_now)` を使う
-- [ ] デバイス上限超過時のスワップダイアログ
-  - [ ] `activate` の `device_limit` レスポンスを受けて、既存デバイス一覧を表示
-  - [ ] ユーザーが選んだ古いデバイスを `deactivate` → 即 `activate` リトライ
+- [x] `LicenseClient` を新規実装 (`activate` / `deactivate` / `verify` / `resend` を叩く)。baseURL は `POLEPOLE_BACKEND_URL` 環境変数で上書き、デフォルトは Debug=`http://127.0.0.1:8787` / Release=`https://api.polepole.dev`。エラーは `LicenseClientError` に正規化
+- [x] `DeviceIdentifier` 実装 — `IOPlatformExpertDevice` UUID を取って SHA256 (64 hex)。`deviceName` / `osVersion` / `appVersion` のヘルパーも同居
+- [x] `ActivationToken` のローカル保管 (`ActivationTokenStore`)
+  - [x] Keychain に署名済みトークンを書く (Service: Bundle ID、Account: `activation-token`)
+  - [x] EdDSA 公開鍵をアプリにバンドル (`Resources/License/license-pubkey.pem`、Phase 1 で配置済み)
+  - [x] CryptoKit の `Curve25519.Signing.PublicKey` で署名検証 (`TokenVerifier`)。X.509 SPKI DER の prefix 12 bytes を剥がして raw 32 bytes を使う
+  - [x] Keychain + Application Support の `token.json` で二重保存。片方しか無ければもう片方に補完書き
+- [x] 起動時に Keychain/token.json から token を読み → 検証 → `LicenseState.activated` を確定
+- [x] 週1の再検証スケジューラ (`LicenseStore.verifyIfNeeded()` を `ContentView.onAppear` で発火)
+  - [x] verify 成功時: レスポンスの新しい署名トークンを `ActivationTokenStore.save` で上書き保存 (issued_at が更新される = 30 日 grace が自動延長)
+  - [x] verify 失敗時 (一時的なネット切断 / rate limit): トークンは温存
+  - [x] verify 失敗時 (server から revoked/refunded/unknown_device/invalid_credentials): トークンを clear し、トライアル経路に戻す
+  - [x] ローカル検証で `issued_at + max_offline_days * 86400 < now()` なら `LicenseState.deactivated` に遷移
+  - [x] 時計巻き戻し対策: Keychain に `last-observed-now` を Unix 秒で書き、判定時は `max(actualNow, lastObserved)` を使う (`monotonicNow`)
+- [x] デバイス上限超過時のスワップダイアログ (`DeviceSwapSheet`)
+  - [x] `activate` の `device_limit` レスポンスを受けて、既存デバイス一覧 (id / device_name / os_version / app_version / last_seen_at) を sheet で表示
+  - [x] ユーザーが選んだ古いデバイスを `deactivate` → 即 `activate` リトライする `swapAndActivate(removing:)`
+  - [x] PaywallView と LicenseSettingsView の両方から sheet を開く動線
 
 ### Phase 7: アプリ側 - 期限切れ / 起動ロック UX [AI🤖]
 - [ ] `PaywallView` の見た目を整える
@@ -332,6 +335,18 @@ Phase 3 終了後の review で High 2 件 + Medium 2 件の指摘を受けた�
 ## ログ
 
 ### 試したこと・わかったこと
+- **2026-05-23 Phase 6 完了**: アプリ側アクティベーション + ローカル検証を実装
+  - 新規ファイル 6 本: `DeviceIdentifier.swift` / `LicenseClient.swift` / `ActivationTokenStore.swift` / `TokenVerifier.swift` / `DeviceSwapSheet.swift` / (拡張) `LicenseStore.swift`
+  - 設計の要: 起動時に Keychain → token.json → TokenVerifier (Ed25519) → `issued_at + 30 日` で activated/deactivated 判定。`POLEPOLE_TEST_LICENSE_FAKE_NOW` で時計を上書きできる
+  - `monotonicNow()` で「観測した最大の現在時刻」を Keychain (`last-observed-now`) に積む = TimeMachine 等で時計を戻されてもローカル grace を巻き戻されない
+  - E2E 動作確認: curl で activate → token を token.json に書く → アプリ起動 → `state = activated (expires in 30 days)` ログ + Paywall 非表示 / 同じ token + `POLEPOLE_TEST_LICENSE_FAKE_NOW=issued_at+31日` で起動 → `token expired ... -> deactivated` + Paywall 「ライセンスが無効化されました」表示
+  - Backend は `pnpm dev` で local D1 + Workers が立ち、`/v1/license/activate` は 200 OK で署名済み token を返した。EdDSA 鍵ペア (Phase 1 で生成) のサーバ秘密鍵 ⇄ アプリ公開鍵の roundtrip が実環境で初通過
+  - VERIFY.md に Section 35-E〜G を追加 (E: backend + curl + token.json → activated / F: grace 切れで deactivated / G: device_limit + DeviceSwapSheet)
+- **2026-05-23 Phase 6 中の罠 (記録)**: アプリ起動経路で Keychain ダイアログが裏で待機して init が hang する事故
+  - `security add-generic-password` コマンドで Keychain に書いた item をアプリから `SecItemCopyMatching` すると、アプリへのアクセス許可ダイアログが (時に裏側で) 出て、アプリ init が無限待機する
+  - 同じく `launchctl setenv POLEPOLE_BACKEND_URL <url>` 経由で env を渡して `open -n` する経路でも、起動シーケンス上同様の hang を踏むことがあった
+  - 回避策: 検証時は Keychain には直接書かず、token.json にだけ書く (アプリ初回 load で fallback として読み込まれ、補完書きで Keychain にも自動で書かれる)。env を渡したいときは direct exec (`POLEPOLE_BACKEND_URL=... "/path/to/PolePole Dev"`) を使う
+  - これらは VERIFY.md 35-E に注意書きとして反映済み
 - **2026-05-23 Phase 5 完了**: アプリ側トライアル管理を実装
   - `Sources/polepole/Licensing/` 配下に 6 ファイル新規追加: `KeychainHelper.swift` (Security framework の薄いラッパー) / `LicenseState.swift` (enum + ActivationToken Codable struct) / `TrialManager.swift` (Keychain + Application Support 二重管理 + POLEPOLE_TEST_LICENSE_FAKE_NOW フック) / `LicenseStore.swift` (@MainActor singleton、Phase 6 用に activate/deactivate stub) / `PaywallView.swift` (期限切れ時 overlay) / `LicenseSettingsView.swift` (Settings の License タブ)
   - `AppPaths.applicationSupportDirectory` を新規追加 (TrialManager と Phase 6 以降の Application Support 配置に集約)
