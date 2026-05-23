@@ -182,7 +182,7 @@ final class GhosttyManager: @unchecked Sendable {
         if userConfigSpecifiesFontFamily() {
             let resetSnippet = "font-family = \"\"\n"
             resetSnippet.withCString { cstr in
-                ghostty_config_load_string(cfg, cstr, UInt(resetSnippet.utf8.count), "ide-bundled-reset")
+                ghostty_config_load_string(cfg, cstr, UInt(resetSnippet.utf8.count), "polepole-bundled-reset")
             }
             Logger.shared.debug("[ghostty] user config has font-family; reset bundled font-family list")
         }
@@ -214,7 +214,7 @@ final class GhosttyManager: @unchecked Sendable {
             Logger.shared.debug("[ghostty] config_new returned nil")
             return
         }
-        // ide 同梱のデフォルト config を先に読む。Ghostty の設定は後勝ちなので、
+        // PolePole 同梱のデフォルト config を先に読む。Ghostty の設定は後勝ちなので、
         // この後の load_default_files で読まれる ~/.config/ghostty/config の指定が
         // 残らずユーザー設定として優先される。
         loadBundledConfig(cfg)

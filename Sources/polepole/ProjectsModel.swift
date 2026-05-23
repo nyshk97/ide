@@ -2,7 +2,7 @@ import SwiftUI
 
 /// プロジェクト一覧と active project を保持する singleton。
 ///
-/// - pinned / temporary 両方を `~/Library/Application Support/ide/projects.json` に永続化
+/// - pinned / temporary 両方を `~/Library/Application Support/polepole/projects.json` に永続化
 ///   （明示的に「閉じる」しない限りサイドバーから消えない）
 /// - pinned は手動並び替えされうる順序、temporary は MRU 順（先頭が最近開いた）
 /// - active project は永続化しない（再起動時はリセット）

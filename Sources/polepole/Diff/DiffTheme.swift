@@ -1,7 +1,7 @@
 import SwiftUI
 
 /// DiffViewer から移植した GitHub Dark テーマ。
-/// diff overlay の中だけで使う前提なので IDE のローカル名前空間に閉じる。
+/// diff overlay の中だけで使う前提なので PolePole のローカル名前空間に閉じる。
 enum GitHubDark {
     static let background = Color(red: 13/255, green: 17/255, blue: 23/255)
     static let surfaceBackground = Color(red: 22/255, green: 27/255, blue: 34/255)

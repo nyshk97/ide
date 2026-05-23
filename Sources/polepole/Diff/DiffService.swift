@@ -1,6 +1,6 @@
 import Foundation
 
-/// DiffViewer の `GitService` を IDE に移植したもの。
+/// DiffViewer の `GitService` を PolePole に移植したもの。
 ///
 /// 元実装との違い:
 /// - 単一 repo 対象（`fetchDiffs(repoPath:)` が `[FileDiff]` を直接返す。`Config` / `RepositoryDiff` 経由ではない）

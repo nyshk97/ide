@@ -3,7 +3,7 @@ import AppKit
 /// アプリ全体で Ctrl+M / Esc / Ctrl 離しを最優先で捕捉して `ProjectsModel` に届ける。
 ///
 /// `NSEvent.addLocalMonitorForEvents` は AppKit/SwiftUI の通常パイプラインより前に呼ばれるので、
-/// Ghostty NSView の performKeyEquivalent や TUI の中（vim/claude）でも IDE が確実に握れる。
+/// Ghostty NSView の performKeyEquivalent や TUI の中（vim/claude）でも PolePole が確実に握れる。
 @MainActor
 enum MRUKeyMonitor {
     private static var keyDownMonitor: Any?
@@ -56,7 +56,7 @@ enum MRUKeyMonitor {
         }
 
         // Diff オーバーレイトグル（default: Cmd+D）。
-        // Ghostty のデフォルト cmd+d=new_split:right と競合するが、ide は libghostty の split を
+        // Ghostty のデフォルト cmd+d=new_split:right と競合するが、PolePole は libghostty の split を
         // 使っていないので localMonitor で先取りして問題ない。
         if shortcuts.matches(event, .diffOverlay) {
             model.toggleDiffOverlay()

@@ -3,9 +3,9 @@ import GhosttyKit
 import Sparkle
 
 @main
-struct IdeApp: App {
+struct PolePoleApp: App {
     // メインメニューの実行時整理（AppKit が動的に足す項目の除去）。
-    @NSApplicationDelegateAdaptor(IdeAppDelegate.self) private var appDelegate
+    @NSApplicationDelegateAdaptor(PolePoleAppDelegate.self) private var appDelegate
 
     // Sparkle の updater controller。`startingUpdater: true` で起動時に Sparkle 本体が
     // 立ち上がるが、Info.plist で SUEnableAutomaticChecks=false にしてあるので、
@@ -33,11 +33,11 @@ struct IdeApp: App {
                 .frame(minWidth: 1000, minHeight: 500)
         }
         .commands {
-            // ---- IDE (app) メニュー ----
+            // ---- PolePole (app) メニュー ----
             // About と Quit の間に Check for Updates… と ログファイルを開く。
             // 「ログファイルを開く」は元 Help メニューにあったが、Help の検索ボックスを
             // 確実に消す手段が無かったため Help メニュー自体を AppDelegate で削除し、
-            // この項目だけ IDE Dev メニューへ移した。
+            // この項目だけ PolePole Dev メニューへ移した。
             CommandGroup(after: .appInfo) {
                 CheckForUpdatesView(updater: updaterController.updater)
                 Divider()
@@ -49,7 +49,7 @@ struct IdeApp: App {
             }
             // Services を消す
             CommandGroup(replacing: .systemServices) { }
-            // Hide IDE / Hide Others / Show All を消す
+            // Hide PolePole / Hide Others / Show All を消す
             CommandGroup(replacing: .appVisibility) { }
 
             // ---- File メニュー ----
@@ -67,12 +67,12 @@ struct IdeApp: App {
             CommandGroup(replacing: .windowList) { }
 
             // ---- Help メニュー ----
-            // 中身は IDE Help だけ残るが Search ボックスを SwiftUI/AppKit からは
+            // 中身は PolePole Help だけ残るが Search ボックスを SwiftUI/AppKit からは
             // 消せないため、メニュー自体を AppDelegate でまるごと削除する。
             CommandGroup(replacing: .help) { }
         }
 
-        // ---- IDE > Settings… (Cmd+,) ----
+        // ---- PolePole > Settings… (Cmd+,) ----
         // Settings シーンを宣言するとアプリメニューに自動で "Settings…" が追加され、
         // Cmd+, で開ける。中身はキーボードショートカットの編集。
         Settings {

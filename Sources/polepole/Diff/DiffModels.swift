@@ -1,7 +1,7 @@
 import Foundation
 
 /// DiffViewer から移植したデータモデル。**単一 repo 向けに `RepositoryDiff` は除いている**。
-/// IDE の diff overlay はアクティブプロジェクト 1 つだけを対象にするため。
+/// PolePole の diff overlay はアクティブプロジェクト 1 つだけを対象にするため。
 
 enum DiffStage: String {
     case unstaged = "Unstaged"

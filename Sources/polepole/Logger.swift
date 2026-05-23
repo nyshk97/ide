@@ -1,12 +1,12 @@
 import Foundation
 
-/// IDE 全体のログ出力。
+/// PolePole 全体のログ出力。
 ///
-/// - 永続化: `~/Library/Logs/{ide,ide-dev}/{ide,ide-dev}-YYYY-MM-DD.log`
+/// - 永続化: `~/Library/Logs/{polepole,polepole-dev}/{polepole,polepole-dev}-YYYY-MM-DD.log`
 /// - 日次でファイルが切り替わる
 /// - 上限 50MB を超えたら古いログから削除（最大 7 日分まで残す）
 /// - error / warn / info / debug の 4 段階
-/// - Debug ビルドでは `/tmp/ide-poc.log` にもミラーする（`tail -f` で追える、VERIFY 用）
+/// - Debug ビルドでは `/tmp/polepole-poc.log` にもミラーする（`tail -f` で追える、VERIFY 用）
 final class Logger: @unchecked Sendable {
     enum Level: String {
         case error = "ERROR"
@@ -78,10 +78,10 @@ final class Logger: @unchecked Sendable {
         #endif
     }
 
-    // MARK: - Debug ミラー（/tmp/ide-poc.log）
+    // MARK: - Debug ミラー（/tmp/polepole-poc.log）
 
     #if DEBUG
-    private static let debugMirrorPath = "/tmp/ide-poc.log"
+    private static let debugMirrorPath = "/tmp/polepole-poc.log"
 
     private func appendToDebugMirror(_ data: Data) {
         let url = URL(fileURLWithPath: Self.debugMirrorPath)

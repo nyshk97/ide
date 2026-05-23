@@ -2,7 +2,7 @@ import SwiftUI
 
 /// 1 ファイル分の diff カード。DiffViewer の `FileDiffView` を移植。
 /// 元実装との違い:
-/// - 名前: `FileDiffView` → `FileDiffCard`（IDE の `FilePreviewView` と紛らわしくないように）
+/// - 名前: `FileDiffView` → `FileDiffCard`（PolePole の `FilePreviewView` と紛らわしくないように）
 /// - `repoPath: String` → `URL`
 /// - `GitService` → `DiffService`
 struct FileDiffCard: View {

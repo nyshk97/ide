@@ -5,7 +5,7 @@ import AppKit
 /// Emoji & Symbols、Help の検索ボックス、Window > Fill/Center 等）と、空になった
 /// File / Window メニュー自体の削除を担当する。
 @MainActor
-final class IdeAppDelegate: NSObject, NSApplicationDelegate {
+final class PolePoleAppDelegate: NSObject, NSApplicationDelegate {
     /// Edit メニュー末尾で AppKit が動的に足してくる不要項目。menu open ごとに
     /// 復活するので、毎回 NSMenuDelegate.menuNeedsUpdate で消す。
     private static let editMenuItemsToStrip: Set<String> = [
@@ -52,7 +52,7 @@ final class IdeAppDelegate: NSObject, NSApplicationDelegate {
 
         // File / Window / Help メニューは中身を全部消すか、検索ボックスを
         // SwiftUI/AppKit 両方から消す確実な手段が無いため、まるごと削除する。
-        // 「ログファイルを開く」は IDE Dev メニューに移している。
+        // 「ログファイルを開く」は PolePole Dev メニューに移している。
         for title in ["File", "Window", "Help"] {
             if let item = main.items.first(where: { $0.submenu?.title == title }) {
                 main.removeItem(item)
@@ -96,7 +96,7 @@ final class IdeAppDelegate: NSObject, NSApplicationDelegate {
     }
 }
 
-extension IdeAppDelegate: NSMenuDelegate {
+extension PolePoleAppDelegate: NSMenuDelegate {
     /// AppKit は menu が開かれる直前に AutoFill / Dictation / Emoji を
     /// 再追加するので、ここで毎回そぎ落とす。
     func menuNeedsUpdate(_ menu: NSMenu) {

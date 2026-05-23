@@ -1,7 +1,7 @@
 import SwiftUI
 
 /// DiffViewer の `SyntaxHighlighter` を改名のうえ移植。
-/// 名前が一般的だと IDE の他コードと衝突する可能性があるので `DiffSyntaxHighlighter` に。
+/// 名前が一般的だと PolePole の他コードと衝突する可能性があるので `DiffSyntaxHighlighter` に。
 ///
 /// `ruleCache` を持つので Swift 6 strict concurrency 下では isolated にする必要がある。
 /// SwiftUI View の body から呼ばれる前提なので `@MainActor` で隔離する。

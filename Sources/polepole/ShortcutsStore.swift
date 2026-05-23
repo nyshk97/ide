@@ -100,7 +100,7 @@ struct KeyCombo: Codable, Equatable {
     ]
 }
 
-/// 永続化先 `~/Library/Application Support/{ide,ide-dev}/shortcuts.json`。
+/// 永続化先 `~/Library/Application Support/{polepole,polepole-dev}/shortcuts.json`。
 /// schemaVersion: 1。MainActor に閉じる（ProjectsModel と同じ流儀）。
 @MainActor
 final class ShortcutsStore: ObservableObject {
@@ -205,7 +205,7 @@ final class ShortcutsStore: ObservableObject {
     }
 }
 
-/// 衝突検出用に IDE 内に実装済みの固定ショートカット一覧。
+/// 衝突検出用に PolePole 内に実装済みの固定ショートカット一覧。
 /// 設定画面の警告表示に使う（保存は許可、警告のみ）。
 enum FixedShortcuts {
     struct Entry {

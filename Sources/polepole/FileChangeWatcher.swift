@@ -23,7 +23,7 @@ enum FileChangeWatcher {
     private final class Watcher: @unchecked Sendable {
         private let path: String
         private let onChange: () -> Void
-        private let queue = DispatchQueue(label: "local.d0ne1s.ide.filewatcher")
+        private let queue = DispatchQueue(label: "local.d0ne1s.polepole.filewatcher")
 
         private var source: DispatchSourceFileSystemObject?
         private var debounce: DispatchWorkItem?

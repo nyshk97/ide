@@ -3,7 +3,7 @@ import AppKit
 
 /// 画像ファイルの diff を変更前/変更後で並べる。DiffViewer の ImagePreviewView を移植。
 /// 元実装との違い: `GitService` → `DiffService`、`repoPath: String` → `URL`、
-/// 名前を `DiffImagePreviewView` に変更（IDE 内の他 ImagePreview と衝突回避）。
+/// 名前を `DiffImagePreviewView` に変更（PolePole 内の他 ImagePreview と衝突回避）。
 struct DiffImagePreviewView: View {
     let file: FileDiff
     let repoPath: URL

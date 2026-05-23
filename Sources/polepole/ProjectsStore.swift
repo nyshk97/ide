@@ -1,6 +1,6 @@
 import Foundation
 
-/// `~/Library/Application Support/ide/projects.json` への永続化担当。
+/// `~/Library/Application Support/polepole/projects.json` への永続化担当。
 ///
 /// - schemaVersion: 1
 /// - アトミック書き込み（一時ファイル → rename）
@@ -18,7 +18,7 @@ struct ProjectsStore: Sendable {
     private var fileManager: FileManager { .default }
 
     /// 永続化先ディレクトリ。存在しなければ作成。
-    /// Debug ビルドは `ide-dev/` 配下に保存し、Release（Brew 配布版）と完全に分離する。
+    /// Debug ビルドは `polepole-dev/` 配下に保存し、Release（Brew 配布版）と完全に分離する。
     var storageDirectory: URL {
         let appSupport = fileManager.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
         return appSupport.appendingPathComponent(AppPaths.subdirName, isDirectory: true)

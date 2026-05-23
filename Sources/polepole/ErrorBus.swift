@@ -7,7 +7,7 @@ import SwiftUI
 /// - 継続的な状態異常（プロジェクト missing、watcher 停止、PTY 異常 等）→ それぞれの View 内で
 ///   常駐表示する（既存: missing project は LeftSidebarView の行内、PTY 異常は ExitedOverlayView）
 ///
-/// このバスは「単発 toast」専用。詳細は ~/Library/Logs/ide/ にログとして残る。
+/// このバスは「単発 toast」専用。詳細は ~/Library/Logs/polepole/ にログとして残る。
 @MainActor
 final class ErrorBus: ObservableObject {
     static let shared = ErrorBus()

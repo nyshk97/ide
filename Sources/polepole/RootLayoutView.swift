@@ -1,7 +1,7 @@
 import AppKit
 import SwiftUI
 
-/// IDE 全体のルートレイアウト（3 カラム）。
+/// PolePole 全体のルートレイアウト（3 カラム）。
 /// 左: プロジェクト一覧サイドバー / 中央: ファイルツリー or プレビュー / 右: ターミナル。
 /// 初期比率はサイドバー幅確定後の残りを center:right = 2:3、ドラッグした幅は
 /// `NSSplitView.autosaveName` で永続化して次回起動時に復元する。
@@ -12,7 +12,7 @@ struct RootLayoutView: View {
         // SwiftUI の HSplitView は autosaveName を露出せず idealWidth も hint 程度にしか
         // 効かないため、WorkspaceView と同じく NSSplitViewController を直接ラップする。
         ThreeColumnSplit(
-            autosaveName: "ide.rootSplit",
+            autosaveName: "polepole.rootSplit",
             initialCenterRatio: 0.4,
             leftMin: 120,
             leftInitial: 140,

@@ -98,7 +98,7 @@ private func pasteboard(for location: ghostty_clipboard_e) -> NSPasteboard {
 
 // MARK: - 画像ペースト対応
 
-/// クリップボード画像の保存先。`~/Library/Caches/{ide,ide-dev}/clipboard/`。
+/// クリップボード画像の保存先。`~/Library/Caches/{polepole,polepole-dev}/clipboard/`。
 private var clipboardImageDirectory: URL {
     AppPaths.cacheDirectory.appendingPathComponent("clipboard", isDirectory: true)
 }
@@ -123,7 +123,7 @@ func cleanupOldClipboardImages() {
 }
 
 /// クリップボードに画像があれば cache ディレクトリに書き出してシェルエスケープ済みのパスを返す。
-/// Claude Code は `~/Library/Caches/ide/clipboard/clipboard-...png` のようなパスを画像として認識する。
+/// Claude Code は `~/Library/Caches/polepole/clipboard/clipboard-...png` のようなパスを画像として認識する。
 private func saveClipboardImageIfNeeded(from pb: NSPasteboard) -> String? {
     guard let (data, ext) = clipboardImageRepresentation(in: pb) else { return nil }
 

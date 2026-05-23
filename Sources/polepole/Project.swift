@@ -1,6 +1,6 @@
 import Foundation
 
-/// IDE が扱うプロジェクト 1 つを表す値型。
+/// PolePole が扱うプロジェクト 1 つを表す値型。
 struct Project: Identifiable, Hashable, Codable {
     let id: UUID
     var path: URL

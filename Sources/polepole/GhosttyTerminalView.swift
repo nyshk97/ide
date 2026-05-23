@@ -244,7 +244,7 @@ final class GhosttyTerminalNSView: NSView {
             return false
         }
 
-        // ide 側のショートカットを Ghostty より先に捕まえる。
+        // PolePole 側のショートカットを Ghostty より先に捕まえる。
         // 操作対象は WorkspaceModel.activePane（フォーカス中のペイン）。
         if mods == .command {
             switch chars {
