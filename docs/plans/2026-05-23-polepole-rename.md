@@ -221,9 +221,9 @@ PolePole はスワヒリ語で「ゆっくりと」を意味し、`polepole.dev`
       正しい `"PolePole Dev"` / `"PolePole Dev.app/Contents/MacOS/PolePole Dev"` に修正
 - [x] commit: "docs(polepole-rename): update all current docs to PolePole branding"
 
-### Phase 4a: brew tap formula の更新 (SHA256 以外) [AI🤖]
-- [ ] 作業ディレクトリ: `/opt/homebrew/Library/Taps/nyshk97/homebrew-tap`
-- [ ] `Casks/polepole.rb` を新規作成 (SHA256 は仮の `0`*64、Phase 5 完了後に Phase 4b で埋める)
+### Phase 4a: brew tap formula の更新 (SHA256 以外) [AI🤖] ✅ (commit はまだ)
+- [x] 作業ディレクトリ: `/opt/homebrew/Library/Taps/nyshk97/homebrew-tap`
+- [x] `Casks/polepole.rb` を新規作成 (SHA256 は仮の `0`*64、Phase 5 完了後に Phase 4b で埋める)
   ```ruby
   cask "polepole" do
     version "1.0.0"
@@ -237,7 +237,7 @@ PolePole はスワヒリ語で「ゆっくりと」を意味し、`polepole.dev`
     app "PolePole.app"
   end
   ```
-- [ ] `Casks/ide.rb` を `deprecate!` + caveats に書き換え
+- [x] `Casks/ide.rb` を `deprecate!` + caveats に書き換え
   ```ruby
   cask "ide" do
     version "1.0.14"
@@ -263,28 +263,37 @@ PolePole はスワヒリ語で「ゆっくりと」を意味し、`polepole.dev`
     EOS
   end
   ```
-- [ ] Phase 4a は commit しない (Phase 5 で SHA256 確定してから一括で push)
+- [x] Phase 4a は commit しない (Phase 5 で SHA256 確定してから一括で push)
+- [x] `brew style` を両 cask に通して 0 offenses (`depends_on macos: :sonoma` を両方に追加、
+      `desc` の長さも調整)
+- 注: `ide.rb` は `version "1.0.13"` のまま (本体 repo の `nyshk97/ide` には 1.0.14 zip も
+  存在するが、deprecation の意図は「これ以上 ide を更新させない」なので最新化しない)
 
-### Phase 5前の準備 [人間👨‍💻 + AI🤖確認]
-- [ ] Claude が `gh repo create nyshk97/polepole-releases --public --description "Sparkle update feed for PolePole.app"` を
+### Phase 5前の準備 [人間👨‍💻 + AI🤖確認] ✅
+- [x] Claude が `gh repo create nyshk97/polepole-releases --public --description "Sparkle update feed for PolePole.app"` を
       **ユーザーに確認してから** 実行する
-- [ ] 作成後、空 release が無い状態でも `release.sh` が「No existing appcast.xml; creating fresh」で
+- [x] 作成後、空 release が無い状態でも `release.sh` が「No existing appcast.xml; creating fresh」で
       新規生成することを確認 (curl が 404 → fresh テンプレを書く既存パスがあるので問題なし)
+- 追加対応: 空 repo には `gh release create` が `HTTP 422 Repository is empty` で失敗する制約あり。
+  最初に README.md を 1 commit push してから release を作る
 
-### Phase 5: Release ビルド + notarize + upload [AI🤖]
-- [ ] `project.yml` の MARKETING_VERSION を `1.0.0` に更新 (現在 `1.0.14`)
-- [ ] `mise run regen` → `mise run build` で Debug が壊れていないことを最終確認
-- [ ] commit: "chore(polepole-rename): bump MARKETING_VERSION to 1.0.0"
-- [ ] `git push origin main` (release.sh が push を要求する)
-- [ ] `scripts/build.sh` を実行 (Release archive → Developer ID 署名 → notarize → staple → `build/polepole.zip` 生成)
-- [ ] `scripts/release.sh 1.0.0` を実行
-  - `nyshk97/ide` に `v1.0.0` tag + `polepole.zip` release を作る (homebrew cask の URL 互換)
-  - `nyshk97/polepole-releases` に `v1.0.0` tag + `polepole.zip` + `appcast.xml` を作る (Sparkle feed)
-- [ ] 出力された SHA256 を控える
-- [ ] `/opt/homebrew/Library/Taps/nyshk97/homebrew-tap/Casks/polepole.rb` の SHA256 を実値に差し替え
-- [ ] `git -C /opt/homebrew/Library/Taps/nyshk97/homebrew-tap add Casks/polepole.rb Casks/ide.rb`
-      → commit "polepole: add cask, deprecate ide" → push (ユーザー確認のうえで)
-- [ ] commit (本体 repo): "release(polepole-rename): cut PolePole 1.0.0"
+### Phase 5: Release ビルド + notarize + upload [AI🤖] ✅
+- [x] `project.yml` の MARKETING_VERSION を `1.0.0` に更新 (現在 `1.0.14`)
+- [x] commit `1da765f`: "chore(polepole-rename): bump MARKETING_VERSION to 1.0.0"
+- [x] `git push origin main` (Phase 1a〜3 を含む 5 commit を一気に push)
+- [x] `scripts/build.sh` を実行 (Release archive → Developer ID 署名 → notarize → staple → `build/polepole.zip` 生成)
+- [x] `scripts/release.sh 1.0.0` を実行 → 本体 repo `nyshk97/ide` 側で `v1.0.0` tag 衝突
+      (2026-05-11 の旧 release v1.0.0 が既に存在)。**方針変更**: polepole 配信は
+      `polepole-releases` に結集、本体 repo は触らない (`release.sh` から該当ブロック削除)
+- [x] polepole.rb の url を `nyshk97/polepole-releases/...` に変更
+- [x] polepole-releases に README.md を 1 commit push してから `gh release create v1.0.0`
+      で `polepole.zip` + `appcast.xml` をアップロード
+- [x] SHA256 を控える: `9354481dd6cae101b9ba46d6501156aaac32ea5dee1685d9d18fb96e46691f67`
+- [x] feed URL / zip URL が 200 で取れること、download SHA256 が local と一致することを確認
+- [x] `/opt/homebrew/Library/Taps/nyshk97/homebrew-tap/Casks/polepole.rb` の SHA256 を実値に差し替え
+- [x] `git -C /opt/homebrew/Library/Taps/nyshk97/homebrew-tap add Casks/polepole.rb Casks/ide.rb`
+      → commit `ad253f9` "polepole: add cask, deprecate ide" → push 成功
+- [x] commit (本体 repo): release.sh 修正と plan 更新を含めて push
 
 ### 動作確認 [AI🤖 + 人間👨‍💻]
 - [ ] [AI🤖] `brew update && brew install nyshk97/tap/polepole` で新 cask が引けることを確認
@@ -303,6 +312,16 @@ PolePole はスワヒリ語で「ゆっくりと」を意味し、`polepole.dev`
 
 ### 試したこと・わかったこと
 
+- **Phase 5: `gh release create` は空 repo に対して `HTTP 422 Repository is empty` を返す**。
+  `gh repo create --public` だけだと commit 0 件で、いきなり release を作ろうとしても失敗する。
+  最初に README.md など 1 ファイルでも push してから release を作るのが安全。空アサート的に
+  どこかにバグ報告したい挙動だが、現状はこれで運用回避
+
+- **Phase 5: build と release.sh が build.sh を 2 度走らせる**。release.sh は冒頭で fresh
+  build を強制するために `"$SCRIPT_DIR/build.sh"` を呼ぶ。なので「動作確認のため一度
+  build.sh を単体で叩いてから release.sh を打つ」と二重ビルドになる。10〜15 分 × 2 = 20〜30 分
+  ロス。次回は **release.sh 直接実行で十分** (build.sh は release.sh から呼ばれる)
+
 - **Phase 1c screenshot 経路**: IDE.app 内の Claude Code から `CGWindowListCopyWindowInfo` を
   叩いてもウィンドウ owner が拾えず (TCC 制限)、`./scripts/polepole-screenshot.sh` 系の
   「window ID 取得 → screencapture -l」フォールバックが空打ちになる。対策:
@@ -316,6 +335,16 @@ PolePole はスワヒリ語で「ゆっくりと」を意味し、`polepole.dev`
   `/tmp/polepole-poc.log` が新規作成され、旧 `ide-dev/` には触れていないことを確認
 
 ### 方針変更
+
+- **Phase 5: 本体 repo `nyshk97/ide` への release を polepole-releases に集約**:
+  release.sh は元々「nyshk97/ide にも homebrew cask 互換のため release を作る + polepole-releases に
+  Sparkle feed を作る」の 2 段構えだったが、本体 repo `nyshk97/ide` には 2026-05-11 に既に
+  v1.0.0 (ide.zip) を切っていた。`gh release create v1.0.0 --repo nyshk97/ide` が
+  「a release with the same tag name already exists」で失敗。
+  対応: polepole.rb の url を `nyshk97/polepole-releases/releases/download/v#{version}/polepole.zip`
+  に変更し、release.sh から「Creating release on nyshk97/ide」のブロックを削除。
+  polepole 配信は polepole-releases に集約、本体 repo の release 履歴 (v0.0.x〜v1.0.14) は
+  旧 ide 配布の凍結履歴として保つ
 
 - **VERIFY.md の typo 修正もリネーム作業に含めた**: VERIFY.md に元から `pkill -x ide` と
   `Debug/ide.app/Contents/MacOS/ide` (小文字) があり、本来の Debug 名 `PolePole Dev` (旧名 `IDE Dev`)

@@ -137,13 +137,12 @@ PY
 
 echo "    Generated $APPCAST_PATH"
 
-echo "==> Creating release on nyshk97/ide (homebrew cask compatibility)..."
-gh release create "$TAG" \
-  "$ZIP_PATH" \
-  --title "$TAG" \
-  --notes "polepole $VERSION"
-
-echo "==> Creating release on ${RELEASES_REPO} (Sparkle feed)..."
+# polepole の release は polepole-releases にだけ配置する。
+# - 旧 ide cask 時代は nyshk97/ide 本体 repo にも release を残して homebrew cask の
+#   URL を揃えていたが、polepole.rb の url は polepole-releases を直接指すので
+#   本体 repo への重複 release は不要 (本体 repo の release 履歴 v0.0.x〜v1.0.14 は
+#   旧 ide 配布の凍結履歴として残す)。
+echo "==> Creating release on ${RELEASES_REPO} (Sparkle feed + cask zip)..."
 gh release create "$TAG" \
   "$ZIP_PATH" \
   "$APPCAST_PATH" \
