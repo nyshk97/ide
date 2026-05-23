@@ -1,0 +1,13 @@
+# Cloudflare Workers / wrangler の生成物
+node_modules/
+.wrangler/
+dist/
+.dev.vars
+.dev.vars.local
+worker-configuration.d.ts
+
+# vitest / tsc キャッシュ
+.vitest_cache/
+*.tsbuildinfo
+
+# ローカル D1 の SQLite 実体は .wrangler 配下に出るので上の規則でカバー

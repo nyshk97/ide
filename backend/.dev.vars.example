@@ -1,0 +1,17 @@
+# `.dev.vars` (gitignore 済み) にコピーして本物の値を埋める。
+# wrangler dev --local がこの値を env として注入する。
+
+# Stripe (Test mode の値を使う)
+STRIPE_SECRET_KEY="sk_test_xxxxxxxx"
+STRIPE_WEBHOOK_SECRET="whsec_xxxxxxxx"
+
+# Resend API key
+RESEND_API_KEY="re_xxxxxxxx"
+
+# EdDSA 秘密鍵 (改行を \n に escape した 1 行で書く)
+# 元ファイル: $DOTFILES_DIR/secrets/polepole/license-signing-private.pem
+LICENSE_SIGNING_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\nXXX\n-----END PRIVATE KEY-----"
+
+# Stripe Payment Link / Price ID (Test mode で発行したもの)
+EXPECTED_PRICE_ID="price_test_xxxxxxxx"
+EXPECTED_PAYMENT_LINK_ID="plink_test_xxxxxxxx"

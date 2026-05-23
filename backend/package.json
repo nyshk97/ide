@@ -1,0 +1,28 @@
+{
+  "name": "polepole-backend",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev --local --persist-to .wrangler/state",
+    "deploy": "wrangler deploy",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit",
+    "db:migrate:local": "wrangler d1 migrations apply polepole-licenses --local --persist-to .wrangler/state",
+    "db:migrate:remote": "wrangler d1 migrations apply polepole-licenses --remote",
+    "db:reset:local": "rm -rf .wrangler/state && pnpm db:migrate:local",
+    "keys:generate": "bash scripts/gen-license-keys.sh"
+  },
+  "dependencies": {
+    "hono": "^4.6.0",
+    "zod": "^3.23.0"
+  },
+  "devDependencies": {
+    "@cloudflare/vitest-pool-workers": "^0.5.0",
+    "@cloudflare/workers-types": "^4.20240620.0",
+    "typescript": "^5.5.0",
+    "vitest": "^2.0.0",
+    "wrangler": "^3.78.0"
+  }
+}

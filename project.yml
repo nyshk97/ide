@@ -57,6 +57,11 @@ targets:
       - path: Resources/Fonts
         type: folder
         buildPhase: resources
+      # ライセンス署名検証用の Ed25519 公開鍵 (PEM)。秘密鍵は Cloudflare Workers env のみで、
+      # 公開鍵はアプリにバンドルしてローカル検証に使う。鍵生成は backend/scripts/gen-license-keys.sh。
+      - path: Resources/License
+        type: folder
+        buildPhase: resources
     dependencies:
       - framework: GhosttyKit.xcframework
         embed: false
