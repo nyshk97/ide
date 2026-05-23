@@ -28,7 +28,7 @@ PolePole を有償配布するために必要なステップ。製品として�
 |---|---|
 | LP（簡易ランディングページ） | `polepole.dev` に最低限の情報だけ載せる: タイトル / 1 文の価値提案 / スクリーンショット 1〜2 枚 / 価格 / 購入ボタン (Stripe Payment Link) / ダウンロード / Zenn 詳細記事へのリンク。**詳細な機能紹介や推奨ワークフローは Zenn の launch 記事側に逃がす**（LP は購入導線に絞る） |
 | Zenn の launch 記事 | v1.0 launch の主軸。「エディター作りました」系の自己紹介体で、機能 / 推奨ワークフロー（Claude Code / Codex CLI を使う実例）/ スクリーンショット / 動画 / ショートカット一覧 / FAQ を網羅。記事末尾から `polepole.dev` へ誘導 → 購入へ |
-| 環境依存の前提を取り除く | `mise` / `brew` / dotfiles を持たないユーザーで動くこと。JetBrains Mono と ghostty bundled config は同梱済みなので、`~/.config/ghostty/config` 不在時のデフォルト挙動を確認。特定の AI CLI（`claude` 等）の有無には依存しない |
+| 環境依存の前提を取り除く | 「自分の Mac だから動く」を排除する。**v1.0 で完璧を求めず、ヤバい依存だけ捕まえるレベルで OK**。具体タスクは下記の段階で進める:<br>**A. grep でコード監査（半日・まずこれ）** — `/Users/`・`~/.config/`・`~/Library/CloudStorage/` のハードコード、`claude`/`cursor`/`code`/`git` の Process exec、`$EDITOR`/`$SHELL` の前提を洗い出して不在時 fallback を入れる<br>**B. HOME 差し替えで起動確認（1〜2h）** — `mkdir -p /tmp/clean-home && HOME=/tmp/clean-home open -n /Applications/PolePole.app`。Console.app でログを見ながら何が読めないか確認（macOS の sandbox / launchd が HOME を上書きするケースは要観察）<br>**C. ベータテスター数人（launch 直前）** — 実環境での想定外を最後にすくう。新規 macOS ユーザーアカウント作成検証は launch ブロッカー級の不安が残った時だけ |
 
 ### 販売・決済・法務
 
