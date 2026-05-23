@@ -1,6 +1,6 @@
 # COMMERCIALIZATION
 
-ide を有償配布するために必要なステップ。今は「自分用ツール」前提の README / REQUIREMENTS のままなので、製品としての言語化・販売インフラ・運用導線を整える必要がある。
+PolePole を有償配布するために必要なステップ。製品としての言語化・販売インフラ・運用導線をここで整理する。
 
 ポジションは **「Claude Code を最高に回せる macOS ワークスペース」**（編集機能は持たない / Apple Silicon 限定 / 閲覧 + ターミナル + プロジェクト管理に特化）で確定。Cursor / Zed と同じ土俵では戦わない。
 
@@ -27,7 +27,6 @@ ide を有償配布するために必要なステップ。今は「自分用ツ�
 | エンドユーザー向けドキュメント | 現在の docs は開発者向け。LP からリンクできる help サイト or 単一 README |
 | 環境依存の前提を取り除く | `mise` / `brew` / dotfiles を持たないユーザーで動くこと。JetBrains Mono と ghostty bundled config は同梱済みなので、`claude` の有無 / `~/.config/ghostty/config` 不在時のデフォルト挙動を確認 |
 | `claude` CLI 未インストール時の案内 | 起動後・ターミナル初回利用時に「Claude Code がインストールされていません → install ガイドへ」を出す。要件 8.3 の常駐表示 or 初回モーダル |
-| README / REQUIREMENTS の語り直し | 現在「自分用」と書いてあるので、製品としての positioning に置き換え。または ide 本体 repo を private 化するなら公開 README は LP に統合 |
 
 ### 販売・決済・法務
 
@@ -71,7 +70,6 @@ Lemon Squeezy は Stripe 買収で今後が不透明なので、現時点では�
 | サポート窓口 | `support@<domain>` 1 本でいい。Discord / Slack はサポート負荷が想像以上に高いので最初は持たない |
 | アプリ内フィードバック導線 | メーラー起動でも可。本文に **バージョン / OS / 直近ログ末尾 / 環境変数の一部** を prefill しておく（これだけでサポートコストが激減する） |
 | クラッシュレポート | Sentry（個人開発者プランは無料枠あり）。**opt-in** で送信。落ちた理由が分からないとリピート購入が止まる |
-| ~~本体 repo の private 化~~ | 2026-05-23 に `nyshk97/ide` を private 化済み。配信は `nyshk97/polepole-releases`（public）+ `nyshk97/homebrew-tap`（public）に集約しているので brew install / Sparkle 自動更新は影響なし |
 | 配信フィードの独自ドメイン化 | `updates.<domain>/appcast.xml`。R2 + 独自ドメインへ移行。旧 SUFeedURL を踏むユーザーのために GitHub 側にも appcast を残す（リダイレクトが効かないので両方更新する運用） |
 
 ### 依存物のライセンス整理
@@ -149,9 +147,7 @@ Lemon Squeezy は Stripe 買収で今後が不透明なので、現時点では�
 
 | 項目 | メモ |
 |---|---|
-| 英語ローカライズ | 海外市場を取りに行くなら UI / LP / help を英語化 |
-| アップグレード割引・リフェラル | メジャーバージョンアップ時の既存ユーザー優遇 |
-| Product Hunt / X での告知 | リリース launch の段取り |
+| リフェラル | 既存ユーザーが友人を紹介して割引が出る仕組み。Lifetime なので「次回購入の割引」は使えない → 紹介報酬は Amazon ギフトカード等の現金等価で出す前提 |
 | 比較記事 / 紹介記事 | vs Cursor / vs cmux / vs Warp |
 | プラン分け（個人 / チーム） | 売れ行きを見てから |
 
