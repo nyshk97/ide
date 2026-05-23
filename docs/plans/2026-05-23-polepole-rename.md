@@ -307,9 +307,12 @@ PolePole はスワヒリ語で「ゆっくりと」を意味し、`polepole.dev`
       Bundle ID `local.d0ne1s.ide` と `local.d0ne1s.polepole` で完全分離)
 - [ ] [人間👨‍💻] 並走確認後、旧 `/Applications/IDE.app` を `brew uninstall ide` で削除
       (急がない、しばらく並走で運用してから実施で OK)
-- [~] [AI🤖] VERIFY.md の代表手順 (起動・screenshot) は polepole-launch.sh + polepole-screenshot.sh で
-      Phase 1c / Phase 2 で確認済み。keystroke は IDE 内 Claude Code の TCC 制限で
-      未実行 (構文 OK、外部 Terminal.app からは動く想定)
+- [x] [AI🤖] VERIFY.md の代表手順を polepole-* スクリプトで確認
+  - 起動: `polepole-launch.sh` で PolePole Dev.app 起動成功 (Phase 1c / Phase 2)
+  - screenshot: `polepole-screenshot.sh` でウィンドウ owner "PolePole Dev" を掴んでキャプチャ成功
+  - keystroke (`polepole-keystroke.sh`) のみ IDE 内 Claude Code からは TCC で
+    `osascriptにはキー操作の送信は許可されません` エラー。スクリプト構文は OK で、
+    外部 Terminal.app からは動く想定 (CLAUDE.md の既知制約)
 - [x] [人間👨‍💻] PolePole 起動中に Check for Updates… を実行、新 feed
       `nyshk97/polepole-releases/releases/latest/download/appcast.xml` に到達して
       「You're up to date! PolePole 1.0.0 is currently the newest version available.」を確認
