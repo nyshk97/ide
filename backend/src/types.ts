@@ -1,5 +1,6 @@
 // Cloudflare Workers の bindings 型。wrangler.toml と一致させる。
 
+// Cloudflare 公式の rate-limit binding (Workers v4 / [[ratelimits]] 正式構文)
 export type RateLimit = {
   limit: (opts: { key: string }) => Promise<{ success: boolean }>;
 };
@@ -30,6 +31,7 @@ export type License = {
   amount: number;
   currency: string;
   status: "active" | "revoked" | "refunded";
+  email_sent_at: number | null;
   created_at: number;
   updated_at: number;
 };

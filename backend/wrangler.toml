@@ -3,44 +3,39 @@ main = "src/index.ts"
 compatibility_date = "2026-05-23"
 compatibility_flags = ["nodejs_compat"]
 
-# Cloudflare Workers の本番設定。
-# Stripe secret や Resend API key、EdDSA 秘密鍵などは `wrangler secret put <KEY>` で投入する。
-# ローカル開発では .dev.vars (gitignore 済み) に同名で書く。
+# Cloudflare Workers v4 では env (--env production など) を使うと bindings は継承されず、
+# その env 配下に書いたものしか見えない。なので「development (env なし)」と
+# 「production (--env production)」の両方で同じ shape の binding を明示する。
+#
+# secret 系 (STRIPE_SECRET_KEY / STRIPE_WEBHOOK_SECRET / RESEND_API_KEY /
+# LICENSE_SIGNING_PRIVATE_KEY / EXPECTED_PRICE_ID / EXPECTED_PAYMENT_LINK_ID) は
+# wrangler.toml に書かず、ローカルは .dev.vars、本番は `wrangler secret put` で投入する。
 
+# ===== development (`wrangler dev` / 引数なし deploy はここを見る) =====
 [vars]
-# Stage1 = 円建て ¥11,800 で固定。Stage2 以降は環境変数で動的に切り替え。
 EXPECTED_AMOUNT = "11800"
 EXPECTED_CURRENCY = "jpy"
-# Stripe Payment Link 側で limit する想定だが、webhook 側でも double-check する。
-# 値は事前準備で取得した本物の Price ID / Payment Link ID に差し替える。
-EXPECTED_PRICE_ID = "price_placeholder_replace_me"
-EXPECTED_PAYMENT_LINK_ID = "plink_placeholder_replace_me"
-# ローカル開発時の Resend toggle。本番は secret で REAL なキーを渡す。
 RESEND_ENABLED = "true"
 
 [[d1_databases]]
 binding = "DB"
 database_name = "polepole-licenses"
-# database_id は wrangler d1 create したあとに埋める (本番デプロイ前の事前準備で発行)
 database_id = "00000000-0000-0000-0000-000000000000"
 migrations_dir = "migrations"
 
-# Cloudflare の組み込み Rate Limiting (unstable)。
-# IP ベースで activate / resend を絞る。email ベースの細かい制限は rate_limit_log テーブルで補強。
-[[unsafe.bindings]]
+[[ratelimits]]
 name = "RATE_LIMITER_ACTIVATE"
-type = "ratelimit"
 namespace_id = "1001"
 simple = { limit = 10, period = 10 }
 
-[[unsafe.bindings]]
+[[ratelimits]]
 name = "RATE_LIMITER_RESEND"
-type = "ratelimit"
 namespace_id = "1002"
 simple = { limit = 3, period = 60 }
 
-# 環境分離: dev (ローカル) / staging / production。
-# staging は本番と同じ shape で Stripe Test mode を使う。
+# ===== production (`wrangler deploy --env production`) =====
+# 同じ shape を全部明示する。Price ID / Payment Link ID は本番値が決まり次第、
+# `wrangler secret put EXPECTED_PRICE_ID --env production` 等で投入する想定。
 [env.production]
 name = "polepole-backend"
 
@@ -48,3 +43,20 @@ name = "polepole-backend"
 EXPECTED_AMOUNT = "11800"
 EXPECTED_CURRENCY = "jpy"
 RESEND_ENABLED = "true"
+
+[[env.production.d1_databases]]
+binding = "DB"
+database_name = "polepole-licenses-prod"
+# `wrangler d1 create polepole-licenses-prod` 実行後、出力された UUID で差し替える
+database_id = "00000000-0000-0000-0000-000000000000"
+migrations_dir = "migrations"
+
+[[env.production.ratelimits]]
+name = "RATE_LIMITER_ACTIVATE"
+namespace_id = "2001"
+simple = { limit = 10, period = 10 }
+
+[[env.production.ratelimits]]
+name = "RATE_LIMITER_RESEND"
+namespace_id = "2002"
+simple = { limit = 3, period = 60 }

@@ -81,13 +81,23 @@ export async function fulfillCheckout(
 
   // 1. Stripe API で session を再取得 (webhook payload は信用しない)
   const session = await retrieveCheckoutSession(env.STRIPE_SECRET_KEY, sessionId);
+  const now = Math.floor(Date.now() / 1000);
 
   // 2. 検証条件を全部チェック (pure 関数で testable)
   const v = validateSession(session, env);
-  if (!v.ok) return { status: "rejected", reason: v.reason };
+  if (!v.ok) {
+    // 拒否は監査記録する (Price ID 設定ミスや不正購入の早期検知)
+    await recordRejection(env, {
+      sessionId,
+      eventId,
+      source,
+      reason: v.reason,
+      payload: session,
+      now,
+    });
+    return { status: "rejected", reason: v.reason };
+  }
   const { email, amount, currency, paymentIntentId } = v.data;
-
-  const now = Math.floor(Date.now() / 1000);
 
   // 3. license の idempotent 作成
   const { license, created } = await upsertLicense(env, {
@@ -99,52 +109,86 @@ export async function fulfillCheckout(
     now,
   });
 
-  // 4. purchase_log: webhook 経由 (event_id あり) のみ記録
-  let emailAlreadySent = false;
+  // 4. purchase_log: webhook 経由 (event_id あり) のみ記録 (event の重複処理を防ぐ)
   if (eventId) {
-    const existing = await env.DB.prepare(
-      "SELECT email_sent FROM purchase_log WHERE stripe_event_id = ?"
+    await env.DB.prepare(
+      `INSERT INTO purchase_log
+         (event_type, stripe_event_id, stripe_session_id, source, email_sent, payload, received_at)
+       VALUES (?, ?, ?, ?, 0, ?, ?)
+       ON CONFLICT (stripe_event_id) DO NOTHING`
     )
-      .bind(eventId)
-      .first<{ email_sent: number }>();
-    if (existing) {
-      emailAlreadySent = existing.email_sent === 1;
-    } else {
-      await env.DB.prepare(
-        `INSERT INTO purchase_log
-           (event_type, stripe_event_id, stripe_session_id, source, email_sent, payload, received_at)
-         VALUES (?, ?, ?, ?, 0, ?, ?)
-         ON CONFLICT (stripe_event_id) DO NOTHING`
+      .bind(
+        "checkout.session.completed",
+        eventId,
+        sessionId,
+        source,
+        JSON.stringify(session),
+        now
       )
-        .bind(
-          "checkout.session.completed",
-          eventId,
-          sessionId,
-          source,
-          JSON.stringify(session),
-          now
-        )
-        .run();
-    }
+      .run();
   }
 
-  // 5. メール送信 (idempotent。失敗しても license は発行済み、再送 endpoint で救済可能)
-  let emailSent = emailAlreadySent;
-  if (!emailSent) {
-    try {
-      await sendEmail(env.RESEND_API_KEY, env.RESEND_ENABLED === "true", buildLicenseKeyEmail(license));
-      emailSent = true;
-      if (eventId) {
-        await env.DB.prepare("UPDATE purchase_log SET email_sent = 1 WHERE stripe_event_id = ?")
-          .bind(eventId)
-          .run();
-      }
-    } catch (err) {
-      console.error("email send failed:", err);
-    }
-  }
+  // 5. メール送信 (idempotency は license.email_sent_at で集約管理)
+  //   /thanks 経由 (eventId なし) でも webhook 経由 (eventId あり) でも、
+  //   license.email_sent_at IS NULL なら送り、成功時に CAS で更新する。
+  //   失敗時は email_sent_at が NULL のままなので、再送 endpoint や次回の経路で救済可能。
+  const emailSent = await sendEmailIfNotYet(env, license);
 
   return { status: "fulfilled", license, created, emailSent };
+}
+
+async function sendEmailIfNotYet(env: Bindings, license: License): Promise<boolean> {
+  if (license.email_sent_at !== null) return true;
+  try {
+    await sendEmail(
+      env.RESEND_API_KEY,
+      env.RESEND_ENABLED === "true",
+      buildLicenseKeyEmail(license)
+    );
+  } catch (err) {
+    console.error("email send failed:", err);
+    return false;
+  }
+  // CAS: email_sent_at が NULL のときだけ書き込む。並列で他のリクエストが先に書いたら
+  // 自分の UPDATE は 0 行になるが、いずれにせよ送信は成功している扱いで OK。
+  await env.DB.prepare(
+    "UPDATE license SET email_sent_at = ? WHERE id = ? AND email_sent_at IS NULL"
+  )
+    .bind(Math.floor(Date.now() / 1000), license.id)
+    .run();
+  return true;
+}
+
+async function recordRejection(
+  env: Bindings,
+  args: {
+    sessionId: string;
+    eventId: string | undefined;
+    source: FulfillSource;
+    reason: FulfillRejection;
+    payload: unknown;
+    now: number;
+  }
+): Promise<void> {
+  try {
+    await env.DB.prepare(
+      `INSERT INTO fulfillment_reject_log
+         (stripe_session_id, stripe_event_id, source, reason, payload, occurred_at)
+       VALUES (?, ?, ?, ?, ?, ?)`
+    )
+      .bind(
+        args.sessionId,
+        args.eventId ?? null,
+        args.source,
+        args.reason,
+        JSON.stringify(args.payload),
+        args.now
+      )
+      .run();
+  } catch (err) {
+    // 監査ログの失敗で fulfillment 自体を落とさない
+    console.error("reject log failed:", err);
+  }
 }
 
 async function upsertLicense(

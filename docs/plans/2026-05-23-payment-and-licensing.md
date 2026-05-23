@@ -236,6 +236,16 @@ INSERT INTO device (...) SELECT ?, ?, ?, ?, ?, ?, ? WHERE (SELECT COUNT(*) FROM 
   - [x] email enumeration 対策: 存在しない email でも 200 を返し、rate_limit_log は消費する
 - [x] テスト用 license を `wrangler d1 execute --local` で seed して 13 シナリオの E2E 確認: activate × 3 → device_limit → re-activate (UPDATE) → deactivate → activate (空きで INSERT) → verify ok → verify unknown_device → wrong email (401) → invalid_credentials → resend noop → resend rate_limited → invalid_body (zod 400)
 
+### Phase 3.5: 本番 deploy 前のレビュー反映 [AI🤖]
+Phase 3 終了後の review で High 2 件 + Medium 2 件の指摘を受けたため、Phase 4 に進む前にここで潰す。
+
+- [x] **wrangler.toml の env.production に全 binding を明示** (Wrangler v4 では env に binding が継承されない)。dev (top-level) と production (`[env.production]`) で同じ shape を二重に書く運用
+- [x] **メール送信状態を `license.email_sent_at` に集約**。これまでは purchase_log.email_sent でしか管理しておらず、eventId が無い経路 (/thanks) でメール再送リスクがあった。`UPDATE ... WHERE email_sent_at IS NULL` の CAS で並列 safe
+- [x] **`fulfillment_reject_log` を新規追加**。validateSession で reject されたケースを D1 監査 (Price ID 設定ミスや不正購入の早期検知用)
+- [x] **Wrangler を v3.114 → v4.94 にアップグレード**、`[[unsafe.bindings]]` → `[[ratelimits]]` 正式構文へ移行
+- [x] migration `0002_email_sent_at_and_reject_log.sql` を追加し、local D1 にも適用
+- [x] 動作確認: `pnpm typecheck` / `pnpm test` (23 tests) / `wrangler dev --local` 起動 / `wrangler deploy --env production --dry-run` で全 binding が表示されることを確認
+
 ### Phase 4: LP + success_url ページ [AI🤖]
 - [ ] `polepole.dev` の vanilla HTML + CSS で 1 ページ作成
   - [ ] タイトル / 1 文の価値提案 / スクリーンショット 1〜2 枚
@@ -334,6 +344,11 @@ INSERT INTO device (...) SELECT ?, ?, ?, ?, ?, ?, ? WHERE (SELECT COUNT(*) FROM 
 - **2026-05-23 EdDSA 署名のラウンドトリップ確認**: `test/signing.test.ts` で「秘密鍵で署名 → 公開鍵で検証」が通ることを実鍵で検証
   - `.dev.vars` 経由で渡される `\n` エスケープ済み PEM 形式と、生 PEM の両方をカバー
   - これにより Phase 2 で `issueToken` を本格的に使う前に、署名チェーンの健全性を担保
+- **2026-05-23 Phase 3.5 (レビュー反映)**: 本番 deploy 前に潰した 4 件
+  - Wrangler v4 + 正式 `[[ratelimits]]` 構文へ移行 → `local` モードで rate limit が emulation され、テスト時の binding rate limit 詰まり問題も自然解消の見込み
+  - メール idempotency を `license.email_sent_at` (CAS UPDATE) に集約 → /thanks と webhook の二重送信問題が解消
+  - reject ログを `fulfillment_reject_log` に切り出し、Price ID 設定ミス等を D1 で監査可能に
+  - `[env.production]` で全 binding (DB / ratelimits / vars) を明示 → dry-run で本番 binding が確実に見える
 - **2026-05-23 Phase 3 完了**: activate / deactivate / verify / resend
   - デバイス上限 3 を D1 batch (UPDATE + INSERT-WHERE-NOT-EXISTS-AND-COUNT + SELECT) で atomic に処理。並列リクエストでも 4 台目がすり抜けない
   - verify は成功時に必ず新トークンを発行 → アプリ側 Keychain 上書きで grace 自動延長 (短寿命トークンの自然延長設計)
