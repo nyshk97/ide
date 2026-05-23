@@ -197,26 +197,26 @@ INSERT INTO device (...) SELECT ?, ?, ?, ?, ?, ?, ? WHERE (SELECT COUNT(*) FROM 
 - [x] 動作確認: `pnpm install` / `pnpm typecheck` / `pnpm test` / `pnpm db:migrate:local` / `wrangler dev --local` 起動 + 各エンドポイントへの curl で 200/501/404 を確認
 
 ### Phase 2: ライセンス発行フロー [AI🤖]
-- [ ] 共通 fulfillment 関数 `fulfillCheckout(sessionId, source)` を実装
-  - [ ] Stripe API で session を取得 (webhook payload は信用せず必ず取得し直す)
-  - [ ] **検証条件をすべてチェック**: `payment_status == "paid"` / `amount_total == 11800` / `currency == "jpy"` / Price ID 一致 / Payment Link ID 一致
-  - [ ] D1 から `stripe_session_id` を引き、既にあれば早期 return (idempotent)
-  - [ ] キー生成: `polepole-` + crypto random 16 chars を 4-4-4-4 で区切る (大文字英数字、紛らわしい `0/O/1/I/l` は除外)
-  - [ ] `INSERT INTO license ... ON CONFLICT (stripe_session_id) DO NOTHING` で license 作成
-  - [ ] `purchase_log` に `source` 付きで記録
-  - [ ] Resend で送信 (送信済みフラグも `purchase_log` で管理して二重送信を防ぐ)
-- [ ] Stripe webhook エンドポイント (`POST /stripe-webhook`)
-  - [ ] Stripe 署名検証 (`STRIPE_WEBHOOK_SECRET` env 利用)
-  - [ ] `event.type == "checkout.session.completed"` だけを受け付ける (他は 200 で無視)
-  - [ ] `fulfillCheckout(session.id, source="webhook")` を呼ぶ
-  - [ ] `refund.created` / `charge.refunded` を受けて `license.status = "refunded"` に更新
-- [ ] success_url ページ (`/thanks?session_id=...`) のサーバー側ハンドラ
-  - [ ] `fulfillCheckout(sessionId, source="thanks_page")` を呼ぶ (webhook 未着でもここで救済できる)
-  - [ ] 完了後 D1 から license を引いて HTML 描画 (キー + アクティベート手順)
-  - [ ] fulfillment 失敗時は「メールでもお送りしますが、5 分経っても届かない場合は support@polepole.dev へ」案内
-- [ ] Stripe Payment Link 側の設定方針メモを README に書く
-  - [ ] `payment_method_types: ["card"]` に限定 (遅延決済を許さない)
-  - [ ] `submit_type` / 領収書設定 / 顧客メアド必須化
+- [x] 共通 fulfillment 関数 `fulfillCheckout(sessionId, source, eventId?)` を実装 (`src/lib/fulfillment.ts`)
+  - [x] Stripe API で session を取得 (webhook payload は信用せず必ず取得し直す)
+  - [x] **検証条件をすべてチェック** (`validateSession` を pure 関数に切り出し): `payment_status == "paid"` / `amount_total == 11800` / `currency == "jpy"` / Price ID 一致 / Payment Link ID 一致 + email 必須
+  - [x] D1 から `stripe_session_id` を引き、既にあれば早期 return (idempotent)
+  - [x] キー生成: `polepole-XXXX-XXXX-XXXX-XXXX` (Phase 1 で実装済み)
+  - [x] `INSERT INTO license ... ON CONFLICT (stripe_session_id) DO NOTHING` で license 作成
+  - [x] `purchase_log` に `source` 付きで記録 (webhook 経由で eventId がある場合のみ)
+  - [x] Resend で送信 (`purchase_log.email_sent` フラグで二重送信防止)、`RESEND_ENABLED=false` or placeholder key で noop モードあり
+- [x] Stripe webhook エンドポイント (`POST /stripe-webhook` / `src/routes/webhook.ts`)
+  - [x] Stripe 署名検証 (`src/lib/stripe.ts` の `verifyStripeSignature`、HMAC-SHA256、5 分 tolerance、複数 v1 対応)
+  - [x] `event.type == "checkout.session.completed"` を `fulfillCheckout("webhook")` に流す
+  - [x] `refund.created` / `charge.refunded` → `markRefunded` で `license.status = "refunded"`
+  - [x] 未対応イベントは 200 で受け流す
+- [x] success_url ページ (`GET /thanks?session_id=...` / `src/routes/thanks.ts`)
+  - [x] `fulfillCheckout("thanks_page")` で webhook 未着の保険を兼ねる
+  - [x] HTML 描画 (キー + メアド + アクティベート手順 + サポートリンク)
+  - [x] エラー時の friendly 案内
+- [x] Stripe Payment Link 側の設定方針: `backend/README.md` と `backend/scripts/setup-stripe-products.sh` に反映 (card-only、success_url=`/thanks?session_id={CHECKOUT_SESSION_ID}`、顧客 email 必須)
+- [x] テスト: stripe-signature 6 ケース + fulfillment-validation 12 ケース (合計で全 23 テスト pass)
+- [x] 動作確認: `wrangler dev --local` で全ルート疎通、`/thanks?session_id=...` で実 Stripe Sandbox API に到達して 404 取得まで確認
 
 ### Phase 3: アクティベーション API [AI🤖]
 - [ ] `POST /v1/license/activate`
@@ -334,6 +334,12 @@ INSERT INTO device (...) SELECT ?, ?, ?, ?, ?, ?, ? WHERE (SELECT COUNT(*) FROM 
 - **2026-05-23 EdDSA 署名のラウンドトリップ確認**: `test/signing.test.ts` で「秘密鍵で署名 → 公開鍵で検証」が通ることを実鍵で検証
   - `.dev.vars` 経由で渡される `\n` エスケープ済み PEM 形式と、生 PEM の両方をカバー
   - これにより Phase 2 で `issueToken` を本格的に使う前に、署名チェーンの健全性を担保
+- **2026-05-23 Phase 2 完了**: fulfillCheckout + /stripe-webhook + /thanks
+  - stripe-node SDK は使わず fetch ラッパー (`src/lib/stripe.ts`) で書いた。bundle size 軽い & Workers ネイティブ
+  - `validateSession` を pure 関数に切り出して 12 ケースの単体テストでカバー (購入条件のすべての rejection パターン)
+  - Stripe webhook 署名検証も pure ロジックで 6 ケースカバー (HMAC-SHA256 / multi-v1 / 5 分 tolerance / tampered / wrong secret / malformed)
+  - D1 統合テストは敢えて書かず、Phase 9 の E2E (Stripe CLI で実 webhook + 実 test card) で確認する方針
+  - 動作確認: wrangler dev で全ルート疎通。特に `/thanks?session_id=cs_test_nonexistent_42` で実 Sandbox API に到達して 404 取得 = `.dev.vars` の sk_test_... が正しく動いていることを確認
 
 ### 教訓 (AI セッションでの secret 取扱)
 - **AI セッション経由で秘密鍵を扱うときは、stdout / 中間出力 / sanity check にも値が流れないよう注意する**。今回 2 回、EdDSA 秘密鍵の本体が会話に漏れた (Sandbox 用なので実害なし、再生成済み)

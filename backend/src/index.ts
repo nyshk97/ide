@@ -2,6 +2,8 @@ import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { logger } from "hono/logger";
 import type { Bindings } from "./types";
+import { webhookRoute } from "./routes/webhook";
+import { thanksRoute } from "./routes/thanks";
 
 const app = new Hono<{ Bindings: Bindings }>();
 
@@ -29,17 +31,11 @@ app.get("/healthz", (c) =>
   })
 );
 
-// Phase 2 で実装:
-//   POST /stripe-webhook  → fulfillCheckout(session.id, "webhook")
-//   GET  /thanks          → fulfillCheckout(session.id, "thanks_page") + HTML
-app.post("/stripe-webhook", (c) => c.json({ todo: "phase 2" }, 501));
-app.get("/thanks", (c) => c.text("TODO: phase 2 success page", 501));
+app.route("/stripe-webhook", webhookRoute);
+app.route("/thanks", thanksRoute);
 
 // Phase 3 で実装:
-//   POST /v1/license/activate
-//   POST /v1/license/deactivate
-//   POST /v1/license/verify
-//   POST /v1/license/resend
+//   POST /v1/license/activate / deactivate / verify / resend
 app.post("/v1/license/activate", (c) => c.json({ todo: "phase 3" }, 501));
 app.post("/v1/license/deactivate", (c) => c.json({ todo: "phase 3" }, 501));
 app.post("/v1/license/verify", (c) => c.json({ todo: "phase 3" }, 501));
