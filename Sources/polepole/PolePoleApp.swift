@@ -74,9 +74,14 @@ struct PolePoleApp: App {
 
         // ---- PolePole > Settings… (Cmd+,) ----
         // Settings シーンを宣言するとアプリメニューに自動で "Settings…" が追加され、
-        // Cmd+, で開ける。中身はキーボードショートカットの編集。
+        // Cmd+, で開ける。Shortcuts と License の 2 タブ構成。
         Settings {
-            ShortcutsSettingsView()
+            TabView {
+                ShortcutsSettingsView()
+                    .tabItem { Label("Shortcuts", systemImage: "keyboard") }
+                LicenseSettingsView()
+                    .tabItem { Label("License", systemImage: "checkmark.seal") }
+            }
         }
     }
 }

@@ -266,15 +266,16 @@ Phase 3 終了後の review で High 2 件 + Medium 2 件の指摘を受けた�
 - [ ] Stripe Test mode で test card で購入 → webhook が発火するか確認 → メールが届くか確認 → /thanks ページが正しく表示されるか確認
 
 ### Phase 5: アプリ側 - トライアル管理 [AI🤖]
-- [ ] `LicenseState` enum を定義 (`.trial(daysLeft: Int)` / `.activated(token: ActivationToken)` / `.trialExpired` / `.deactivated`)
-- [ ] `TrialManager` を新規実装
-  - [ ] Keychain に install date を書く / 読む (Service: `local.d0ne1s.polepole(.dev)`、Account: `trial-install-date`)
-  - [ ] `AppPaths.applicationSupport().appending("trial.json")` に install date を書く / 読む
-  - [ ] `installDate()` は両方を読んで min を返す。両方無ければ now() を書いて返す
-  - [ ] `daysRemaining()` で残日数を返す
-- [ ] アプリ起動時に `LicenseStore.shared` を初期化して `LicenseState` を確定
-- [ ] 期限切れ時に全 view をラップする `PaywallView` を実装 (購入画面 + キー入力フォーム)
-- [ ] Settings に「ライセンス」タブを追加 (キー入力フォーム + デバイス情報表示 + 「このデバイスを deactivate」ボタン)
+- [x] `LicenseState` enum を定義 (`.trial(daysLeft: Int)` / `.activated(token: ActivationToken)` / `.trialExpired` / `.deactivated`)
+- [x] `TrialManager` を新規実装
+  - [x] Keychain に install date を書く / 読む (Service: `local.d0ne1s.polepole(.dev)`、Account: `trial-install-date`)
+  - [x] `AppPaths.applicationSupportDirectory.appendingPathComponent("trial.json")` に install date を書く / 読む
+  - [x] `installDate()` は両方を読んで min を返す。両方無ければ now() を書いて返す。片方しか無いときはもう片方に補完書きする
+  - [x] `daysRemaining()` で残日数を返す
+  - [x] `POLEPOLE_TEST_LICENSE_FAKE_NOW` (Unix 秒) で now() を上書きできるテストフック
+- [x] アプリ起動時に `LicenseStore.shared` を初期化して `LicenseState` を確定 (`ContentView.onAppear` で `refreshFromDisk()`)
+- [x] 期限切れ時に全 view をラップする `PaywallView` を実装 (購入画面 + キー入力フォーム + サポート/再送リンク)。`ContentView` の `ZStack` overlay として `state.isLocked` のときだけ最前面に重ねる
+- [x] Settings に「ライセンス」タブを追加 (`LicenseSettingsView`、Shortcuts と並列の TabView)。キー入力フォーム + アクティベート済み時の情報表示 (Phase 6 で activate 経路を有効化) + deactivate ボタン (Phase 6)
 
 ### Phase 6: アプリ側 - アクティベーション + ローカル検証 [AI🤖]
 - [ ] `LicenseClient` を新規実装 (`activate` / `deactivate` / `verify` / `resend` を叩く)
@@ -331,6 +332,14 @@ Phase 3 終了後の review で High 2 件 + Medium 2 件の指摘を受けた�
 ## ログ
 
 ### 試したこと・わかったこと
+- **2026-05-23 Phase 5 完了**: アプリ側トライアル管理を実装
+  - `Sources/polepole/Licensing/` 配下に 6 ファイル新規追加: `KeychainHelper.swift` (Security framework の薄いラッパー) / `LicenseState.swift` (enum + ActivationToken Codable struct) / `TrialManager.swift` (Keychain + Application Support 二重管理 + POLEPOLE_TEST_LICENSE_FAKE_NOW フック) / `LicenseStore.swift` (@MainActor singleton、Phase 6 用に activate/deactivate stub) / `PaywallView.swift` (期限切れ時 overlay) / `LicenseSettingsView.swift` (Settings の License タブ)
+  - `AppPaths.applicationSupportDirectory` を新規追加 (TrialManager と Phase 6 以降の Application Support 配置に集約)
+  - `ContentView` を ZStack で wrap し、`LicenseStore.shared.state.isLocked` のときに PaywallView を最前面に重ねる構造に変更
+  - Settings シーンを TabView 化し、Shortcuts + License の 2 タブに
+  - Swift 6 strict concurrency: TrialManager は `@unchecked Sendable` で対応 (Logger と同じパターン、disk IO のみで shared mutable state は無い)
+  - 動作確認: `mise run build` 成功 / 通常起動で `[license] state = trial(14 days left)` ログ + Paywall 非表示 / trial.json と Keychain の両方に同じ ISO8601 install date が書かれる / 片方消してももう片方から復元 / `POLEPOLE_TEST_LICENSE_FAKE_NOW=<install+15日>` で再起動すると `[license] state = trialExpired` ログ + Paywall がフルスクリーン overlay として表示
+  - VERIFY.md に Section 35 (35-A〜D) を追加
 - **2026-05-23 Phase 1 完了**: backend/ を初期化、Hono + TS + pnpm + D1 構成で動作確認まで通った
   - 構成: `backend/` (package.json / wrangler.toml / tsconfig / vitest config / src/ / migrations/ / scripts/ / test/)
   - 依存: hono 4.12 / zod 3.25 / wrangler 3.114 / vitest 2.1 / @cloudflare/workers-types

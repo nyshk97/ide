@@ -1378,3 +1378,78 @@ cd -
 5. 起動した PolePole.app の `About` を見て新版になっていることを確認
 
 退避したバックアップを戻すなら: `rm -rf /Applications/PolePole.app && mv /Applications/PolePole.app.bak /Applications/PolePole.app`
+
+## 35. トライアル / ライセンス (Phase 5)
+
+### 35-A. 通常起動でトライアル中の表示（自動）
+
+```bash
+mise run build
+# clean state から始めたい場合だけ既存 trial を消す
+rm -f "$HOME/Library/Application Support/polepole-dev/trial.json"
+security delete-generic-password -s "local.d0ne1s.polepole.dev" -a "trial-install-date" 2>/dev/null
+./scripts/polepole-launch.sh 4
+./scripts/polepole-screenshot.sh /tmp/v-trial-normal.png
+grep license /tmp/polepole-poc.log | tail -5
+```
+
+期待:
+- ログに `[license] state = trial(14 days left)` が出る
+- スクリーンショットは通常の 3 カラム表示で、Paywall は出ていない
+- `~/Library/Application Support/polepole-dev/trial.json` と Keychain (Service `local.d0ne1s.polepole.dev` / Account `trial-install-date`) の両方に同じ ISO8601 タイムスタンプが書かれている
+
+```bash
+cat "$HOME/Library/Application Support/polepole-dev/trial.json"
+security find-generic-password -s "local.d0ne1s.polepole.dev" -a "trial-install-date" -w
+```
+
+### 35-B. install date の二重保存と min による復元（自動）
+
+```bash
+# 状態: 35-A 実行直後 (trial.json + Keychain に同じ install date)
+pkill -x "PolePole Dev" || true
+sleep 0.5
+rm -f "$HOME/Library/Application Support/polepole-dev/trial.json"
+./scripts/polepole-launch.sh 3
+cat "$HOME/Library/Application Support/polepole-dev/trial.json"
+# → Keychain の値が trial.json に復元されている
+
+pkill -x "PolePole Dev" || true
+sleep 0.5
+security delete-generic-password -s "local.d0ne1s.polepole.dev" -a "trial-install-date"
+./scripts/polepole-launch.sh 3
+security find-generic-password -s "local.d0ne1s.polepole.dev" -a "trial-install-date" -w
+# → trial.json の値が Keychain に復元されている
+```
+
+期待: どちらの方向でも install date が保存され、initial timestamp が変わらない (= 残日数が不変)。
+
+### 35-C. POLEPOLE_TEST_LICENSE_FAKE_NOW で期限切れ画面（自動）
+
+```bash
+# 状態: 35-A 実行後で trial.json か Keychain に install date が入っている
+INSTALL_ISO=$(cat "$HOME/Library/Application Support/polepole-dev/trial.json" | grep installDate | sed 's/.*"\([0-9TZ:-]*\)".*/\1/')
+INSTALL_UNIX=$(date -u -j -f "%Y-%m-%dT%H:%M:%SZ" "$INSTALL_ISO" "+%s")
+FAKE_NOW=$((INSTALL_UNIX + 15*86400))   # 15 日経過
+
+pkill -x "PolePole Dev" || true
+sleep 0.5
+launchctl setenv POLEPOLE_TEST_LICENSE_FAKE_NOW "$FAKE_NOW"
+open -n "/tmp/polepole-build/Build/Products/Debug/PolePole Dev.app"
+sleep 4
+launchctl unsetenv POLEPOLE_TEST_LICENSE_FAKE_NOW
+./scripts/polepole-screenshot.sh /tmp/v-paywall.png
+grep license /tmp/polepole-poc.log | tail -3
+```
+
+期待:
+- ログに `[license] state = trialExpired` が出る
+- スクリーンショットに「トライアル期間が終了しました」見出し / 「¥11,800 Lifetime License」 / 「購入する」ボタン / メアド+キー入力フォーム / 「お問い合わせ」リンクが映る
+- 背景の 3 カラムは暗く覆われていて、Paywall モーダルが前面に来ている
+
+### 35-D. Settings の License タブ表示（手動）
+
+`Cmd+,` で Settings ウィンドウを開く → 上部に「Shortcuts」「License」の 2 タブが見える → 「License」をクリック。
+
+期待: ライセンスタブで「トライアル中 (残り N 日)」のステータス + メアド/キー入力フォーム + 「アクティベート」ボタン (現状は LicenseStore が stub なので押しても何も起きない、Phase 6 で実装) + 「購入ページを開く」リンクが見える。
+

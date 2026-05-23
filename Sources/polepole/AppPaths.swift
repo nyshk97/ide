@@ -21,4 +21,12 @@ enum AppPaths {
             ?? FileManager.default.temporaryDirectory
         return base.appendingPathComponent(subdirName, isDirectory: true)
     }
+
+    /// `~/Library/Application Support/{polepole,polepole-dev}/`。projects.json / shortcuts.json /
+    /// trial.json などの永続データ置き場。Release/Debug で分離される。
+    static var applicationSupportDirectory: URL {
+        let base = FileManager.default
+            .urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
+        return base.appendingPathComponent(subdirName, isDirectory: true)
+    }
 }
