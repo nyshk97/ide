@@ -47,7 +47,7 @@ ide を有償配布するために必要なステップ。今は「自分用ツ�
 | サポート窓口 | `support@<domain>` 1 本でいい。Discord / Slack はサポート負荷が想像以上に高いので最初は持たない |
 | アプリ内フィードバック導線 | メーラー起動でも可。本文に **バージョン / OS / 直近ログ末尾 / 環境変数の一部** を prefill しておく（これだけでサポートコストが激減する） |
 | クラッシュレポート | Sentry（個人開発者プランは無料枠あり）。**opt-in** で送信。落ちた理由が分からないとリピート購入が止まる |
-| 本体 repo の private 化 | 配信は `nyshk97/polepole-releases` に集約済み。`homebrew-tap` の cask URL を `ide-releases` に向け直してから private 化 |
+| ~~本体 repo の private 化~~ | 2026-05-23 に `nyshk97/ide` を private 化済み。配信は `nyshk97/polepole-releases`（public）+ `nyshk97/homebrew-tap`（public）に集約しているので brew install / Sparkle 自動更新は影響なし |
 | 配信フィードの独自ドメイン化 | `updates.<domain>/appcast.xml`。R2 + 独自ドメインへ移行。旧 SUFeedURL を踏むユーザーのために GitHub 側にも appcast を残す（リダイレクトが効かないので両方更新する運用） |
 
 ### 依存物のライセンス整理
