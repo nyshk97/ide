@@ -296,15 +296,23 @@ PolePole はスワヒリ語で「ゆっくりと」を意味し、`polepole.dev`
 - [x] commit (本体 repo): release.sh 修正と plan 更新を含めて push
 
 ### 動作確認 [AI🤖 + 人間👨‍💻]
-- [ ] [AI🤖] `brew update && brew install nyshk97/tap/polepole` で新 cask が引けることを確認
-- [ ] [AI🤖] `/Applications/PolePole.app` が配置されたことを確認
-- [ ] [人間👨‍💻] PolePole.app に TCC 権限 (画面収録 / アクセシビリティ / フルディスクアクセス) を再付与
-- [ ] [人間👨‍💻] PolePole.app を起動 → projects.json が空であれば手動 cp -a を実施
-- [ ] [人間👨‍💻] 旧 IDE.app と並べて動作確認 (新旧共存できることを確認)
-- [ ] [人間👨‍💻] 旧 `/Applications/IDE.app` を `brew uninstall ide` で削除
-- [ ] [AI🤖] VERIFY.md の代表手順 (起動・キーストローク・screenshot) を polepole-* スクリプトで実行
-- [ ] [人間👨‍💻] PolePole 起動中に Check for Updates… を一度走らせ、新 feed に到達できることを確認
-      (latest=1.0.0 なので「最新です」表示が出れば OK)
+- [x] [AI🤖] `brew update && brew install nyshk97/tap/polepole` で新 cask が引けることを確認
+      (brew info で `==> polepole (PolePole): 1.0.0` が出る、install 成功)
+- [x] [AI🤖] `/Applications/PolePole.app` が配置 + Developer ID 署名 + notarize staple 検証パス
+- [x] [人間👨‍💻] PolePole.app に TCC 権限 (画面収録 / アクセシビリティ / フルディスクアクセス) を再付与
+- [x] [人間👨‍💻] PolePole.app を起動 → 旧 ide の projects.json (17 件: pinned 3 / temp 14) を
+      `cp -a "$HOME/Library/Application Support/ide" "$HOME/Library/Application Support/polepole"`
+      で移行し、サイドバーに 17 件全部復元されたことを確認
+- [x] [人間👨‍💻] 旧 IDE.app と並べて共存できることを確認 (両方 /Applications/ にあり、
+      Bundle ID `local.d0ne1s.ide` と `local.d0ne1s.polepole` で完全分離)
+- [ ] [人間👨‍💻] 並走確認後、旧 `/Applications/IDE.app` を `brew uninstall ide` で削除
+      (急がない、しばらく並走で運用してから実施で OK)
+- [~] [AI🤖] VERIFY.md の代表手順 (起動・screenshot) は polepole-launch.sh + polepole-screenshot.sh で
+      Phase 1c / Phase 2 で確認済み。keystroke は IDE 内 Claude Code の TCC 制限で
+      未実行 (構文 OK、外部 Terminal.app からは動く想定)
+- [x] [人間👨‍💻] PolePole 起動中に Check for Updates… を実行、新 feed
+      `nyshk97/polepole-releases/releases/latest/download/appcast.xml` に到達して
+      「You're up to date! PolePole 1.0.0 is currently the newest version available.」を確認
 
 ---
 
