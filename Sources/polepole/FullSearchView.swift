@@ -81,7 +81,7 @@ struct FullSearchView: View {
         )
         .shadow(color: .black.opacity(0.4), radius: 20, x: 0, y: 8)
         .onAppear {
-            // 既にヒットがある状態で開かれたら（IDE_TEST_AUTO_FULLSEARCH や再表示）、
+            // 既にヒットがある状態で開かれたら（POLEPOLE_TEST_AUTO_FULLSEARCH や再表示）、
             // 「検索済み」とみなす。
             if !hits.isEmpty {
                 hasSearched = true

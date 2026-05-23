@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
-# ide にキーストロークを送る。Enter で確定する場合は --enter を末尾に付ける。
+# PolePole にキーストロークを送る。Enter で確定する場合は --enter を末尾に付ける。
 # 使い方:
-#   scripts/ide-keystroke.sh "echo hello"          # text のみ
-#   scripts/ide-keystroke.sh --enter "echo hello"  # text + Enter (key code 36)
-#   scripts/ide-keystroke.sh --keycode 53          # Esc などの単独キー
+#   scripts/polepole-keystroke.sh "echo hello"          # text のみ
+#   scripts/polepole-keystroke.sh --enter "echo hello"  # text + Enter (key code 36)
+#   scripts/polepole-keystroke.sh --keycode 53          # Esc などの単独キー
 set -euo pipefail
 
 ENTER=0
@@ -20,7 +20,7 @@ done
 
 osascript <<EOF
 tell application "System Events"
-  tell process "IDE Dev"
+  tell process "PolePole Dev"
     set frontmost to true
   end tell
   delay 0.2

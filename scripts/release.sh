@@ -1,31 +1,34 @@
 #!/usr/bin/env bash
 # build.sh で作った zip を:
 #   1. 本体 repo (nyshk97/ide) の GitHub Release に上げる（homebrew cask の URL 互換）
-#   2. 配信 repo (nyshk97/ide-releases) の GitHub Release に上げる + appcast.xml を生成
+#   2. 配信 repo (nyshk97/polepole-releases) の GitHub Release に上げる + appcast.xml を生成
 # する。Sparkle は (2) の `latest/download/appcast.xml` を見て更新する。
 #
+# 注: 本体 repo の名前は歴史的事情で `nyshk97/ide` のまま（リネームしない方針）。
+#     配信 feed は新規 `nyshk97/polepole-releases` に切り替えている。
+#
 # 使い方: scripts/release.sh <version>
-#   例: scripts/release.sh 1.0.10
+#   例: scripts/release.sh 1.0.0
 #
 # 前提:
 #   - `project.yml` の MARKETING_VERSION を <version> に bump してコミット済みであること
 #     （release.sh は project.yml をいじらない。タグ名と notes に <version> を使うだけ）
 #   - macOS Keychain に Sparkle の EdDSA 秘密鍵が登録済みであること
 #     （`generate_keys` で作成。`sign_update` が暗黙的に参照する）
-#   - `gh` で nyshk97/ide と nyshk97/ide-releases の両方に push 権限があること
+#   - `gh` で nyshk97/ide と nyshk97/polepole-releases の両方に push 権限があること
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
-ZIP_PATH="$PROJECT_ROOT/build/ide.zip"
+ZIP_PATH="$PROJECT_ROOT/build/polepole.zip"
 APPCAST_PATH="$PROJECT_ROOT/build/appcast.xml"
-RELEASES_REPO="nyshk97/ide-releases"
+RELEASES_REPO="nyshk97/polepole-releases"
 FEED_URL="https://github.com/${RELEASES_REPO}/releases/latest/download/appcast.xml"
-DERIVED_DATA="${IDE_RELEASE_DERIVED_DATA:-/tmp/ide-build-release}"
+DERIVED_DATA="${POLEPOLE_RELEASE_DERIVED_DATA:-/tmp/polepole-build-release}"
 
 if [ $# -eq 0 ]; then
   echo "Usage: $0 <version>"
-  echo "Example: $0 1.0.10"
+  echo "Example: $0 1.0.0"
   exit 1
 fi
 
@@ -43,7 +46,7 @@ git push origin main
 SIGN_UPDATE="${DERIVED_DATA}/SourcePackages/artifacts/sparkle/Sparkle/bin/sign_update"
 if [ ! -x "$SIGN_UPDATE" ]; then
   echo "ERROR: sign_update not found at $SIGN_UPDATE"
-  echo "       build.sh が DerivedData を別パスに書き出している可能性。IDE_RELEASE_DERIVED_DATA を確認してください。"
+  echo "       build.sh が DerivedData を別パスに書き出している可能性。POLEPOLE_RELEASE_DERIVED_DATA を確認してください。"
   exit 1
 fi
 
@@ -61,7 +64,7 @@ fi
 # CFBundleShortVersionString を入れる（Sparkle は前者で比較する）。
 # project.yml の MARKETING_VERSION と CURRENT_PROJECT_VERSION (= $(MARKETING_VERSION))
 # を bump したかをここで sanity check する。zip 内ではなく export 済み .app から読む。
-BUILT_APP="/tmp/ide-export/IDE.app"
+BUILT_APP="/tmp/polepole-export/PolePole.app"
 BUNDLE_VERSION=$(plutil -extract CFBundleVersion raw "${BUILT_APP}/Contents/Info.plist")
 SHORT_VERSION=$(plutil -extract CFBundleShortVersionString raw "${BUILT_APP}/Contents/Info.plist")
 if [ "$SHORT_VERSION" != "$VERSION" ]; then
@@ -78,7 +81,7 @@ fi
 echo "==> Generating appcast.xml..."
 # pubDate は RFC 822。LC_ALL=C で曜日 / 月名を英語に固定する（caller の LANG が ja_JP 等だと「木」「5月」になり Sparkle がパースできない）
 PUB_DATE=$(LC_ALL=C date -u "+%a, %d %b %Y %H:%M:%S +0000")
-DOWNLOAD_URL="https://github.com/${RELEASES_REPO}/releases/download/${TAG}/ide.zip"
+DOWNLOAD_URL="https://github.com/${RELEASES_REPO}/releases/download/${TAG}/polepole.zip"
 MIN_OS=$(awk -F'"' '/macOS:/ {print $2; exit}' "$PROJECT_ROOT/project.yml")
 MIN_OS="${MIN_OS:-14.0}"
 
@@ -94,9 +97,9 @@ else
 <?xml version="1.0" standalone="yes"?>
 <rss xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle" version="2.0">
   <channel>
-    <title>IDE</title>
+    <title>PolePole</title>
     <link>${FEED_URL}</link>
-    <description>Most recent IDE updates</description>
+    <description>Most recent PolePole updates</description>
     <language>en</language>
   </channel>
 </rss>
@@ -138,7 +141,7 @@ echo "==> Creating release on nyshk97/ide (homebrew cask compatibility)..."
 gh release create "$TAG" \
   "$ZIP_PATH" \
   --title "$TAG" \
-  --notes "ide $VERSION"
+  --notes "polepole $VERSION"
 
 echo "==> Creating release on ${RELEASES_REPO} (Sparkle feed)..."
 gh release create "$TAG" \
@@ -146,7 +149,7 @@ gh release create "$TAG" \
   "$APPCAST_PATH" \
   --repo "${RELEASES_REPO}" \
   --title "$TAG" \
-  --notes "ide $VERSION"
+  --notes "polepole $VERSION"
 
 SHA256=$(shasum -a 256 "$ZIP_PATH" | awk '{print $1}')
 echo ""
@@ -156,6 +159,6 @@ echo "==> Download URL:    ${DOWNLOAD_URL}"
 echo "==> SHA256:          $SHA256"
 echo "==> EdDSA signed:    ${ED_SIG:0:24}..."
 echo ""
-echo "Homebrew cask 更新時（nyshk97/homebrew-tap）:"
+echo "Homebrew cask 更新時（nyshk97/homebrew-tap/Casks/polepole.rb）:"
 echo "  version \"$VERSION\""
 echo "  sha256 \"$SHA256\""

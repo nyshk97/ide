@@ -89,11 +89,11 @@ final class ProjectsModel: ObservableObject {
         self.temporary = restored.filter { !$0.isPinned }
     }
 
-    /// `IDE_TEST_AUTO_ACTIVATE_INDEX` 環境変数が設定されている場合、起動時に
+    /// `POLEPOLE_TEST_AUTO_ACTIVATE_INDEX` 環境変数が設定されている場合、起動時に
     /// 指定インデックスのプロジェクト（allOrdered = pinned + temporary）をアクティブにする。
     /// VERIFY 用デバッグ機能。通常は要件通り「再起動時は active を復元しない」挙動。
     private func applyTestAutoActivate() {
-        guard let envValue = ProcessInfo.processInfo.environment["IDE_TEST_AUTO_ACTIVATE_INDEX"],
+        guard let envValue = ProcessInfo.processInfo.environment["POLEPOLE_TEST_AUTO_ACTIVATE_INDEX"],
               let index = Int(envValue) else { return }
         let ordered = allOrdered
         guard ordered.indices.contains(index) else { return }
@@ -102,12 +102,12 @@ final class ProjectsModel: ObservableObject {
         Logger.shared.debug("[projects] test-auto-activate index=\(index) name=\(target.displayName)")
     }
 
-    /// `IDE_TEST_AUTO_PREVIEW` 環境変数が active project からの相対パスを指していたら
+    /// `POLEPOLE_TEST_AUTO_PREVIEW` 環境変数が active project からの相対パスを指していたら
     /// その file を preview に開く。VERIFY 用デバッグ機能。
     private func applyTestAutoPreview() {
         let env = ProcessInfo.processInfo.environment
 
-        if let relPath = env["IDE_TEST_AUTO_PREVIEW"],
+        if let relPath = env["POLEPOLE_TEST_AUTO_PREVIEW"],
            let active = activeProject {
             let target = active.path.appendingPathComponent(relPath)
             if FileManager.default.fileExists(atPath: target.path) {
@@ -116,7 +116,7 @@ final class ProjectsModel: ObservableObject {
             }
         }
 
-        if let query = env["IDE_TEST_PREVIEW_FIND"], let active = activeProject {
+        if let query = env["POLEPOLE_TEST_PREVIEW_FIND"], let active = activeProject {
             let p = preview(for: active)
             if p.currentURL != nil {
                 p.findQuery = query
@@ -125,34 +125,34 @@ final class ProjectsModel: ObservableObject {
             }
         }
 
-        if let query = env["IDE_TEST_AUTO_FULLSEARCH"] {
+        if let query = env["POLEPOLE_TEST_AUTO_FULLSEARCH"] {
             openFullSearch()
             fullSearchQuery = query
             runFullSearch()
         }
 
-        if let query = env["IDE_TEST_AUTO_QUICKSEARCH"] {
+        if let query = env["POLEPOLE_TEST_AUTO_QUICKSEARCH"] {
             openQuickSearch()
             quickSearchQuery = query
             Logger.shared.debug("[projects] test-auto-quicksearch \(query)")
         }
 
-        if env["IDE_TEST_AUTO_OPEN_DIFF"] != nil, activeProject != nil {
+        if env["POLEPOLE_TEST_AUTO_OPEN_DIFF"] != nil, activeProject != nil {
             openDiffOverlay()
             Logger.shared.debug("[projects] test-auto-open-diff")
         }
 
-        if let toast = env["IDE_TEST_TOAST"] {
+        if let toast = env["POLEPOLE_TEST_TOAST"] {
             // ErrorBus は MainActor、init からの呼び出しは MainActor 隔離なので OK
             ErrorBus.shared.notify(toast, kind: .error)
         }
     }
 
-    /// `IDE_TEST_UNREAD_INDICES=0,2` のように指定すると、allOrdered の該当インデックスの
+    /// `POLEPOLE_TEST_UNREAD_INDICES=0,2` のように指定すると、allOrdered の該当インデックスの
     /// プロジェクトの workspace を作成し、下ペインのカレントタブに未読通知を立てる。
     /// サイドバーのリング表示の VERIFY 用デバッグ機能。
     private func applyTestUnreadIndices() {
-        guard let raw = ProcessInfo.processInfo.environment["IDE_TEST_UNREAD_INDICES"] else { return }
+        guard let raw = ProcessInfo.processInfo.environment["POLEPOLE_TEST_UNREAD_INDICES"] else { return }
         let indices = raw.split(separator: ",").compactMap { Int($0.trimmingCharacters(in: .whitespaces)) }
         let ordered = allOrdered
         for index in indices where ordered.indices.contains(index) {

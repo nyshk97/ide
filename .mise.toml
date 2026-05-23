@@ -2,25 +2,25 @@
 # Xcode/Swift 系はシステム標準を使う前提（mise で固定しない）
 
 [tasks.regen]
-description = "project.yml から ide.xcodeproj を再生成"
+description = "project.yml から polepole.xcodeproj を再生成"
 run = "xcodegen generate"
 
 [tasks.build]
-description = "Debug ビルド（DerivedData は /tmp/ide-build。Sources/ 追加忘れ対策で先に regen を走らせる）"
+description = "Debug ビルド（DerivedData は /tmp/polepole-build。Sources/ 追加忘れ対策で先に regen を走らせる）"
 depends = ["regen"]
-run = "xcodebuild -project ide.xcodeproj -scheme ide -configuration Debug -destination 'platform=macOS' -derivedDataPath /tmp/ide-build build"
+run = "xcodebuild -project polepole.xcodeproj -scheme polepole -configuration Debug -destination 'platform=macOS' -derivedDataPath /tmp/polepole-build build"
 
 [tasks.run]
-description = "ビルド済みアプリを再起動して開く（既存 IDE Dev プロセスを kill してから。Brew 版の IDE は触らない）"
+description = "ビルド済みアプリを再起動して開く（既存 PolePole Dev プロセスを kill してから。Brew 版の PolePole は触らない）"
 run = """
-pkill -x "IDE Dev" || true
-open -n "/tmp/ide-build/Build/Products/Debug/IDE Dev.app"
+pkill -x "PolePole Dev" || true
+open -n "/tmp/polepole-build/Build/Products/Debug/PolePole Dev.app"
 """
 depends = ["build"]
 
 [tasks.clean]
 description = "DerivedData と生成物を消す"
 run = """
-rm -rf /tmp/ide-build
-rm -rf ide.xcodeproj
+rm -rf /tmp/polepole-build
+rm -rf polepole.xcodeproj
 """

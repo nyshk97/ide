@@ -47,7 +47,7 @@ build_iconset() {
   local variant="$2"
   local iconset_dir="$ASSETS_DIR/$iconset_name.appiconset"
   local tmp_master
-  tmp_master="$(mktemp -t ide-icon-master).png"
+  tmp_master="$(mktemp -t polepole-icon-master).png"
   mkdir -p "$iconset_dir"
 
   echo "==> [$iconset_name] render master 1024x1024 (variant=$variant)"

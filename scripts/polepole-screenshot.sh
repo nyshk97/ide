@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# ide のフロントウィンドウだけをキャプチャして指定パスに保存。
+# PolePole のフロントウィンドウだけをキャプチャして指定パスに保存。
 #
 # osascript（System Events 経由 = 補助アクセス権限が必要）は使わず、
 # CGWindowList でウィンドウ ID を引いて `screencapture -l` に渡す。
@@ -8,15 +8,15 @@
 #
 # ウィンドウ ID を取れない / 権限が無いときはメイン画面全体を撮ってフォールバックする。
 #
-# 使い方: scripts/ide-screenshot.sh <output_path>
+# 使い方: scripts/polepole-screenshot.sh <output_path>
 set -euo pipefail
 
-OUT="${1:-/tmp/ide-screenshot.png}"
+OUT="${1:-/tmp/polepole-screenshot.png}"
 
-# Debug ビルドのプロセス名は "IDE Dev"、Release（Brew 配布版）は "IDE"。
+# Debug ビルドのプロセス名は "PolePole Dev"、Release（Brew 配布版）は "PolePole"。
 # 開発中は両方が同時に起動していることが多い（Brew 版の中で Claude Code を動かしつつ
-# Debug 版をビルドして検証する）。なので「IDE Dev のウィンドウがあればそれを優先」し、
-# 無いときだけ "IDE" を見る。同じオーナーの中では面積が最大のウィンドウを選ぶ。
+# Debug 版をビルドして検証する）。なので「PolePole Dev のウィンドウがあればそれを優先」し、
+# 無いときだけ "PolePole" を見る。同じオーナーの中では面積が最大のウィンドウを選ぶ。
 WINID=$(/usr/bin/swift - <<'SWIFT' 2>/dev/null || true
 import CoreGraphics
 import Foundation
@@ -33,7 +33,7 @@ func largestWindow(owner target: String) -> Int? {
     }
     return best?.num
 }
-if let n = largestWindow(owner: "IDE Dev") ?? largestWindow(owner: "IDE") {
+if let n = largestWindow(owner: "PolePole Dev") ?? largestWindow(owner: "PolePole") {
     print(n)
     exit(0)
 }
@@ -46,6 +46,6 @@ if [[ -n "${WINID:-}" ]] && screencapture -x -o -l"$WINID" "$OUT" 2>/dev/null; t
   exit 0
 fi
 
-echo "warn: IDE のウィンドウを直接撮れなかった。メイン画面全体を撮影する" >&2
+echo "warn: PolePole のウィンドウを直接撮れなかった。メイン画面全体を撮影する" >&2
 screencapture -x "$OUT"
 echo "$OUT"
