@@ -327,6 +327,24 @@ INSERT INTO device (...) SELECT ?, ?, ?, ?, ?, ?, ? WHERE (SELECT COUNT(*) FROM 
   - keygen テストで false positive バグ発見: `/[0O1Il]/` の `l` が `polepole-` プレフィックスの `l` に当たっていた → ランダム部分だけチェックする regex に修正
   - wrangler ローカル起動の `unsafe.bindings` rate-limit は experimental 警告が出るが Miniflare 上で動作
   - compatibility_date `2026-05-23` はローカルランタイムが未追随で `2025-07-18` にフォールバック (機能差分の警告のみ、動作には影響なし)
+- **2026-05-23 Stripe Sandbox セットアップ自動化**: `backend/scripts/setup-stripe-products.sh` を作成
+  - Stripe CLI 経由で Product (`PolePole Lifetime License`) / Price (¥11,800 JPY) / Payment Link (card-only + redirect to thanks page) を一括作成
+  - `sk_live_*` を弾くセーフガード入り (Sandbox 限定で動かす)
+  - 既存 Stripe アカウント (`d0ne1s`) 配下に `PolePole Stage1` Sandbox を切って、その中で実行
+- **2026-05-23 EdDSA 署名のラウンドトリップ確認**: `test/signing.test.ts` で「秘密鍵で署名 → 公開鍵で検証」が通ることを実鍵で検証
+  - `.dev.vars` 経由で渡される `\n` エスケープ済み PEM 形式と、生 PEM の両方をカバー
+  - これにより Phase 2 で `issueToken` を本格的に使う前に、署名チェーンの健全性を担保
+
+### 教訓 (AI セッションでの secret 取扱)
+- **AI セッション経由で秘密鍵を扱うときは、stdout / 中間出力 / sanity check にも値が流れないよう注意する**。今回 2 回、EdDSA 秘密鍵の本体が会話に漏れた (Sandbox 用なので実害なし、再生成済み)
+- 根本原因:
+  1. `awk -F= '/^[A-Z]/{...}' .dev.vars` で sanity check した時、multi-line 値の 2 行目以降 (Base64 で先頭が大文字英字) が新しい KEY として認識されて出力された
+  2. Python の `re.sub` の repl 引数は `\n` 等のエスケープを再解釈する仕様。文字列 repl ではなく **callable repl** (`lambda _m, v=value: f'{key}="{v}"'`) で回避する必要があった
+  3. macOS の BSD sed も置換側の `\n` を改行に変換する。bash → sed の経路で multi-line PEM を扱うのは複雑
+- 対策ルール:
+  - secret を `.dev.vars` に投入する処理は **Python + callable repl** で固定 (sed / awk は使わない)
+  - sanity check は「値は一切出さず、行数 + 単一行性 + ダブルクオート対称性」だけを確認する
+  - **本番運用に使う EdDSA 鍵は Phase 9 直前に人間が手動で生成**し、AI セッションには一切流さない (Sandbox 用とは別鍵)
 
 ### 方針変更
 - **2026-05-23 Phase 1 着手時**: `polepole-backend/` を別 repo にする案 → **monorepo (本 repo 内 `backend/`) に変更**。理由: PolePole 本体もクローズド配布なので別 repo にする強い理由が薄い / セッション切り替え不要 / git log・CI・mise 設定を共有できて運用が軽い。将来 OSS 化や権限分離が必要になったら切り出す

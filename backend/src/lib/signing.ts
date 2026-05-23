@@ -23,7 +23,10 @@ function base64url(bytes: Uint8Array): string {
 }
 
 function pemToBinary(pem: string): Uint8Array {
+  // .dev.vars 経由で渡された場合は dotenv の制約で改行が "\n" の 2 文字に
+  // エスケープされていることがある。展開してから空白除去に流す。
   const body = pem
+    .replace(/\\n/g, "\n")
     .replace(/-----BEGIN [^-]+-----/, "")
     .replace(/-----END [^-]+-----/, "")
     .replace(/\s+/g, "");
