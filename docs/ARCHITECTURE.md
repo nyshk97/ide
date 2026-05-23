@@ -10,7 +10,7 @@ ide の主要モジュールとデータフロー。コードを読む前の地�
 
 ```
 ┌──────────────────────────────────────────────────────────────────────┐
-│ IdeApp (SwiftUI @main)                                               │
+│ PolePoleApp (SwiftUI @main)                                               │
 │ └─ ContentView                                                       │
 │    └─ RootLayoutView (HSplitView)                                    │
 │       ├─ LeftSidebarView                                             │
@@ -34,7 +34,7 @@ ide の主要モジュールとデータフロー。コードを読む前の地�
 
 ## 中心: ProjectsModel
 
-**`ProjectsModel.shared`**（singleton, `@MainActor`）が IDE のほぼ全ての状態を持つ。
+**`ProjectsModel.shared`**（singleton, `@MainActor`）が PolePole のほぼ全ての状態を持つ。
 
 ```
 ProjectsModel
@@ -66,7 +66,7 @@ ProjectsModel
 - `ProjectColor`: アバターの色プリセット。プロジェクト追加時にパスのハッシュから自動割り当て、後から `ProjectEditSheet` で変更可能
 - `ProjectAvatarView`: プロジェクト名の頭文字 + `colorKey` の丸アバター。サイドバー / Ctrl+M overlay の両方で使用
 - `ProjectEditSheet`: 表示名と色をまとめて変更するモーダル
-- `ProjectsStore`: `~/Library/Application Support/{ide,ide-dev}/projects.json` への永続化。アトミック書き込み（temp → rename）+ バックアップ世代 `.1` 〜 `.3`。schemaVersion: 1。サブディレクトリ名は `AppPaths.subdirName` が Bundle ID の `.dev` suffix を見て振り分ける（Release=ide / Debug=ide-dev）。`Logger` も同じ規則で `~/Library/Logs/{ide,ide-dev}/` に出す
+- `ProjectsStore`: `~/Library/Application Support/{ide,polepole-dev}/projects.json` への永続化。アトミック書き込み（temp → rename）+ バックアップ世代 `.1` 〜 `.3`。schemaVersion: 1。サブディレクトリ名は `AppPaths.subdirName` が Bundle ID の `.dev` suffix を見て振り分ける（Release=ide / Debug=polepole-dev）。`Logger` も同じ規則で `~/Library/Logs/{ide,polepole-dev}/` に出す
 - ピン留め・一時プロジェクトの双方を永続化（明示的に閉じるまで残る）
 
 ### WorkspaceView / WorkspaceModel / PaneState / TerminalTab / TabsView / ExitedOverlayView / ForegroundProcessInspector
@@ -130,12 +130,12 @@ WorkspaceModel(project: ide)
 - `NSEvent.addLocalMonitorForEvents` でアプリ全体のキー入力を**最優先**で握る
 - `Ctrl+M` / `Cmd+P` / `Cmd+Shift+F` / `Cmd+J` / overlay 表示中の `Esc` `↑` `↓`
 - `Cmd+R` は `ProjectsModel.fileTreeFocused`（`FileTreeView` の `@FocusState` を同期）が `true` のときだけ握ってツリー再スキャン。フォーカスが端末側にあるときは素通し
-- Ghostty NSView の `performKeyEquivalent` より先に呼ばれるので、vim/claude 等の TUI 内でも IDE が捕捉できる（要件 3）
+- Ghostty NSView の `performKeyEquivalent` より先に呼ばれるので、vim/claude 等の TUI 内でも PolePole が捕捉できる（要件 3）
 - `Ctrl+M` の判定は `keyCode == 46`（macOS が `Ctrl+letter` を CR にマップする問題回避）
 
 ### Logger / ErrorBus
 
-- `Logger.shared`: `~/Library/Logs/{ide,ide-dev}/{ide,ide-dev}-YYYY-MM-DD.log` への永続化。日次ローテーション + 7 日 / 50MB 超で削除。stderr にも出力。**Debug ビルドのみ** `/tmp/ide-poc.log` にミラー（`tail -f` 用、起動時に `resetDebugMirror()`）。旧 `PocLog` は撤去済み
+- `Logger.shared`: `~/Library/Logs/{ide,polepole-dev}/{ide,polepole-dev}-YYYY-MM-DD.log` への永続化。日次ローテーション + 7 日 / 50MB 超で削除。stderr にも出力。**Debug ビルドのみ** `/tmp/polepole-poc.log` にミラー（`tail -f` 用、起動時に `resetDebugMirror()`）。旧 `PocLog` は撤去済み
 - `ErrorBus.shared`: 単発 toast 用 ObservableObject（要件 8.3）。継続的な状態異常は各 View 内で常駐表示する使い分け
 
 ---
@@ -163,7 +163,7 @@ GhosttyTerminalNSView.keyDown
 
 ## ビルド・依存
 
-- **XcodeGen**: `project.yml` を source-of-truth に `ide.xcodeproj` を生成（gitignore 対象）。新規 .swift ファイル追加後は `mise run regen`（`mise run build` の前段で自動実行）
+- **XcodeGen**: `project.yml` を source-of-truth に `polepole.xcodeproj` を生成（gitignore 対象）。新規 .swift ファイル追加後は `mise run regen`（`mise run build` の前段で自動実行）
 - **GhosttyKit.xcframework**: ghostty fork のビルド成果物。リポジトリにバイナリでコミット済み
 - **system frameworks**: Metal / QuartzCore / IOSurface / UniformTypeIdentifiers / Carbon / PDFKit
 - **Swift 6 strict concurrency**: 既知の罠は [DEV.md](./DEV.md) と CLAUDE.md にまとめてある

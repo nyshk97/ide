@@ -10,7 +10,7 @@ ide を有償配布するために必要なステップ。今は「自分用ツ�
 
 ## 前提として要らないもの（混同しないようにメモ）
 
-- **TCC 権限のオンボーディング** — エンドユーザー向けには不要。`IDE.entitlements` は libghostty の hardened runtime 例外だけで、`AXIsProcessTrusted` / `CGRequestScreenCaptureAccess` 等の TCC 保護 API はアプリ本体で呼んでいない。画面収録 / フルディスクアクセス / アクセシビリティが要るのは「IDE.app の中で IDE 自身を dogfooding する開発者」のセットアップだけ（→ [CLAUDE.md](../CLAUDE.md) の TCC セクション）
+- **TCC 権限のオンボーディング** — エンドユーザー向けには不要。`PolePole.entitlements` は libghostty の hardened runtime 例外だけで、`AXIsProcessTrusted` / `CGRequestScreenCaptureAccess` 等の TCC 保護 API はアプリ本体で呼んでいない。画面収録 / フルディスクアクセス / アクセシビリティが要るのは「PolePole.app の中で PolePole 自身を dogfooding する開発者」のセットアップだけ（→ [CLAUDE.md](../CLAUDE.md) の TCC セクション）
 - **編集機能** — 要件 6.4 通り閲覧専用のまま。編集は外部 Cursor / 各自のエディタに逃がす方針を維持
 - **クロスプラットフォーム** — Apple Silicon 限定で出す。Intel Mac サポートも当面やらない
 
@@ -22,7 +22,7 @@ ide を有償配布するために必要なステップ。今は「自分用ツ�
 
 | 項目 | メモ |
 |---|---|
-| 固有のブランド名 + ドメイン取得 | "IDE" は検索性ゼロ・商標リスクあり。1 単語 + `.app` か `getxxx.com` あたり |
+| 固有のブランド名 + ドメイン取得 | "PolePole" は検索性ゼロ・商標リスクあり。1 単語 + `.app` か `getxxx.com` あたり |
 | LP（ランディングページ） | 「何ができるか」「Claude Code を使った推奨ワークフロー」「スクリーンショット / 動画」「ショートカット一覧」「FAQ」「価格」「ダウンロード」 |
 | エンドユーザー向けドキュメント | 現在の docs は開発者向け。LP からリンクできる help サイト or 単一 README |
 | 環境依存の前提を取り除く | `mise` / `brew` / dotfiles を持たないユーザーで動くこと。JetBrains Mono と ghostty bundled config は同梱済みなので、`claude` の有無 / `~/.config/ghostty/config` 不在時のデフォルト挙動を確認 |
@@ -47,7 +47,7 @@ ide を有償配布するために必要なステップ。今は「自分用ツ�
 | サポート窓口 | `support@<domain>` 1 本でいい。Discord / Slack はサポート負荷が想像以上に高いので最初は持たない |
 | アプリ内フィードバック導線 | メーラー起動でも可。本文に **バージョン / OS / 直近ログ末尾 / 環境変数の一部** を prefill しておく（これだけでサポートコストが激減する） |
 | クラッシュレポート | Sentry（個人開発者プランは無料枠あり）。**opt-in** で送信。落ちた理由が分からないとリピート購入が止まる |
-| 本体 repo の private 化 | 配信は `nyshk97/ide-releases` に集約済み。`homebrew-tap` の cask URL を `ide-releases` に向け直してから private 化 |
+| 本体 repo の private 化 | 配信は `nyshk97/polepole-releases` に集約済み。`homebrew-tap` の cask URL を `ide-releases` に向け直してから private 化 |
 | 配信フィードの独自ドメイン化 | `updates.<domain>/appcast.xml`。R2 + 独自ドメインへ移行。旧 SUFeedURL を踏むユーザーのために GitHub 側にも appcast を残す（リダイレクトが効かないので両方更新する運用） |
 
 ### 依存物のライセンス整理

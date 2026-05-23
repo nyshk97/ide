@@ -5,26 +5,26 @@
 ## 前提
 
 - 開発ビルドは `mise run build`（XcodeGen による `regen` を内包）
-- `.app` の出力先は `/tmp/ide-build/Build/Products/Debug/IDE Dev.app`（Debug は Bundle ID `local.d0ne1s.ide.dev` / PRODUCT_NAME `IDE Dev` で Release と完全分離）
+- `.app` の出力先は `/tmp/polepole-build/Build/Products/Debug/PolePole Dev.app`（Debug は Bundle ID `local.d0ne1s.polepole.dev` / PRODUCT_NAME `PolePole Dev` で Release と完全分離）
 - 動作確認用ヘルパは `scripts/` 配下:
-  - `scripts/ide-launch.sh [wait_seconds]` — kill + open + 起動待ち
-  - `scripts/ide-keystroke.sh [--enter|--keycode N] "text"` — `osascript` でキーストローク送信
-  - `scripts/ide-screenshot.sh <output_path>` — フロントウィンドウ領域をキャプチャ
+  - `scripts/polepole-launch.sh [wait_seconds]` — kill + open + 起動待ち
+  - `scripts/polepole-keystroke.sh [--enter|--keycode N] "text"` — `osascript` でキーストローク送信
+  - `scripts/polepole-screenshot.sh <output_path>` — フロントウィンドウ領域をキャプチャ
 
-ログは `/tmp/ide-poc.log`（init() で reset）に書き出される。`tail -f /tmp/ide-poc.log` で追える。
+ログは `/tmp/polepole-poc.log`（init() で reset）に書き出される。`tail -f /tmp/polepole-poc.log` で追える。
 
 ## ⚠️ projects.json を触る検証は事前バックアップを推奨
 
-以下のセクションは `~/Library/Application Support/ide-dev/projects.json` をテスト用フィクスチャで上書きし、最後に `rm -f` で消します。Debug ビルドの Bundle ID は `.dev` suffix で分離されており、Brew 配布版が使う `~/Library/Application Support/ide/projects.json` には触らない設計です。とはいえ Dev 版でも普段からピン留めしているデータがあるなら、念のためバックアップを取っておくのが安全:
+以下のセクションは `~/Library/Application Support/polepole-dev/projects.json` をテスト用フィクスチャで上書きし、最後に `rm -f` で消します。Debug ビルドの Bundle ID は `.dev` suffix で分離されており、Brew 配布版が使う `~/Library/Application Support/polepole/projects.json` には触らない設計です。とはいえ Dev 版でも普段からピン留めしているデータがあるなら、念のためバックアップを取っておくのが安全:
 
 ```bash
 # 検証開始前
 BACKUP_DIR=$(mktemp -d)
-cp -a "$HOME/Library/Application Support/ide-dev/" "$BACKUP_DIR/ide-dev-backup" 2>/dev/null || true
+cp -a "$HOME/Library/Application Support/polepole-dev/" "$BACKUP_DIR/polepole-dev-backup" 2>/dev/null || true
 
 # 検証完了後
-rm -rf "$HOME/Library/Application Support/ide-dev"
-mv "$BACKUP_DIR/ide-dev-backup" "$HOME/Library/Application Support/ide-dev" 2>/dev/null || true
+rm -rf "$HOME/Library/Application Support/polepole-dev"
+mv "$BACKUP_DIR/polepole-dev-backup" "$HOME/Library/Application Support/polepole-dev" 2>/dev/null || true
 ```
 
 **Release configuration で起動して検証するケース**（`build.sh` 経由の `.app` を `/Applications/` に入れて確認するなど）では `ide/projects.json` を直接扱うので、その場合は退避先を `ide-backup` にして `ide/` 配下を保護してください。
@@ -37,24 +37,24 @@ mv "$BACKUP_DIR/ide-dev-backup" "$HOME/Library/Application Support/ide-dev" 2>/d
 
 ```bash
 mise run build
-./scripts/ide-launch.sh
+./scripts/polepole-launch.sh
 ```
 
 期待: `** BUILD SUCCEEDED **` と表示され、ide ウィンドウが前面に開く。
 
 ログ確認:
 ```bash
-cat /tmp/ide-poc.log
+cat /tmp/polepole-poc.log
 ```
 期待出力に `[ghostty] init=0`、`[ghostty] app_new ok`、`[surface] new ok` が含まれる。
 
 ## 2. ターミナル基本動作
 
 ```bash
-./scripts/ide-launch.sh
-./scripts/ide-keystroke.sh --enter "echo hello && pwd"
+./scripts/polepole-launch.sh
+./scripts/polepole-keystroke.sh --enter "echo hello && pwd"
 sleep 0.5
-./scripts/ide-screenshot.sh /tmp/v-basic.png
+./scripts/polepole-screenshot.sh /tmp/v-basic.png
 ```
 
 スクショに `hello` の出力と HOME 相当のパスが表示されていること。
@@ -62,12 +62,12 @@ sleep 0.5
 ## 3. リサイズ追従
 
 ```bash
-./scripts/ide-launch.sh
+./scripts/polepole-launch.sh
 osascript -e 'tell application "System Events" to tell process "ide" to set size of front window to {1300, 800}'
 sleep 0.3
-./scripts/ide-keystroke.sh --enter "stty size"
+./scripts/polepole-keystroke.sh --enter "stty size"
 sleep 0.5
-./scripts/ide-screenshot.sh /tmp/v-resize.png
+./scripts/polepole-screenshot.sh /tmp/v-resize.png
 ```
 
 `stty size` の出力（行 列）がウィンドウサイズに見合った値に変わっていること（PTY rows/cols が同期している）。
@@ -75,8 +75,8 @@ sleep 0.5
 ## 4. Ghostty 設定継承
 
 ```bash
-./scripts/ide-launch.sh
-grep "diag\[" /tmp/ide-poc.log
+./scripts/polepole-launch.sh
+grep "diag\[" /tmp/polepole-poc.log
 ```
 
 `~/.config/ghostty/config` に設定ミスがあれば diagnostic が出る。または UI 上で自分の Ghostty 設定どおりのフォント・カラースキームになっていること。
@@ -84,12 +84,12 @@ grep "diag\[" /tmp/ide-poc.log
 ## 5. 256色・True Color
 
 ```bash
-./scripts/ide-launch.sh
-./scripts/ide-keystroke.sh --enter "for i in {0..15}; do for j in {0..15}; do printf \"\\x1b[48;5;\$((i*16+j))m  \\x1b[0m\"; done; printf \"\\n\"; done"
+./scripts/polepole-launch.sh
+./scripts/polepole-keystroke.sh --enter "for i in {0..15}; do for j in {0..15}; do printf \"\\x1b[48;5;\$((i*16+j))m  \\x1b[0m\"; done; printf \"\\n\"; done"
 sleep 0.5
-./scripts/ide-keystroke.sh --enter "for i in {0..127}; do printf \"\\x1b[48;2;\$((i*2));\$((255-i*2));128m \\x1b[0m\"; done; printf \"\\n\""
+./scripts/polepole-keystroke.sh --enter "for i in {0..127}; do printf \"\\x1b[48;2;\$((i*2));\$((255-i*2));128m \\x1b[0m\"; done; printf \"\\n\""
 sleep 0.5
-./scripts/ide-screenshot.sh /tmp/v-color.png
+./scripts/polepole-screenshot.sh /tmp/v-color.png
 ```
 
 スクショに 16x16 の 256 パレットと、24bit RGB のなめらかなグラデーションが映っていること。
@@ -97,8 +97,8 @@ sleep 0.5
 ## 6. URL リンク化
 
 ```bash
-./scripts/ide-launch.sh
-./scripts/ide-keystroke.sh --enter "echo https://example.com"
+./scripts/polepole-launch.sh
+./scripts/polepole-keystroke.sh --enter "echo https://example.com"
 ```
 
 実機で:
@@ -109,13 +109,13 @@ sleep 0.5
 ## 7. AI 種別バッジ
 
 ```bash
-./scripts/ide-launch.sh
+./scripts/polepole-launch.sh
 osascript -e 'tell application "System Events" to tell process "ide" to set frontmost to true'
 sleep 0.3
 osascript -e 'tell application "System Events" to key code 102'
-./scripts/ide-keystroke.sh --enter "claude"
+./scripts/polepole-keystroke.sh --enter "claude"
 sleep 4
-./scripts/ide-screenshot.sh /tmp/v-ai-badge.png
+./scripts/polepole-screenshot.sh /tmp/v-ai-badge.png
 ```
 
 期待: タブ名「shell 1」の左に 🅒 アイコン（オレンジ tint）が出る。Esc で claude を抜けるとアイコンが消える。
@@ -127,20 +127,20 @@ sleep 4
 
 ## 7. AI 完了通知（タブ青丸バッジ + サイドバーのリング）
 
-claude / codex は応答中に `OSC 9;4` プログレス（INDETERMINATE 等）を出し、ターンが終わると REMOVE で消す。IDE は **「`.claude`/`.codex` タブで 作業中 → REMOVE の遷移」を「応答完了」とみなして**、そのタブがバックグラウンド（active pane の active tab でない）なら未読を立てる。BEL（`\a`）や OSC 9 / OSC 777 のデスクトップ通知も同様に未読のトリガーになる（が claude/codex は実際には鳴らさず、主経路はプログレス）。未読が立つと:
+claude / codex は応答中に `OSC 9;4` プログレス（INDETERMINATE 等）を出し、ターンが終わると REMOVE で消す。PolePole は **「`.claude`/`.codex` タブで 作業中 → REMOVE の遷移」を「応答完了」とみなして**、そのタブがバックグラウンド（active pane の active tab でない）なら未読を立てる。BEL（`\a`）や OSC 9 / OSC 777 のデスクトップ通知も同様に未読のトリガーになる（が claude/codex は実際には鳴らさず、主経路はプログレス）。未読が立つと:
 - そのタブ → タブ名の右に青丸（●）バッジ
 - そのプロジェクト → サイドバーのアバターに青いリング（配下のどれかのタブが未読なら点灯。表示中のタブをアクティブにすると消える）
 
-調査用に `/tmp/ide-poc.log` に `[progress]`（プログレス受信）/ `[unread]`（未読を立てた）ログを出している。
+調査用に `/tmp/polepole-poc.log` に `[progress]`（プログレス受信）/ `[unread]`（未読を立てた）ログを出している。
 
 ### 7-a. サイドバーのリング（自動・決定的）
 
-`IDE_TEST_UNREAD_INDICES=0,2` で起動時に 0 番目と 2 番目のプロジェクトの下ペインのタブに未読を仕込める。
+`POLEPOLE_TEST_UNREAD_INDICES=0,2` で起動時に 0 番目と 2 番目のプロジェクトの下ペインのタブに未読を仕込める。
 
 ```bash
-pkill -x "IDE Dev" 2>/dev/null
-mkdir -p "$HOME/Library/Application Support/ide-dev"
-cat > "$HOME/Library/Application Support/ide-dev/projects.json" <<'JSON'
+pkill -x "PolePole Dev" 2>/dev/null
+mkdir -p "$HOME/Library/Application Support/polepole-dev"
+cat > "$HOME/Library/Application Support/polepole-dev/projects.json" <<'JSON'
 {
   "projects" : [
     {"displayName":"ide","id":"11111111-1111-1111-1111-111111111111","isPinned":true,"lastOpenedAt":"2026-05-10T01:00:00Z","path":"/Users/d0ne1s/ide"},
@@ -152,10 +152,10 @@ cat > "$HOME/Library/Application Support/ide-dev/projects.json" <<'JSON'
 JSON
 
 # index 1 (docs) をアクティブ起動。0/2 を未読に。
-open -n "/tmp/ide-build/Build/Products/Debug/IDE Dev.app" \
-  --env IDE_TEST_AUTO_ACTIVATE_INDEX=1 --env IDE_TEST_UNREAD_INDICES=0,2
+open -n "/tmp/polepole-build/Build/Products/Debug/PolePole Dev.app" \
+  --env POLEPOLE_TEST_AUTO_ACTIVATE_INDEX=1 --env POLEPOLE_TEST_UNREAD_INDICES=0,2
 sleep 4
-./scripts/ide-screenshot.sh /tmp/v-ring.png
+./scripts/polepole-screenshot.sh /tmp/v-ring.png
 ```
 
 期待:
@@ -165,27 +165,27 @@ sleep 4
 次に「未読プロジェクトをアクティブにすると、その表示タブの未読が消える」確認:
 
 ```bash
-pkill -x "IDE Dev" 2>/dev/null; sleep 0.5
+pkill -x "PolePole Dev" 2>/dev/null; sleep 0.5
 # 今度は index 0 (ide) を未読にしつつアクティブ起動
-open -n "/tmp/ide-build/Build/Products/Debug/IDE Dev.app" \
-  --env IDE_TEST_AUTO_ACTIVATE_INDEX=0 --env IDE_TEST_UNREAD_INDICES=0,2
+open -n "/tmp/polepole-build/Build/Products/Debug/PolePole Dev.app" \
+  --env POLEPOLE_TEST_AUTO_ACTIVATE_INDEX=0 --env POLEPOLE_TEST_UNREAD_INDICES=0,2
 sleep 4
-./scripts/ide-screenshot.sh /tmp/v-ring-activated.png
+./scripts/polepole-screenshot.sh /tmp/v-ring-activated.png
 ```
 
 期待: `ide` はアクティブ行になり**リング無し**（表示中の下ペインのタブの未読がクリアされた）、`Sources` はリングが残る。
 
 クリーンアップ:
 ```bash
-pkill -x "IDE Dev" 2>/dev/null
-rm -rf "$HOME/Library/Application Support/ide-dev"
+pkill -x "PolePole Dev" 2>/dev/null
+rm -rf "$HOME/Library/Application Support/polepole-dev"
 ```
 
 ### 7-b. 実機での確認（claude / codex 実セッション）
 
 1. 適当なプロジェクトを開いて、下ペインで `claude`（or `codex`）を起動
 2. プロンプトを投げて、すぐ Cmd+T で別タブに移る（AI タブをバックグラウンドに）
-3. 応答が終わると → AI タブに青丸、サイドバーのプロジェクトにリング。`grep '\[unread\]' /tmp/ide-poc.log` に `reason=ai-turn-done` が出る
+3. 応答が終わると → AI タブに青丸、サイドバーのプロジェクトにリング。`grep '\[unread\]' /tmp/polepole-poc.log` に `reason=ai-turn-done` が出る
 4. その AI タブ / ペインをクリックで切替 → 青丸が消える。プロジェクト配下の未読が全部消えたらリングも消える
 5. AI タブを active にしたまま応答完了 → 出ない（自分で見ているので未読扱いしない。`[progress]` ログには `state=0` が出るが `[unread]` は出ない）
 6. 素のシェルで `printf '\a'` → 出ない（AI タブでないため）
@@ -193,7 +193,7 @@ rm -rf "$HOME/Library/Application Support/ide-dev"
 ## 7. PTY 異常終了表示と再起動
 
 ```bash
-./scripts/ide-launch.sh
+./scripts/polepole-launch.sh
 ```
 
 ide のターミナルで:
@@ -211,7 +211,7 @@ exit 42
 ## 7. 複数ペイン（手動確認）
 
 ```bash
-./scripts/ide-launch.sh
+./scripts/polepole-launch.sh
 ```
 
 実機で:
@@ -224,14 +224,14 @@ exit 42
 
 各ペインは独立した PTY なので別の `ttys*` が割り当てられる:
 ```bash
-./scripts/ide-keystroke.sh --enter "tty"
+./scripts/polepole-keystroke.sh --enter "tty"
 ```
 を上下それぞれで打って異なる TTY が出ることを確認（手動でアクティブ切替後、各ペインで実行）。
 
 ## 7. 複数タブ
 
 ```bash
-./scripts/ide-launch.sh
+./scripts/polepole-launch.sh
 osascript -e 'tell application "System Events"
   tell process "ide"
     set frontmost to true
@@ -250,7 +250,7 @@ osascript -e 'tell application "System Events"
   key code 36
 end tell'
 sleep 1
-./scripts/ide-screenshot.sh /tmp/v-tabs.png
+./scripts/polepole-screenshot.sh /tmp/v-tabs.png
 ```
 
 期待: タブバーに `shell 1` と `shell 2` が並び、shell 2 がアクティブで `tab-2` 出力が見える。
@@ -264,7 +264,7 @@ osascript -e 'tell application "System Events"
   keystroke "w" using command down  -- アクティブタブ閉じる
 end tell'
 sleep 1
-./scripts/ide-screenshot.sh /tmp/v-tabs-close.png
+./scripts/polepole-screenshot.sh /tmp/v-tabs-close.png
 ```
 
 期待: shell 2 が閉じて shell 1 だけ残り、shell 1 のバッファ（`tab-1` 出力）が保持されている。
@@ -273,18 +273,18 @@ sleep 1
 
 入力ソースが日本語のとき、AppleScript で英字を打つとライブ変換が走る:
 ```bash
-./scripts/ide-launch.sh
+./scripts/polepole-launch.sh
 osascript -e 'tell application "System Events" to keystroke "echo"'  # IME が日本語ローマ字なら「えちょ」になる
 ```
 → ターミナル上で preedit が表示される（赤文字 = zsh-syntax-highlighting でコマンド未存在判定）= `setMarkedText` → `ghostty_surface_preedit` 経路が動作。
 
 英数モードに戻して ASCII 入力が壊れていないか:
 ```bash
-./scripts/ide-launch.sh
+./scripts/polepole-launch.sh
 osascript -e 'tell application "System Events" to key code 102'  # 英数キー
-./scripts/ide-keystroke.sh --enter "echo ascii-after-eisuu"
+./scripts/polepole-keystroke.sh --enter "echo ascii-after-eisuu"
 sleep 0.5
-./scripts/ide-screenshot.sh /tmp/v-ime-ascii.png
+./scripts/polepole-screenshot.sh /tmp/v-ime-ascii.png
 ```
 
 実機での日本語確認（手動）:
@@ -294,8 +294,8 @@ sleep 0.5
 ## 7. マウス（手動確認）
 
 ```bash
-./scripts/ide-launch.sh
-./scripts/ide-keystroke.sh --enter "for i in {1..80}; do echo \"line \$i\"; done"
+./scripts/polepole-launch.sh
+./scripts/polepole-keystroke.sh --enter "for i in {1..80}; do echo \"line \$i\"; done"
 ```
 
 以下を実機で確認:
@@ -308,18 +308,18 @@ sleep 0.5
 
 ```bash
 echo "expected-payload-$(date +%s)" | tr -d '\n' | pbcopy
-./scripts/ide-launch.sh
-./scripts/ide-keystroke.sh "echo "
+./scripts/polepole-launch.sh
+./scripts/polepole-keystroke.sh "echo "
 osascript -e 'tell application "System Events" to keystroke "v" using command down'
 sleep 0.3
-./scripts/ide-keystroke.sh --keycode 36
+./scripts/polepole-keystroke.sh --keycode 36
 sleep 0.5
-./scripts/ide-screenshot.sh /tmp/v-paste.png
+./scripts/polepole-screenshot.sh /tmp/v-paste.png
 ```
 
 スクショの出力に `pbcopy` で渡した文字列が映っていること。ログ確認:
 ```bash
-grep "\[clip\]" /tmp/ide-poc.log
+grep "\[clip\]" /tmp/polepole-poc.log
 ```
 
 ## 8. TUI 動作確認
@@ -327,12 +327,12 @@ grep "\[clip\]" /tmp/ide-poc.log
 ### vim
 
 ```bash
-./scripts/ide-launch.sh
-./scripts/ide-keystroke.sh --enter "vim REQUIREMENTS.md"
+./scripts/polepole-launch.sh
+./scripts/polepole-keystroke.sh --enter "vim REQUIREMENTS.md"
 sleep 1.5
-./scripts/ide-screenshot.sh /tmp/v-vim.png
-./scripts/ide-keystroke.sh ":q!"
-./scripts/ide-keystroke.sh --keycode 36  # Enter
+./scripts/polepole-screenshot.sh /tmp/v-vim.png
+./scripts/polepole-keystroke.sh ":q!"
+./scripts/polepole-keystroke.sh --keycode 36  # Enter
 ```
 
 スクショで Markdown のシンタックスハイライト・罫線文字・ステータスラインが正しく描画されていること。
@@ -340,10 +340,10 @@ sleep 1.5
 ### fzf
 
 ```bash
-./scripts/ide-keystroke.sh --enter "ls | fzf --height=50%"
+./scripts/polepole-keystroke.sh --enter "ls | fzf --height=50%"
 sleep 1
-./scripts/ide-screenshot.sh /tmp/v-fzf.png
-./scripts/ide-keystroke.sh --keycode 53  # Esc
+./scripts/polepole-screenshot.sh /tmp/v-fzf.png
+./scripts/polepole-keystroke.sh --keycode 53  # Esc
 ```
 
 ファイル一覧が表示され、カーソル行がハイライトされ、`N/N` のステータスが見えること。
@@ -351,10 +351,10 @@ sleep 1
 ### claude
 
 ```bash
-./scripts/ide-keystroke.sh --enter "claude"
+./scripts/polepole-keystroke.sh --enter "claude"
 sleep 4
-./scripts/ide-screenshot.sh /tmp/v-claude.png
-./scripts/ide-keystroke.sh --keycode 53  # Esc
+./scripts/polepole-screenshot.sh /tmp/v-claude.png
+./scripts/polepole-keystroke.sh --keycode 53  # Esc
 ```
 
 claude code の起動画面（信頼確認やプロンプト入力欄）が崩れずに描画されること。
@@ -366,11 +366,11 @@ claude code の起動画面（信頼確認やプロンプト入力欄）が崩�
 ### 9. 3カラムレイアウト
 
 ```bash
-./scripts/ide-launch.sh
-./scripts/ide-screenshot.sh /tmp/v-3col.png
-./scripts/ide-keystroke.sh --enter "echo phase2-step1-ok && pwd"
+./scripts/polepole-launch.sh
+./scripts/polepole-screenshot.sh /tmp/v-3col.png
+./scripts/polepole-keystroke.sh --enter "echo phase2-step1-ok && pwd"
 sleep 0.5
-./scripts/ide-screenshot.sh /tmp/v-3col-terminal.png
+./scripts/polepole-screenshot.sh /tmp/v-3col-terminal.png
 ```
 
 期待:
@@ -389,11 +389,11 @@ sleep 0.5
 
 ```bash
 # autosave をクリアして初回起動を再現する
-pkill -x "IDE Dev" 2>/dev/null; sleep 0.5
-defaults delete local.d0ne1s.ide.dev "NSSplitView Subview Frames ide.rootSplit" 2>/dev/null || true
-./scripts/ide-launch.sh && sleep 2
+pkill -x "PolePole Dev" 2>/dev/null; sleep 0.5
+defaults delete local.d0ne1s.polepole.dev "NSSplitView Subview Frames ide.rootSplit" 2>/dev/null || true
+./scripts/polepole-launch.sh && sleep 2
 echo "--- 初期 divider 位置 ---"
-defaults read local.d0ne1s.ide.dev "NSSplitView Subview Frames ide.rootSplit"
+defaults read local.d0ne1s.polepole.dev "NSSplitView Subview Frames ide.rootSplit"
 ```
 
 期待 (1000pt ウィンドウ):
@@ -413,18 +413,18 @@ defaults read local.d0ne1s.ide.dev "NSSplitView Subview Frames ide.rootSplit"
 ありがちな fail パターン:
 - left = 120 (= 最小幅にクランプ): `userHasDragged` 検知が起動直後に勝手に true になっている → `DragDetectingSplitView.mouseDown` の divider 矩形判定を疑う
 - center が極端に狭い / 広い: `viewDidLayout` で初期比率を 1 回だけセットして固定している → 中間サイズで先に発火している。`didSetInitial` で 1 回ロックする実装に戻したら NG
-- 結果が出ない / 値が変: `defaults` 読み出し前に IDE Dev が完全終了していない (autosave は quit 時に書き出される) → `pkill` のあとに数秒待ってから読み直す
+- 結果が出ない / 値が変: `defaults` 読み出し前に PolePole Dev が完全終了していない (autosave は quit 時に書き出される) → `pkill` のあとに数秒待ってから読み直す
 
 ドラッグ位置の永続化確認 (手動):
 1. divider をドラッグして任意の位置に動かす
-2. `pkill -x "IDE Dev" && sleep 1 && ./scripts/ide-launch.sh`
+2. `pkill -x "PolePole Dev" && sleep 1 && ./scripts/polepole-launch.sh`
 3. ドラッグした位置が復元されること
 
 ### 10. プロジェクト追加（インメモリ・自動）
 
 ```bash
-./scripts/ide-launch.sh
-./scripts/ide-screenshot.sh /tmp/v-step2-empty.png
+./scripts/polepole-launch.sh
+./scripts/polepole-screenshot.sh /tmp/v-step2-empty.png
 ```
 
 期待: 起動直後はサイドバー上部に「+」ボタンのみ、中央ペインに `フォルダを追加して始めよう` が表示。
@@ -459,7 +459,7 @@ add_project "/Users/d0ne1s/ide"
 add_project "/Users/d0ne1s/Downloads"
 add_project "/tmp"
 sleep 0.4
-./scripts/ide-screenshot.sh /tmp/v-step2-3rows.png
+./scripts/polepole-screenshot.sh /tmp/v-step2-3rows.png
 ```
 
 期待:
@@ -484,39 +484,39 @@ sleep 0.4
 
 ### 12. プロジェクト永続化（自動）
 
-`~/Library/Application Support/ide-dev/projects.json` には pinned / temporary 両方が保存され、再起動でサイドバーに復元される（明示的に「閉じる」した時のみ消える）。
+`~/Library/Application Support/polepole-dev/projects.json` には pinned / temporary 両方が保存され、再起動でサイドバーに復元される（明示的に「閉じる」した時のみ消える）。
 
 ```bash
-pkill -x ide 2>/dev/null
-mkdir -p "$HOME/Library/Application Support/ide-dev"
-mkdir -p /tmp/ide-step3-test/willmove /tmp/ide-step3-test/temp-proj
-cat > "$HOME/Library/Application Support/ide-dev/projects.json" <<'JSON'
+pkill -x "PolePole Dev" 2>/dev/null
+mkdir -p "$HOME/Library/Application Support/polepole-dev"
+mkdir -p /tmp/polepole-step3-test/willmove /tmp/polepole-step3-test/temp-proj
+cat > "$HOME/Library/Application Support/polepole-dev/projects.json" <<'JSON'
 {
   "projects" : [
     {"displayName":"ide","id":"11111111-1111-1111-1111-111111111111","isPinned":true,"lastOpenedAt":"2026-05-09T01:00:00Z","path":"/Users/d0ne1s/ide"},
-    {"displayName":"willmove","id":"22222222-2222-2222-2222-222222222222","isPinned":true,"lastOpenedAt":"2026-05-09T02:00:00Z","path":"/tmp/ide-step3-test/willmove"},
-    {"displayName":"temp-proj","id":"33333333-3333-3333-3333-333333333333","isPinned":false,"lastOpenedAt":"2026-05-09T03:00:00Z","path":"/tmp/ide-step3-test/temp-proj"}
+    {"displayName":"willmove","id":"22222222-2222-2222-2222-222222222222","isPinned":true,"lastOpenedAt":"2026-05-09T02:00:00Z","path":"/tmp/polepole-step3-test/willmove"},
+    {"displayName":"temp-proj","id":"33333333-3333-3333-3333-333333333333","isPinned":false,"lastOpenedAt":"2026-05-09T03:00:00Z","path":"/tmp/polepole-step3-test/temp-proj"}
   ],
   "schemaVersion" : 1
 }
 JSON
-./scripts/ide-launch.sh
+./scripts/polepole-launch.sh
 sleep 0.5
-./scripts/ide-screenshot.sh /tmp/v-step3-restored.png
+./scripts/polepole-screenshot.sh /tmp/v-step3-restored.png
 ```
 
 期待: ピン留めセクションに ide / willmove が並ぶ（ボールド表示）、その下に区切り線 → 一時セクションに temp-proj が出る（レギュラー表示）、中央ペインに「左からプロジェクトを選択」。
 
 temporary が永続化されている確認（自動）:
 ```bash
-pkill -x ide 2>/dev/null
+pkill -x "PolePole Dev" 2>/dev/null
 sleep 0.5
 # allOrdered の index 2（pinned 2件 + temporary 1件目 = temp-proj）をアクティブ化
-IDE_TEST_AUTO_ACTIVATE_INDEX=2 /tmp/ide-build/Build/Products/Debug/ide.app/Contents/MacOS/ide >/tmp/ide-stdout.log 2>&1 &
+POLEPOLE_TEST_AUTO_ACTIVATE_INDEX=2 /tmp/polepole-build/Build/Products/Debug/PolePole Dev.app/Contents/MacOS/PolePole Dev >/tmp/polepole-stdout.log 2>&1 &
 sleep 3
 # temp-proj の lastOpenedAt が更新されていれば temporary も永続化されている
-python3 -c "import json; d=json.load(open('$HOME/Library/Application Support/ide-dev/projects.json')); [print(f\"{p['displayName']}: {p['lastOpenedAt']}\") for p in d['projects']]"
-pkill -x ide 2>/dev/null
+python3 -c "import json; d=json.load(open('$HOME/Library/Application Support/polepole-dev/projects.json')); [print(f\"{p['displayName']}: {p['lastOpenedAt']}\") for p in d['projects']]"
+pkill -x "PolePole Dev" 2>/dev/null
 ```
 
 期待: temp-proj の lastOpenedAt が `2026-05-09T03:00:00Z` から起動時刻に更新されている。
@@ -524,51 +524,51 @@ pkill -x ide 2>/dev/null
 ### 13. missing 状態（自動）
 
 ```bash
-pkill -x ide 2>/dev/null
-mv /tmp/ide-step3-test/willmove /tmp/ide-step3-test/moved-away
-./scripts/ide-launch.sh
+pkill -x "PolePole Dev" 2>/dev/null
+mv /tmp/polepole-step3-test/willmove /tmp/polepole-step3-test/moved-away
+./scripts/polepole-launch.sh
 sleep 0.5
-./scripts/ide-screenshot.sh /tmp/v-step3-missing.png
+./scripts/polepole-screenshot.sh /tmp/v-step3-missing.png
 ```
 
 期待: willmove が黄色 ⚠ アイコン + 半透明で表示、ide は通常表示のまま。
 
 クリーンアップ:
 ```bash
-pkill -x ide 2>/dev/null
-rm -rf /tmp/ide-step3-test
-rm -f "$HOME/Library/Application Support/ide-dev/projects.json"*
+pkill -x "PolePole Dev" 2>/dev/null
+rm -rf /tmp/polepole-step3-test
+rm -f "$HOME/Library/Application Support/polepole-dev/projects.json"*
 ```
 
 ### 13-a. missing なプロジェクトは active にできない（半自動）
 
-要件 2「クリックしても開けない」。`IDE_TEST_AUTO_ACTIVATE_INDEX` で missing なプロジェクトを active にしようとして、toast が出るだけで workspace（shell）が作られないことを確認する。
+要件 2「クリックしても開けない」。`POLEPOLE_TEST_AUTO_ACTIVATE_INDEX` で missing なプロジェクトを active にしようとして、toast が出るだけで workspace（shell）が作られないことを確認する。
 
 ```bash
-APP="/tmp/ide-build/Build/Products/Debug/IDE Dev.app"
-SUPPORT="$HOME/Library/Application Support/ide-dev"
-BACKUP_DIR=$(mktemp -d); [ -d "$SUPPORT" ] && cp -a "$SUPPORT" "$BACKUP_DIR/ide-dev-backup"
+APP="/tmp/polepole-build/Build/Products/Debug/PolePole Dev.app"
+SUPPORT="$HOME/Library/Application Support/polepole-dev"
+BACKUP_DIR=$(mktemp -d); [ -d "$SUPPORT" ] && cp -a "$SUPPORT" "$BACKUP_DIR/polepole-dev-backup"
 mkdir -p "$SUPPORT"
 cat > "$SUPPORT/projects.json" <<'JSON'
 { "schemaVersion": 1, "projects": [
   { "id": "00000000-0000-0000-0000-000000000001", "displayName": "ghost-project", "isPinned": true, "lastOpenedAt": "2026-05-01T00:00:00Z", "path": "/tmp/nonexistent-project-p14" }
 ] }
 JSON
-pkill -x "IDE Dev" 2>/dev/null; sleep 1
-IDE_TEST_AUTO_ACTIVATE_INDEX=0 "$APP/Contents/MacOS/IDE Dev" >/dev/null 2>&1 &
+pkill -x "PolePole Dev" 2>/dev/null; sleep 1
+POLEPOLE_TEST_AUTO_ACTIVATE_INDEX=0 "$APP/Contents/MacOS/PolePole Dev" >/dev/null 2>&1 &
 sleep 4
-grep -n "見つかりません\|workspace\|WorkspaceModel" /tmp/ide-poc.log
-pkill -x "IDE Dev" 2>/dev/null; sleep 1
-rm -rf "$SUPPORT"; [ -d "$BACKUP_DIR/ide-dev-backup" ] && mv "$BACKUP_DIR/ide-dev-backup" "$SUPPORT"
+grep -n "見つかりません\|workspace\|WorkspaceModel" /tmp/polepole-poc.log
+pkill -x "PolePole Dev" 2>/dev/null; sleep 1
+rm -rf "$SUPPORT"; [ -d "$BACKUP_DIR/polepole-dev-backup" ] && mv "$BACKUP_DIR/polepole-dev-backup" "$SUPPORT"
 ```
 
-期待: `/tmp/ide-poc.log` に `[ERROR] プロジェクトのパスが見つかりません: /tmp/nonexistent-project-p14` が出て、それ以降 `workspace` / `WorkspaceModel` 関連の行が出ない（= `setActive` が `workspace(for:)` を呼ぶ前に return している）。クラッシュもしない。
+期待: `/tmp/polepole-poc.log` に `[ERROR] プロジェクトのパスが見つかりません: /tmp/nonexistent-project-p14` が出て、それ以降 `workspace` / `WorkspaceModel` 関連の行が出ない（= `setActive` が `workspace(for:)` を呼ぶ前に return している）。クラッシュもしない。
 
 ### 14. アトミック書き込み・バックアップ世代（手動）
 
 実機で確認:
 - ピン留めを 4 回切り替える
-- `ls "$HOME/Library/Application Support/ide-dev/"` で `projects.json` `.1` `.2` `.3` が並ぶ
+- `ls "$HOME/Library/Application Support/polepole-dev/"` で `projects.json` `.1` `.2` `.3` が並ぶ
 - ピン留め中に強制終了させても `projects.json` か `.1` が読み取れること
 
 ### 15. 「再選択」メニュー（手動）
@@ -581,12 +581,12 @@ rm -rf "$SUPPORT"; [ -d "$BACKUP_DIR/ide-dev-backup" ] && mv "$BACKUP_DIR/ide-de
 
 ### 16. プロジェクトごとのターミナル + cwd（自動）
 
-`IDE_TEST_AUTO_ACTIVATE_INDEX` で起動時に N 番目のピン留めを active にできる（デバッグ用フラグ。本番では使わない）。
+`POLEPOLE_TEST_AUTO_ACTIVATE_INDEX` で起動時に N 番目のピン留めを active にできる（デバッグ用フラグ。本番では使わない）。
 
 ```bash
-pkill -x ide 2>/dev/null
-mkdir -p "$HOME/Library/Application Support/ide-dev"
-cat > "$HOME/Library/Application Support/ide-dev/projects.json" <<'JSON'
+pkill -x "PolePole Dev" 2>/dev/null
+mkdir -p "$HOME/Library/Application Support/polepole-dev"
+cat > "$HOME/Library/Application Support/polepole-dev/projects.json" <<'JSON'
 {
   "projects" : [
     {"displayName":"ide","id":"11111111-1111-1111-1111-111111111111","isPinned":true,"lastOpenedAt":"2026-05-09T01:00:00Z","path":"/Users/d0ne1s/ide"},
@@ -595,20 +595,20 @@ cat > "$HOME/Library/Application Support/ide-dev/projects.json" <<'JSON'
   "schemaVersion" : 1
 }
 JSON
-APP=/tmp/ide-build/Build/Products/Debug/ide.app
+APP=/tmp/polepole-build/Build/Products/Debug/ide.app
 
 # index=0 で ide を active 起動 → cwd が /Users/d0ne1s/ide のターミナル
-IDE_TEST_AUTO_ACTIVATE_INDEX=0 "$APP/Contents/MacOS/ide" >/dev/null 2>&1 &
+POLEPOLE_TEST_AUTO_ACTIVATE_INDEX=0 "$APP/Contents/MacOS/PolePole Dev" >/dev/null 2>&1 &
 sleep 2
-./scripts/ide-screenshot.sh /tmp/v-step4-ide-term.png
-grep "surface\] new" /tmp/ide-poc.log | tail -2
-pkill -x ide 2>/dev/null; sleep 0.4
+./scripts/polepole-screenshot.sh /tmp/v-step4-ide-term.png
+grep "surface\] new" /tmp/polepole-poc.log | tail -2
+pkill -x "PolePole Dev" 2>/dev/null; sleep 0.4
 
 # index=1 で Documents を active 起動 → cwd が /Users/d0ne1s/Documents のターミナル
-IDE_TEST_AUTO_ACTIVATE_INDEX=1 "$APP/Contents/MacOS/ide" >/dev/null 2>&1 &
+POLEPOLE_TEST_AUTO_ACTIVATE_INDEX=1 "$APP/Contents/MacOS/PolePole Dev" >/dev/null 2>&1 &
 sleep 2
-./scripts/ide-screenshot.sh /tmp/v-step4-documents.png
-grep "surface\] new" /tmp/ide-poc.log | tail -2
+./scripts/polepole-screenshot.sh /tmp/v-step4-documents.png
+grep "surface\] new" /tmp/polepole-poc.log | tail -2
 ```
 
 期待:
@@ -619,8 +619,8 @@ grep "surface\] new" /tmp/ide-poc.log | tail -2
 
 クリーンアップ:
 ```bash
-pkill -x ide 2>/dev/null
-rm -f "$HOME/Library/Application Support/ide-dev/projects.json"*
+pkill -x "PolePole Dev" 2>/dev/null
+rm -f "$HOME/Library/Application Support/polepole-dev/projects.json"*
 ```
 
 ### 17. プロジェクト切替の状態保持（手動）
@@ -633,11 +633,11 @@ rm -f "$HOME/Library/Application Support/ide-dev/projects.json"*
 
 ### 18. Ctrl+M MRU 切替オーバーレイ（自動）
 
-要件: TUI（vim/claude）内でも例外なく IDE が捕捉。逃がし手段はなし。
+要件: TUI（vim/claude）内でも例外なく PolePole が捕捉。逃がし手段はなし。
 
 ```bash
-mkdir -p "$HOME/Library/Application Support/ide-dev"
-cat > "$HOME/Library/Application Support/ide-dev/projects.json" <<'JSON'
+mkdir -p "$HOME/Library/Application Support/polepole-dev"
+cat > "$HOME/Library/Application Support/polepole-dev/projects.json" <<'JSON'
 {
   "projects" : [
     {"displayName":"ide","id":"11111111-1111-1111-1111-111111111111","isPinned":true,"lastOpenedAt":"2026-05-09T01:00:00Z","path":"/Users/d0ne1s/ide"},
@@ -646,9 +646,9 @@ cat > "$HOME/Library/Application Support/ide-dev/projects.json" <<'JSON'
   "schemaVersion" : 1
 }
 JSON
-pkill -x ide 2>/dev/null; sleep 0.4
-APP=/tmp/ide-build/Build/Products/Debug/ide.app
-IDE_TEST_AUTO_ACTIVATE_INDEX=0 "$APP/Contents/MacOS/ide" >/tmp/ide-stdout.log 2>&1 &
+pkill -x "PolePole Dev" 2>/dev/null; sleep 0.4
+APP=/tmp/polepole-build/Build/Products/Debug/ide.app
+POLEPOLE_TEST_AUTO_ACTIVATE_INDEX=0 "$APP/Contents/MacOS/PolePole Dev" >/tmp/polepole-stdout.log 2>&1 &
 sleep 2
 ```
 
@@ -669,10 +669,10 @@ tell application "System Events"
 end tell
 OSA
 sleep 0.2
-./scripts/ide-screenshot.sh /tmp/v-step5-overlay.png
+./scripts/polepole-screenshot.sh /tmp/v-step5-overlay.png
 osascript -e 'tell application "System Events" to key up control'
 sleep 0.4
-./scripts/ide-screenshot.sh /tmp/v-step5-after-commit.png
+./scripts/polepole-screenshot.sh /tmp/v-step5-after-commit.png
 ```
 
 期待:
@@ -682,7 +682,7 @@ sleep 0.4
 #### 18-B. vim 起動中に Ctrl+M
 
 ```bash
-./scripts/ide-keystroke.sh --enter "vim README.md"
+./scripts/polepole-keystroke.sh --enter "vim README.md"
 sleep 1.5
 osascript <<'OSA'
 tell application "System Events"
@@ -697,7 +697,7 @@ tell application "System Events"
 end tell
 OSA
 sleep 0.2
-./scripts/ide-screenshot.sh /tmp/v-step5-vim-overlay.png
+./scripts/polepole-screenshot.sh /tmp/v-step5-vim-overlay.png
 osascript -e 'tell application "System Events" to key up control'
 ```
 
@@ -723,15 +723,15 @@ end tell
 OSA
 osascript -e 'tell application "System Events" to key up control'
 sleep 0.4
-./scripts/ide-screenshot.sh /tmp/v-step5-after-esc.png
+./scripts/polepole-screenshot.sh /tmp/v-step5-after-esc.png
 ```
 
 期待: Documents が active のまま（Esc で active 不変、MRU も不変）。
 
 クリーンアップ:
 ```bash
-pkill -x ide 2>/dev/null
-rm -f "$HOME/Library/Application Support/ide-dev/projects.json"*
+pkill -x "PolePole Dev" 2>/dev/null
+rm -f "$HOME/Library/Application Support/polepole-dev/projects.json"*
 ```
 
 ### 19. Ctrl+M 連打サイクル（手動）
@@ -750,8 +750,8 @@ rm -f "$HOME/Library/Application Support/ide-dev/projects.json"*
 
 6 件フィクスチャで起動:
 ```bash
-mkdir -p "$HOME/Library/Application Support/ide-dev"
-cat > "$HOME/Library/Application Support/ide-dev/projects.json" <<'JSON'
+mkdir -p "$HOME/Library/Application Support/polepole-dev"
+cat > "$HOME/Library/Application Support/polepole-dev/projects.json" <<'JSON'
 {
   "projects" : [
     {"displayName":"p1","id":"11111111-1111-1111-1111-111111111111","isPinned":true,"lastOpenedAt":"2026-05-09T06:00:00Z","path":"/Users/d0ne1s/ide"},
@@ -764,9 +764,9 @@ cat > "$HOME/Library/Application Support/ide-dev/projects.json" <<'JSON'
   "schemaVersion" : 1
 }
 JSON
-pkill -x ide 2>/dev/null; sleep 0.4
-APP=/tmp/ide-build/Build/Products/Debug/ide.app
-IDE_TEST_AUTO_ACTIVATE_INDEX=0 "$APP/Contents/MacOS/ide" >/tmp/ide-stdout.log 2>&1 &
+pkill -x "PolePole Dev" 2>/dev/null; sleep 0.4
+APP=/tmp/polepole-build/Build/Products/Debug/ide.app
+POLEPOLE_TEST_AUTO_ACTIVATE_INDEX=0 "$APP/Contents/MacOS/PolePole Dev" >/tmp/polepole-stdout.log 2>&1 &
 sleep 2
 ```
 
@@ -774,15 +774,15 @@ Ctrl 押しっぱなしで M 連打 → overlay の候補が **5 件で止まる
 
 クリーンアップ:
 ```bash
-pkill -x ide 2>/dev/null
-rm -f "$HOME/Library/Application Support/ide-dev/projects.json"*
+pkill -x "PolePole Dev" 2>/dev/null
+rm -f "$HOME/Library/Application Support/polepole-dev/projects.json"*
 ```
 
 ### 20. ファイルツリー基本表示（自動）
 
 ```bash
-mkdir -p "$HOME/Library/Application Support/ide-dev"
-cat > "$HOME/Library/Application Support/ide-dev/projects.json" <<'JSON'
+mkdir -p "$HOME/Library/Application Support/polepole-dev"
+cat > "$HOME/Library/Application Support/polepole-dev/projects.json" <<'JSON'
 {
   "projects" : [
     {"displayName":"ide","id":"11111111-1111-1111-1111-111111111111","isPinned":true,"lastOpenedAt":"2026-05-09T01:00:00Z","path":"/Users/d0ne1s/ide"}
@@ -790,16 +790,16 @@ cat > "$HOME/Library/Application Support/ide-dev/projects.json" <<'JSON'
   "schemaVersion" : 1
 }
 JSON
-pkill -x ide 2>/dev/null; sleep 0.4
-APP=/tmp/ide-build/Build/Products/Debug/ide.app
-IDE_TEST_AUTO_ACTIVATE_INDEX=0 "$APP/Contents/MacOS/ide" >/tmp/ide-stdout.log 2>&1 &
+pkill -x "PolePole Dev" 2>/dev/null; sleep 0.4
+APP=/tmp/polepole-build/Build/Products/Debug/ide.app
+POLEPOLE_TEST_AUTO_ACTIVATE_INDEX=0 "$APP/Contents/MacOS/PolePole Dev" >/tmp/polepole-stdout.log 2>&1 &
 sleep 2.5
-./scripts/ide-screenshot.sh /tmp/v-step6-tree.png
+./scripts/polepole-screenshot.sh /tmp/v-step6-tree.png
 ```
 
 期待:
 - 中央ペインに ide リポジトリの直下子（フォルダ先・アルファベット順）が表示
-  - .git / .refs / docs / GhosttyKit.xcframework / ide.xcodeproj / Resources / scripts / Sources
+  - .git / .refs / docs / GhosttyKit.xcframework / polepole.xcodeproj / Resources / scripts / Sources
   - .gitignore / .mise.toml / project.yml / REQUIREMENTS.md / VERIFY.md
 - 各ディレクトリの左に展開 chevron（▶）
 - 拡張子別アイコン: .md = 紫の doc.richtext、.toml/.yml = doc.text、folder = 青
@@ -807,8 +807,8 @@ sleep 2.5
 
 クリーンアップ:
 ```bash
-pkill -x ide 2>/dev/null
-rm -f "$HOME/Library/Application Support/ide-dev/projects.json"*
+pkill -x "PolePole Dev" 2>/dev/null
+rm -f "$HOME/Library/Application Support/polepole-dev/projects.json"*
 ```
 
 ### 21. ファイルツリー展開・右クリック（手動）
@@ -816,7 +816,7 @@ rm -f "$HOME/Library/Application Support/ide-dev/projects.json"*
 実機で確認（座標 click が SwiftUI の onTapGesture に届かないため自動不可）:
 - ディレクトリの ▶ chevron か行をクリック → 子要素が展開（lazy scan で初回のみ僅かに遅延）
 - もう一度クリックで折り畳み
-- `.gitignore` 対象（例: `Sources/ide/build` や `.refs/`）が薄表示になっている
+- `.gitignore` 対象（例: `Sources/polepole/build` や `.refs/`）が薄表示になっている
 - 👁 ボタンを押すと gitignore 対象が完全非表示になる、もう一度押すと薄表示に戻る
 - 🔄 ボタンを押すと再スキャンされる（変更が反映される）
 - 行を一度クリックしてツリーにフォーカスを当てた状態で **Cmd+R** を押しても再スキャンされる（端末ペインにフォーカスがあるときは無反応 = 端末側に素通る）
@@ -833,19 +833,19 @@ rm -f "$HOME/Library/Application Support/ide-dev/projects.json"*
 ### 23. git status バッジ（自動）
 
 ```bash
-mkdir -p "$HOME/Library/Application Support/ide-dev"
-cat > "$HOME/Library/Application Support/ide-dev/projects.json" <<'JSON'
+mkdir -p "$HOME/Library/Application Support/polepole-dev"
+cat > "$HOME/Library/Application Support/polepole-dev/projects.json" <<'JSON'
 {"projects":[{"displayName":"ide","id":"11111111-1111-1111-1111-111111111111","isPinned":true,"lastOpenedAt":"2026-05-09T01:00:00Z","path":"/Users/d0ne1s/ide"}],"schemaVersion":1}
 JSON
 echo "<!-- step7 test marker -->" >> /Users/d0ne1s/ide/VERIFY.md
-pkill -x ide 2>/dev/null; sleep 0.4
-APP=/tmp/ide-build/Build/Products/Debug/ide.app
-IDE_TEST_AUTO_ACTIVATE_INDEX=0 "$APP/Contents/MacOS/ide" >/tmp/ide-stdout.log 2>&1 &
+pkill -x "PolePole Dev" 2>/dev/null; sleep 0.4
+APP=/tmp/polepole-build/Build/Products/Debug/ide.app
+POLEPOLE_TEST_AUTO_ACTIVATE_INDEX=0 "$APP/Contents/MacOS/PolePole Dev" >/tmp/polepole-stdout.log 2>&1 &
 sleep 4
-./scripts/ide-screenshot.sh /tmp/v-step7-modified.png
-pkill -x ide 2>/dev/null
+./scripts/polepole-screenshot.sh /tmp/v-step7-modified.png
+pkill -x "PolePole Dev" 2>/dev/null
 git -C /Users/d0ne1s/ide checkout -- VERIFY.md
-rm -f "$HOME/Library/Application Support/ide-dev/projects.json"*
+rm -f "$HOME/Library/Application Support/polepole-dev/projects.json"*
 ```
 
 期待: スクショで VERIFY.md の右端に青い `M` バッジが見える（modified ステータス、3 秒 polling で更新）。
@@ -860,35 +860,35 @@ rm -f "$HOME/Library/Application Support/ide-dev/projects.json"*
 
 ### 25. ファイルプレビュー（自動）
 
-`IDE_TEST_AUTO_PREVIEW` 環境変数で起動時に project root からの相対パスを開ける。
+`POLEPOLE_TEST_AUTO_PREVIEW` 環境変数で起動時に project root からの相対パスを開ける。
 
 ```bash
-mkdir -p "$HOME/Library/Application Support/ide-dev"
-cat > "$HOME/Library/Application Support/ide-dev/projects.json" <<'JSON'
+mkdir -p "$HOME/Library/Application Support/polepole-dev"
+cat > "$HOME/Library/Application Support/polepole-dev/projects.json" <<'JSON'
 {"projects":[{"displayName":"ide","id":"11111111-1111-1111-1111-111111111111","isPinned":true,"lastOpenedAt":"2026-05-09T01:00:00Z","path":"/Users/d0ne1s/ide"}],"schemaVersion":1}
 JSON
-APP="/tmp/ide-build/Build/Products/Debug/IDE Dev.app"
-BIN="$APP/Contents/MacOS/IDE Dev"
+APP="/tmp/polepole-build/Build/Products/Debug/PolePole Dev.app"
+BIN="$APP/Contents/MacOS/PolePole Dev"
 
 # Markdown（README.md は画像 ./docs/images/overview.png を埋め込んでいる）
-pkill -x "IDE Dev" 2>/dev/null; sleep 0.4
-IDE_TEST_AUTO_ACTIVATE_INDEX=0 IDE_TEST_AUTO_PREVIEW="README.md" "$BIN" >/dev/null 2>&1 &
+pkill -x "PolePole Dev" 2>/dev/null; sleep 0.4
+POLEPOLE_TEST_AUTO_ACTIVATE_INDEX=0 POLEPOLE_TEST_AUTO_PREVIEW="README.md" "$BIN" >/dev/null 2>&1 &
 sleep 3
-./scripts/ide-screenshot.sh /tmp/v-step8-md.png
+./scripts/polepole-screenshot.sh /tmp/v-step8-md.png
 
 # Swift コード
-pkill -x "IDE Dev" 2>/dev/null; sleep 0.4
-IDE_TEST_AUTO_ACTIVATE_INDEX=0 IDE_TEST_AUTO_PREVIEW="Sources/ide/IdeApp.swift" "$BIN" >/dev/null 2>&1 &
+pkill -x "PolePole Dev" 2>/dev/null; sleep 0.4
+POLEPOLE_TEST_AUTO_ACTIVATE_INDEX=0 POLEPOLE_TEST_AUTO_PREVIEW="Sources/polepole/PolePoleApp.swift" "$BIN" >/dev/null 2>&1 &
 sleep 3
-./scripts/ide-screenshot.sh /tmp/v-step8-swift.png
+./scripts/polepole-screenshot.sh /tmp/v-step8-swift.png
 
 # XML (Info.plist)
-pkill -x "IDE Dev" 2>/dev/null; sleep 0.4
-IDE_TEST_AUTO_ACTIVATE_INDEX=0 IDE_TEST_AUTO_PREVIEW="Resources/Info.plist" "$BIN" >/dev/null 2>&1 &
+pkill -x "PolePole Dev" 2>/dev/null; sleep 0.4
+POLEPOLE_TEST_AUTO_ACTIVATE_INDEX=0 POLEPOLE_TEST_AUTO_PREVIEW="Resources/Info.plist" "$BIN" >/dev/null 2>&1 &
 sleep 3
-./scripts/ide-screenshot.sh /tmp/v-step8-plist.png
-pkill -x "IDE Dev" 2>/dev/null
-rm -f "$HOME/Library/Application Support/ide-dev/projects.json"*
+./scripts/polepole-screenshot.sh /tmp/v-step8-plist.png
+pkill -x "PolePole Dev" 2>/dev/null
+rm -f "$HOME/Library/Application Support/polepole-dev/projects.json"*
 ```
 
 期待:
@@ -906,31 +906,31 @@ delete/rename を検知して開き直すので追従が継続する。
 
 ```bash
 BACKUP_DIR=$(mktemp -d)
-cp -a "$HOME/Library/Application Support/ide-dev" "$BACKUP_DIR/ide-dev-backup" 2>/dev/null || true
-mkdir -p /tmp/ide-watchtest
-printf '# Watch test\n\nVERSION ONE\n' > /tmp/ide-watchtest/note.md
-mkdir -p "$HOME/Library/Application Support/ide-dev"
-cat > "$HOME/Library/Application Support/ide-dev/projects.json" <<'JSON'
-{"projects":[{"displayName":"watchtest","id":"22222222-2222-2222-2222-222222222222","isPinned":true,"lastOpenedAt":"2026-05-11T00:00:00Z","path":"/tmp/ide-watchtest"}],"schemaVersion":1}
+cp -a "$HOME/Library/Application Support/polepole-dev" "$BACKUP_DIR/polepole-dev-backup" 2>/dev/null || true
+mkdir -p /tmp/polepole-watchtest
+printf '# Watch test\n\nVERSION ONE\n' > /tmp/polepole-watchtest/note.md
+mkdir -p "$HOME/Library/Application Support/polepole-dev"
+cat > "$HOME/Library/Application Support/polepole-dev/projects.json" <<'JSON'
+{"projects":[{"displayName":"watchtest","id":"22222222-2222-2222-2222-222222222222","isPinned":true,"lastOpenedAt":"2026-05-11T00:00:00Z","path":"/tmp/polepole-watchtest"}],"schemaVersion":1}
 JSON
-: > /tmp/ide-poc.log
-APP="/tmp/ide-build/Build/Products/Debug/IDE Dev.app"
-pkill -x "IDE Dev" 2>/dev/null; sleep 0.6
-IDE_TEST_AUTO_ACTIVATE_INDEX=0 IDE_TEST_AUTO_PREVIEW="note.md" "$APP/Contents/MacOS/IDE Dev" >/dev/null 2>&1 &
+: > /tmp/polepole-poc.log
+APP="/tmp/polepole-build/Build/Products/Debug/PolePole Dev.app"
+pkill -x "PolePole Dev" 2>/dev/null; sleep 0.6
+POLEPOLE_TEST_AUTO_ACTIVATE_INDEX=0 POLEPOLE_TEST_AUTO_PREVIEW="note.md" "$APP/Contents/MacOS/PolePole Dev" >/dev/null 2>&1 &
 sleep 4
-printf 'v2 in place\n' > /tmp/ide-watchtest/note.md; sleep 1.5
-printf 'v3 atomic\n' > /tmp/ide-watchtest/note.md.new && mv /tmp/ide-watchtest/note.md.new /tmp/ide-watchtest/note.md; sleep 1.5
-printf 'v4 atomic again\n' > /tmp/ide-watchtest/note.md.new && mv /tmp/ide-watchtest/note.md.new /tmp/ide-watchtest/note.md; sleep 1.5
-for i in 1 2 3 4 5; do printf "burst $i\n" >> /tmp/ide-watchtest/note.md; done; sleep 1.5
-grep -c "auto-reloaded" /tmp/ide-poc.log
-pkill -x "IDE Dev" 2>/dev/null
-rm -rf "$HOME/Library/Application Support/ide-dev"
-mv "$BACKUP_DIR/ide-dev-backup" "$HOME/Library/Application Support/ide-dev" 2>/dev/null || true
-rm -rf /tmp/ide-watchtest
+printf 'v2 in place\n' > /tmp/polepole-watchtest/note.md; sleep 1.5
+printf 'v3 atomic\n' > /tmp/polepole-watchtest/note.md.new && mv /tmp/polepole-watchtest/note.md.new /tmp/polepole-watchtest/note.md; sleep 1.5
+printf 'v4 atomic again\n' > /tmp/polepole-watchtest/note.md.new && mv /tmp/polepole-watchtest/note.md.new /tmp/polepole-watchtest/note.md; sleep 1.5
+for i in 1 2 3 4 5; do printf "burst $i\n" >> /tmp/polepole-watchtest/note.md; done; sleep 1.5
+grep -c "auto-reloaded" /tmp/polepole-poc.log
+pkill -x "PolePole Dev" 2>/dev/null
+rm -rf "$HOME/Library/Application Support/polepole-dev"
+mv "$BACKUP_DIR/polepole-dev-backup" "$HOME/Library/Application Support/polepole-dev" 2>/dev/null || true
+rm -rf /tmp/polepole-watchtest
 ```
 
 期待:
-- `/tmp/ide-poc.log` に `[preview] auto-reloaded note.md` が **4 行**（v2 / v3 / v4 / burst×5 が 1 回にまとまる）。起動直後（編集前）には出ない
+- `/tmp/polepole-poc.log` に `[preview] auto-reloaded note.md` が **4 行**（v2 / v3 / v4 / burst×5 が 1 回にまとまる）。起動直後（編集前）には出ない
 - 実機で見ると、編集のたびにプレビュー本文が新しい内容に切り替わる（スクロール位置はリセットされる — 既知）
 - アクセシビリティ権限がない環境では screenshot が撮れないので、本文の目視は実機で確認する
 
@@ -947,12 +947,12 @@ rm -rf /tmp/ide-watchtest
 
 ### 26-a. プレビューのサイズしきい値（半自動・スクショ）
 
-`IDE_TEST_AUTO_PREVIEW` で巨大ファイルを開いて確認 UI に分岐するかをスクショで確認する。
-（`IDE.app` に画面収録権限がある前提 — [docs/DEV.md の TCC の節](./docs/DEV.md#tccプライバシー権限の罠) 参照）
+`POLEPOLE_TEST_AUTO_PREVIEW` で巨大ファイルを開いて確認 UI に分岐するかをスクショで確認する。
+（`PolePole.app` に画面収録権限がある前提 — [docs/DEV.md の TCC の節](./docs/DEV.md#tccプライバシー権限の罠) 参照）
 
 ```bash
-BACKUP_DIR=$(mktemp -d); cp -a "$HOME/Library/Application Support/ide-dev" "$BACKUP_DIR/ide-dev" 2>/dev/null || true
-TD=/tmp/ide-verify-proj; rm -rf "$TD"; mkdir -p "$TD"
+BACKUP_DIR=$(mktemp -d); cp -a "$HOME/Library/Application Support/polepole-dev" "$BACKUP_DIR/polepole-dev" 2>/dev/null || true
+TD=/tmp/polepole-verify-proj; rm -rf "$TD"; mkdir -p "$TD"
 # 6MB テキスト / 60MB テキスト / 6MB の非圧縮ノイズ PNG
 yes "padding line padding line padding line padding line padding line" | head -c 6291456 > "$TD/big6mb.txt"
 yes "padding line padding line padding line padding line padding line" | head -c 62914560 > "$TD/huge60mb.txt"
@@ -961,49 +961,49 @@ for y in range(H):raw.append(0);raw.extend(r[i:i+W*3]);i+=W*3
 def c(t,d):return struct.pack('>I',len(d))+t+d+struct.pack('>I',zlib.crc32(t+d)&0xffffffff)
 p=b'\x89PNG\r\n\x1a\n'+c(b'IHDR',struct.pack('>IIBBBBB',W,H,8,2,0,0,0))+c(b'IDAT',zlib.compress(bytes(raw),1))+c(b'IEND',b'')
 open('$TD/noise6mb.png','wb').write(p)"
-mkdir -p "$HOME/Library/Application Support/ide-dev"
-cat > "$HOME/Library/Application Support/ide-dev/projects.json" <<'JSON'
-{"schemaVersion":1,"projects":[{"id":"aaaaaaaa-0000-0000-0000-000000000001","path":"/tmp/ide-verify-proj","displayName":"verify-proj","isPinned":true,"lastOpenedAt":"2026-05-12T00:00:00Z"}]}
+mkdir -p "$HOME/Library/Application Support/polepole-dev"
+cat > "$HOME/Library/Application Support/polepole-dev/projects.json" <<'JSON'
+{"schemaVersion":1,"projects":[{"id":"aaaaaaaa-0000-0000-0000-000000000001","path":"/tmp/polepole-verify-proj","displayName":"verify-proj","isPinned":true,"lastOpenedAt":"2026-05-12T00:00:00Z"}]}
 JSON
-rm -f "$HOME/Library/Application Support/ide-dev"/projects.json.[0-9]
-APP="/tmp/ide-build/Build/Products/Debug/IDE Dev.app"
+rm -f "$HOME/Library/Application Support/polepole-dev"/projects.json.[0-9]
+APP="/tmp/polepole-build/Build/Products/Debug/PolePole Dev.app"
 for f in big6mb.txt huge60mb.txt noise6mb.png; do
-  pkill -x "IDE Dev" 2>/dev/null; sleep 0.6
-  IDE_TEST_AUTO_ACTIVATE_INDEX=0 IDE_TEST_AUTO_PREVIEW="$f" "$APP/Contents/MacOS/IDE Dev" >/dev/null 2>&1 &
-  sleep 4; ./scripts/ide-screenshot.sh "/tmp/v26-$f.png"
+  pkill -x "PolePole Dev" 2>/dev/null; sleep 0.6
+  POLEPOLE_TEST_AUTO_ACTIVATE_INDEX=0 POLEPOLE_TEST_AUTO_PREVIEW="$f" "$APP/Contents/MacOS/PolePole Dev" >/dev/null 2>&1 &
+  sleep 4; ./scripts/polepole-screenshot.sh "/tmp/v26-$f.png"
 done
-pkill -x "IDE Dev" 2>/dev/null
-rm -rf "$HOME/Library/Application Support/ide-dev"; mv "$BACKUP_DIR/ide-dev" "$HOME/Library/Application Support/ide-dev" 2>/dev/null || true
+pkill -x "PolePole Dev" 2>/dev/null
+rm -rf "$HOME/Library/Application Support/polepole-dev"; mv "$BACKUP_DIR/polepole-dev" "$HOME/Library/Application Support/polepole-dev" 2>/dev/null || true
 rm -rf "$TD"
 ```
 
 期待（スクショで目視）:
 - `big6mb.txt` / `noise6mb.png` → 中央ペインに「6.0 MB のファイルです。読み込みますか？」+「読み込む」「Cursor で開く」（**画像も拡張子判定より前にサイズで止まる**のがポイント）
 - `huge60mb.txt` → 「ファイルサイズが大きいか UTF-8 でないため外部で開いてください」+「Cursor で開く」のみ
-- ※「読み込む」を押した後に実際の種別で表示されるか・Markdown のプロジェクト外リンクのコピー挙動・overlay 上の Cmd+C は、クリック / キーストロークが要るので手動確認（IDE 内 Claude Code からは osascript の補助アクセスが効かないため自動化不可）
+- ※「読み込む」を押した後に実際の種別で表示されるか・Markdown のプロジェクト外リンクのコピー挙動・overlay 上の Cmd+C は、クリック / キーストロークが要るので手動確認（PolePole 内 Claude Code からは osascript の補助アクセスが効かないため自動化不可）
 
 ### 26-b. プレビューのファイル内検索 Cmd+F（半自動・スクショ + 手動）
 
-`IDE_TEST_PREVIEW_FIND` で「プレビューを開いた状態 + 検索バーに語を入れてハイライト済み」の状態で起動できる。
+`POLEPOLE_TEST_PREVIEW_FIND` で「プレビューを開いた状態 + 検索バーに語を入れてハイライト済み」の状態で起動できる。
 
 ```bash
-BACKUP_DIR=$(mktemp -d); cp -a "$HOME/Library/Application Support/ide-dev" "$BACKUP_DIR/ide-dev" 2>/dev/null || true
-mkdir -p "$HOME/Library/Application Support/ide-dev"
-cat > "$HOME/Library/Application Support/ide-dev/projects.json" <<'JSON'
+BACKUP_DIR=$(mktemp -d); cp -a "$HOME/Library/Application Support/polepole-dev" "$BACKUP_DIR/polepole-dev" 2>/dev/null || true
+mkdir -p "$HOME/Library/Application Support/polepole-dev"
+cat > "$HOME/Library/Application Support/polepole-dev/projects.json" <<'JSON'
 {"projects":[{"displayName":"ide","id":"11111111-1111-1111-1111-111111111111","isPinned":true,"lastOpenedAt":"2026-05-09T01:00:00Z","path":"/Users/d0ne1s/ide"}],"schemaVersion":1}
 JSON
-rm -f "$HOME/Library/Application Support/ide-dev"/projects.json.[0-9]
-APP="/tmp/ide-build/Build/Products/Debug/IDE Dev.app"
+rm -f "$HOME/Library/Application Support/polepole-dev"/projects.json.[0-9]
+APP="/tmp/polepole-build/Build/Products/Debug/PolePole Dev.app"
 # コード（hljs ハイライト下でも mark が乗るか）
-pkill -x "IDE Dev" 2>/dev/null; sleep 0.6
-IDE_TEST_AUTO_ACTIVATE_INDEX=0 IDE_TEST_AUTO_PREVIEW="Sources/ide/ProjectsModel.swift" IDE_TEST_PREVIEW_FIND="preview" "$APP/Contents/MacOS/IDE Dev" >/dev/null 2>&1 &
-sleep 5; ./scripts/ide-screenshot.sh /tmp/v26b-code.png
+pkill -x "PolePole Dev" 2>/dev/null; sleep 0.6
+POLEPOLE_TEST_AUTO_ACTIVATE_INDEX=0 POLEPOLE_TEST_AUTO_PREVIEW="Sources/polepole/ProjectsModel.swift" POLEPOLE_TEST_PREVIEW_FIND="preview" "$APP/Contents/MacOS/PolePole Dev" >/dev/null 2>&1 &
+sleep 5; ./scripts/polepole-screenshot.sh /tmp/v26b-code.png
 # Markdown
-pkill -x "IDE Dev" 2>/dev/null; sleep 0.6
-IDE_TEST_AUTO_ACTIVATE_INDEX=0 IDE_TEST_AUTO_PREVIEW="REQUIREMENTS.md" IDE_TEST_PREVIEW_FIND="プレビュー" "$APP/Contents/MacOS/IDE Dev" >/dev/null 2>&1 &
-sleep 5; ./scripts/ide-screenshot.sh /tmp/v26b-md.png
-pkill -x "IDE Dev" 2>/dev/null
-rm -rf "$HOME/Library/Application Support/ide-dev"; mv "$BACKUP_DIR/ide-dev" "$HOME/Library/Application Support/ide-dev" 2>/dev/null || true
+pkill -x "PolePole Dev" 2>/dev/null; sleep 0.6
+POLEPOLE_TEST_AUTO_ACTIVATE_INDEX=0 POLEPOLE_TEST_AUTO_PREVIEW="REQUIREMENTS.md" POLEPOLE_TEST_PREVIEW_FIND="プレビュー" "$APP/Contents/MacOS/PolePole Dev" >/dev/null 2>&1 &
+sleep 5; ./scripts/polepole-screenshot.sh /tmp/v26b-md.png
+pkill -x "PolePole Dev" 2>/dev/null
+rm -rf "$HOME/Library/Application Support/polepole-dev"; mv "$BACKUP_DIR/polepole-dev" "$HOME/Library/Application Support/polepole-dev" 2>/dev/null || true
 ```
 
 期待（スクショで目視）:
@@ -1011,7 +1011,7 @@ rm -rf "$HOME/Library/Application Support/ide-dev"; mv "$BACKUP_DIR/ide-dev" "$H
 - マッチが全部ハイライト（半透明イエロー）、現在のマッチだけオレンジ。最初のマッチが画面中央に来るようスクロールされている
 - 検索語が 0 件のときは件数表示が赤の `0`（手動: 入力欄に適当な語を打って確認）
 
-手動で確認（IDE 内 Claude Code からは osascript の補助アクセスが効かず自動化不可）:
+手動で確認（PolePole 内 Claude Code からは osascript の補助アクセスが効かず自動化不可）:
 - プレビュー表示中に **Cmd+F** で検索バーが開き、入力欄にフォーカスが入る（ターミナル/WebView がフォーカスを握っていても奪える）。開いている状態でもう一度 Cmd+F で入力欄に再フォーカス
 - 入力するたびにハイライトが更新される（120ms デバウンス）
 - **Enter** / **Cmd+G** で次のマッチ、**Shift+Enter** / **Cmd+Shift+G** で前のマッチへ。↑↓ ボタンも同じ
@@ -1031,30 +1031,30 @@ rm -rf "$HOME/Library/Application Support/ide-dev"; mv "$BACKUP_DIR/ide-dev" "$H
 ### 27.5 ツリー ↔ プレビュー トグル（Cmd+J / 自動）
 
 ```bash
-mkdir -p "$HOME/Library/Application Support/ide-dev"
-cat > "$HOME/Library/Application Support/ide-dev/projects.json" <<'JSON'
+mkdir -p "$HOME/Library/Application Support/polepole-dev"
+cat > "$HOME/Library/Application Support/polepole-dev/projects.json" <<'JSON'
 {"projects":[{"displayName":"ide","id":"11111111-1111-1111-1111-111111111111","isPinned":true,"lastOpenedAt":"2026-05-09T01:00:00Z","path":"/Users/d0ne1s/ide"}],"schemaVersion":1}
 JSON
-APP=/tmp/ide-build/Build/Products/Debug/ide.app
-pkill -x ide 2>/dev/null; sleep 0.4
-IDE_TEST_AUTO_ACTIVATE_INDEX=0 IDE_TEST_AUTO_PREVIEW="CLAUDE.md" "$APP/Contents/MacOS/ide" >/dev/null 2>&1 &
+APP=/tmp/polepole-build/Build/Products/Debug/ide.app
+pkill -x "PolePole Dev" 2>/dev/null; sleep 0.4
+POLEPOLE_TEST_AUTO_ACTIVATE_INDEX=0 POLEPOLE_TEST_AUTO_PREVIEW="CLAUDE.md" "$APP/Contents/MacOS/PolePole Dev" >/dev/null 2>&1 &
 sleep 3
 
 # 起動直後: プレビュー表示中
-./scripts/ide-screenshot.sh /tmp/v-toggle-1.png
+./scripts/polepole-screenshot.sh /tmp/v-toggle-1.png
 
 # Cmd+J でツリーへ
 osascript -e 'tell application "System Events" to tell process "ide" to keystroke "j" using {command down}'
 sleep 0.4
-./scripts/ide-screenshot.sh /tmp/v-toggle-2.png
+./scripts/polepole-screenshot.sh /tmp/v-toggle-2.png
 
 # Cmd+J で再度プレビューへ（最後に見たファイル = CLAUDE.md）
 osascript -e 'tell application "System Events" to tell process "ide" to keystroke "j" using {command down}'
 sleep 0.4
-./scripts/ide-screenshot.sh /tmp/v-toggle-3.png
+./scripts/polepole-screenshot.sh /tmp/v-toggle-3.png
 
-pkill -x ide 2>/dev/null
-rm -f "$HOME/Library/Application Support/ide-dev/projects.json"*
+pkill -x "PolePole Dev" 2>/dev/null
+rm -f "$HOME/Library/Application Support/polepole-dev/projects.json"*
 ```
 
 期待:
@@ -1067,13 +1067,13 @@ rm -f "$HOME/Library/Application Support/ide-dev/projects.json"*
 ### 28. Cmd+P クイック検索（自動）
 
 ```bash
-mkdir -p "$HOME/Library/Application Support/ide-dev"
-cat > "$HOME/Library/Application Support/ide-dev/projects.json" <<'JSON'
+mkdir -p "$HOME/Library/Application Support/polepole-dev"
+cat > "$HOME/Library/Application Support/polepole-dev/projects.json" <<'JSON'
 {"projects":[{"displayName":"ide","id":"11111111-1111-1111-1111-111111111111","isPinned":true,"lastOpenedAt":"2026-05-09T01:00:00Z","path":"/Users/d0ne1s/ide"}],"schemaVersion":1}
 JSON
-APP=/tmp/ide-build/Build/Products/Debug/ide.app
-pkill -x ide 2>/dev/null; sleep 0.4
-IDE_TEST_AUTO_ACTIVATE_INDEX=0 "$APP/Contents/MacOS/ide" >/dev/null 2>&1 &
+APP=/tmp/polepole-build/Build/Products/Debug/ide.app
+pkill -x "PolePole Dev" 2>/dev/null; sleep 0.4
+POLEPOLE_TEST_AUTO_ACTIVATE_INDEX=0 "$APP/Contents/MacOS/PolePole Dev" >/dev/null 2>&1 &
 sleep 3
 osascript <<'OSA'
 tell application "System Events"
@@ -1087,9 +1087,9 @@ tell application "System Events"
   end tell
 end tell
 OSA
-./scripts/ide-screenshot.sh /tmp/v-step10-read.png
-pkill -x ide 2>/dev/null
-rm -f "$HOME/Library/Application Support/ide-dev/projects.json"*
+./scripts/polepole-screenshot.sh /tmp/v-step10-read.png
+pkill -x "PolePole Dev" 2>/dev/null
+rm -f "$HOME/Library/Application Support/polepole-dev/projects.json"*
 ```
 
 期待: 中央上部にオーバーレイが表示され、検索結果の一番上に `REQUIREMENTS.md` が出る。
@@ -1105,20 +1105,20 @@ rm -f "$HOME/Library/Application Support/ide-dev/projects.json"*
 
 ### 30. Cmd+Shift+F 全文検索（自動）
 
-`IDE_TEST_AUTO_FULLSEARCH` で起動時に grep を実行できる。
+`POLEPOLE_TEST_AUTO_FULLSEARCH` で起動時に grep を実行できる。
 
 ```bash
-mkdir -p "$HOME/Library/Application Support/ide-dev"
-cat > "$HOME/Library/Application Support/ide-dev/projects.json" <<'JSON'
+mkdir -p "$HOME/Library/Application Support/polepole-dev"
+cat > "$HOME/Library/Application Support/polepole-dev/projects.json" <<'JSON'
 {"projects":[{"displayName":"ide","id":"11111111-1111-1111-1111-111111111111","isPinned":true,"lastOpenedAt":"2026-05-09T01:00:00Z","path":"/Users/d0ne1s/ide"}],"schemaVersion":1}
 JSON
-APP=/tmp/ide-build/Build/Products/Debug/ide.app
-pkill -x ide 2>/dev/null; sleep 0.4
-IDE_TEST_AUTO_ACTIVATE_INDEX=0 IDE_TEST_AUTO_PREVIEW="REQUIREMENTS.md" IDE_TEST_AUTO_FULLSEARCH="Project" "$APP/Contents/MacOS/ide" >/dev/null 2>&1 &
+APP=/tmp/polepole-build/Build/Products/Debug/ide.app
+pkill -x "PolePole Dev" 2>/dev/null; sleep 0.4
+POLEPOLE_TEST_AUTO_ACTIVATE_INDEX=0 POLEPOLE_TEST_AUTO_PREVIEW="REQUIREMENTS.md" POLEPOLE_TEST_AUTO_FULLSEARCH="Project" "$APP/Contents/MacOS/PolePole Dev" >/dev/null 2>&1 &
 sleep 4
-./scripts/ide-screenshot.sh /tmp/v-step11-search.png
-pkill -x ide 2>/dev/null
-rm -f "$HOME/Library/Application Support/ide-dev/projects.json"*
+./scripts/polepole-screenshot.sh /tmp/v-step11-search.png
+pkill -x "PolePole Dev" 2>/dev/null
+rm -f "$HOME/Library/Application Support/polepole-dev/projects.json"*
 ```
 
 期待: スクショで `Project` の検索結果が複数件並ぶ（VERIFY.md / phase2-files.md / MRUKeyMonitor.swift など）。各行にファイル名 + 行番号 + プレビュー。
@@ -1175,21 +1175,21 @@ SWIFT
 swiftc -o /tmp/simulate-drag /tmp/simulate-drag.swift
 
 # テスト fixture（5 件、alpha/bravo を pinned）
-pkill -x ide 2>/dev/null; sleep 0.4
-mkdir -p "$HOME/Library/Application Support/ide-dev" /tmp/ide-dnd-test/{alpha,bravo,charlie,delta,echo}
-cat > "$HOME/Library/Application Support/ide-dev/projects.json" <<'JSON'
+pkill -x "PolePole Dev" 2>/dev/null; sleep 0.4
+mkdir -p "$HOME/Library/Application Support/polepole-dev" /tmp/polepole-dnd-test/{alpha,bravo,charlie,delta,echo}
+cat > "$HOME/Library/Application Support/polepole-dev/projects.json" <<'JSON'
 {
   "projects" : [
-    {"displayName":"alpha","id":"AAAAAAAA-1111-1111-1111-111111111111","isPinned":true,"lastOpenedAt":"2026-05-09T01:00:00Z","path":"/tmp/ide-dnd-test/alpha"},
-    {"displayName":"bravo","id":"BBBBBBBB-1111-1111-1111-111111111111","isPinned":true,"lastOpenedAt":"2026-05-09T02:00:00Z","path":"/tmp/ide-dnd-test/bravo"},
-    {"displayName":"charlie","id":"CCCCCCCC-1111-1111-1111-111111111111","isPinned":false,"lastOpenedAt":"2026-05-09T03:00:00Z","path":"/tmp/ide-dnd-test/charlie"},
-    {"displayName":"delta","id":"DDDDDDDD-1111-1111-1111-111111111111","isPinned":false,"lastOpenedAt":"2026-05-09T04:00:00Z","path":"/tmp/ide-dnd-test/delta"},
-    {"displayName":"echo","id":"EEEEEEEE-1111-1111-1111-111111111111","isPinned":false,"lastOpenedAt":"2026-05-09T05:00:00Z","path":"/tmp/ide-dnd-test/echo"}
+    {"displayName":"alpha","id":"AAAAAAAA-1111-1111-1111-111111111111","isPinned":true,"lastOpenedAt":"2026-05-09T01:00:00Z","path":"/tmp/polepole-dnd-test/alpha"},
+    {"displayName":"bravo","id":"BBBBBBBB-1111-1111-1111-111111111111","isPinned":true,"lastOpenedAt":"2026-05-09T02:00:00Z","path":"/tmp/polepole-dnd-test/bravo"},
+    {"displayName":"charlie","id":"CCCCCCCC-1111-1111-1111-111111111111","isPinned":false,"lastOpenedAt":"2026-05-09T03:00:00Z","path":"/tmp/polepole-dnd-test/charlie"},
+    {"displayName":"delta","id":"DDDDDDDD-1111-1111-1111-111111111111","isPinned":false,"lastOpenedAt":"2026-05-09T04:00:00Z","path":"/tmp/polepole-dnd-test/delta"},
+    {"displayName":"echo","id":"EEEEEEEE-1111-1111-1111-111111111111","isPinned":false,"lastOpenedAt":"2026-05-09T05:00:00Z","path":"/tmp/polepole-dnd-test/echo"}
   ],
   "schemaVersion" : 1
 }
 JSON
-./scripts/ide-launch.sh
+./scripts/polepole-launch.sh
 sleep 0.8
 
 # 座標は launch 後の osascript "position of front window" で取得した window 左上が (179, 154) のときのもの。
@@ -1199,14 +1199,14 @@ sleep 0.8
 sleep 0.6
 python3 -c "
 import json
-d = json.load(open('$HOME/Library/Application Support/ide-dev/projects.json'))
+d = json.load(open('$HOME/Library/Application Support/polepole-dev/projects.json'))
 for p in d['projects']: print(f\"  {p['displayName']}: pinned={p['isPinned']}\")
 "
 
-pkill -x ide 2>/dev/null
+pkill -x "PolePole Dev" 2>/dev/null
 rm -f /tmp/simulate-drag /tmp/simulate-drag.swift
-rm -rf /tmp/ide-dnd-test
-rm -f "$HOME/Library/Application Support/ide-dev/projects.json"*
+rm -rf /tmp/polepole-dnd-test
+rm -f "$HOME/Library/Application Support/polepole-dev/projects.json"*
 ```
 
 期待出力:
@@ -1218,34 +1218,34 @@ rm -f "$HOME/Library/Application Support/ide-dev/projects.json"*
   alpha: pinned=False
 ```
 
-座標は実機のウィンドウ位置によって変わる。`./scripts/ide-launch.sh` 後に AppleScript で取得した window 位置 + 行高さ 28pt を加算して計算する。
+座標は実機のウィンドウ位置によって変わる。`./scripts/polepole-launch.sh` 後に AppleScript で取得した window 位置 + 行高さ 28pt を加算して計算する。
 
 #### 32-C. setActive で MRU 並び替えしないことの確認（自動）
 
 旧仕様では temporary を active 化すると先頭に移動していたが、ドラッグ並び替え導入で廃止した（手動順序を尊重）。
 
 ```bash
-mkdir -p "$HOME/Library/Application Support/ide-dev" /tmp/ide-dnd-test/{a,b,c}
-cat > "$HOME/Library/Application Support/ide-dev/projects.json" <<'JSON'
+mkdir -p "$HOME/Library/Application Support/polepole-dev" /tmp/polepole-dnd-test/{a,b,c}
+cat > "$HOME/Library/Application Support/polepole-dev/projects.json" <<'JSON'
 {"projects":[
-  {"displayName":"a","id":"AAAAAAAA-1111-1111-1111-111111111111","isPinned":false,"lastOpenedAt":"2026-05-09T01:00:00Z","path":"/tmp/ide-dnd-test/a"},
-  {"displayName":"b","id":"BBBBBBBB-1111-1111-1111-111111111111","isPinned":false,"lastOpenedAt":"2026-05-09T02:00:00Z","path":"/tmp/ide-dnd-test/b"},
-  {"displayName":"c","id":"CCCCCCCC-1111-1111-1111-111111111111","isPinned":false,"lastOpenedAt":"2026-05-09T03:00:00Z","path":"/tmp/ide-dnd-test/c"}
+  {"displayName":"a","id":"AAAAAAAA-1111-1111-1111-111111111111","isPinned":false,"lastOpenedAt":"2026-05-09T01:00:00Z","path":"/tmp/polepole-dnd-test/a"},
+  {"displayName":"b","id":"BBBBBBBB-1111-1111-1111-111111111111","isPinned":false,"lastOpenedAt":"2026-05-09T02:00:00Z","path":"/tmp/polepole-dnd-test/b"},
+  {"displayName":"c","id":"CCCCCCCC-1111-1111-1111-111111111111","isPinned":false,"lastOpenedAt":"2026-05-09T03:00:00Z","path":"/tmp/polepole-dnd-test/c"}
 ],"schemaVersion":1}
 JSON
-pkill -x ide 2>/dev/null; sleep 0.4
-APP=/tmp/ide-build/Build/Products/Debug/ide.app
+pkill -x "PolePole Dev" 2>/dev/null; sleep 0.4
+APP=/tmp/polepole-build/Build/Products/Debug/ide.app
 # 末尾の c を active 化しても順序は a, b, c のまま（旧仕様だと c が先頭になる）
-IDE_TEST_AUTO_ACTIVATE_INDEX=2 "$APP/Contents/MacOS/ide" >/dev/null 2>&1 &
+POLEPOLE_TEST_AUTO_ACTIVATE_INDEX=2 "$APP/Contents/MacOS/PolePole Dev" >/dev/null 2>&1 &
 sleep 2
-pkill -x ide 2>/dev/null; sleep 0.4
+pkill -x "PolePole Dev" 2>/dev/null; sleep 0.4
 python3 -c "
 import json
-d = json.load(open('$HOME/Library/Application Support/ide-dev/projects.json'))
+d = json.load(open('$HOME/Library/Application Support/polepole-dev/projects.json'))
 print(','.join(p['displayName'] for p in d['projects']))
 "
-rm -rf /tmp/ide-dnd-test
-rm -f "$HOME/Library/Application Support/ide-dev/projects.json"*
+rm -rf /tmp/polepole-dnd-test
+rm -f "$HOME/Library/Application Support/polepole-dev/projects.json"*
 ```
 
 期待出力: `a,b,c`（c が先頭に移動していない）。
@@ -1256,33 +1256,33 @@ rm -f "$HOME/Library/Application Support/ide-dev/projects.json"*
 
 ### 33-A. 差分あり状態のバッジ（自動）
 
-ide リポジトリ自身を active にすれば、IDE 内で変更ファイルがある状態を作りやすい（このセクションを実行する前提として、ide リポジトリに `git status` で見える変更が 1 件以上あること）。
+ide リポジトリ自身を active にすれば、PolePole 内で変更ファイルがある状態を作りやすい（このセクションを実行する前提として、ide リポジトリに `git status` で見える変更が 1 件以上あること）。
 
 ```bash
-mkdir -p "$HOME/Library/Application Support/ide-dev"
-cat > "$HOME/Library/Application Support/ide-dev/projects.json" <<'JSON'
+mkdir -p "$HOME/Library/Application Support/polepole-dev"
+cat > "$HOME/Library/Application Support/polepole-dev/projects.json" <<'JSON'
 {"projects":[
   {"displayName":"ide","id":"AAAAAAAA-1111-1111-1111-111111111111","isPinned":true,"lastOpenedAt":"2026-05-14T01:00:00Z","path":"/Users/d0ne1s/ide"}
 ],"schemaVersion":1}
 JSON
-pkill -x "IDE Dev" 2>/dev/null; sleep 0.4
-APP="/tmp/ide-build/Build/Products/Debug/IDE Dev.app"
-IDE_TEST_AUTO_ACTIVATE_INDEX=0 "$APP/Contents/MacOS/IDE Dev" >/tmp/ide-launch.log 2>&1 &
+pkill -x "PolePole Dev" 2>/dev/null; sleep 0.4
+APP="/tmp/polepole-build/Build/Products/Debug/PolePole Dev.app"
+POLEPOLE_TEST_AUTO_ACTIVATE_INDEX=0 "$APP/Contents/MacOS/PolePole Dev" >/tmp/polepole-launch.log 2>&1 &
 sleep 5
-./scripts/ide-screenshot.sh /tmp/diff-badge-on.png
+./scripts/polepole-screenshot.sh /tmp/diff-badge-on.png
 ```
 
 期待: スクショの中央ペイン右上に `±` 系アイコン + 件数 Capsule（青背景・白文字）が出ている。
 
 ### 33-B. overlay 表示（自動）
 
-`IDE_TEST_AUTO_OPEN_DIFF=1` を加えて再起動すると、起動直後に overlay が開く。
+`POLEPOLE_TEST_AUTO_OPEN_DIFF=1` を加えて再起動すると、起動直後に overlay が開く。
 
 ```bash
-pkill -x "IDE Dev" 2>/dev/null; sleep 0.4
-IDE_TEST_AUTO_ACTIVATE_INDEX=0 IDE_TEST_AUTO_OPEN_DIFF=1 "$APP/Contents/MacOS/IDE Dev" >/tmp/ide-launch.log 2>&1 &
+pkill -x "PolePole Dev" 2>/dev/null; sleep 0.4
+POLEPOLE_TEST_AUTO_ACTIVATE_INDEX=0 POLEPOLE_TEST_AUTO_OPEN_DIFF=1 "$APP/Contents/MacOS/PolePole Dev" >/tmp/polepole-launch.log 2>&1 &
 sleep 6
-./scripts/ide-screenshot.sh /tmp/diff-overlay.png
+./scripts/polepole-screenshot.sh /tmp/diff-overlay.png
 ```
 
 期待: ヘッダーに `Diff` `ide` `<件数> 件` `reload` `×` が並び、本体に各ファイルがサイドバイサイドで表示される（追加=緑、削除=赤、context=透明）。staged / unstaged バッジも色分けされる。
@@ -1292,30 +1292,30 @@ sleep 6
 clean な repo を一時的に作って active にする。
 
 ```bash
-pkill -x "IDE Dev" 2>/dev/null; sleep 0.4
+pkill -x "PolePole Dev" 2>/dev/null; sleep 0.4
 CLEAN_DIR=$(mktemp -d)
 cd "$CLEAN_DIR" && git init -q && git config user.email "t@example.com" && git config user.name "t" && echo "clean" > README.md && git add . && git commit -q -m "init" && cd -
 
-cat > "$HOME/Library/Application Support/ide-dev/projects.json" <<JSON
+cat > "$HOME/Library/Application Support/polepole-dev/projects.json" <<JSON
 {"projects":[
   {"displayName":"clean","id":"AAAAAAAA-1111-1111-1111-111111111111","isPinned":true,"lastOpenedAt":"2026-05-14T01:00:00Z","path":"$CLEAN_DIR"}
 ],"schemaVersion":1}
 JSON
 
-IDE_TEST_AUTO_ACTIVATE_INDEX=0 "$APP/Contents/MacOS/IDE Dev" >/tmp/ide-launch.log 2>&1 &
+POLEPOLE_TEST_AUTO_ACTIVATE_INDEX=0 "$APP/Contents/MacOS/PolePole Dev" >/tmp/polepole-launch.log 2>&1 &
 sleep 5
-./scripts/ide-screenshot.sh /tmp/diff-badge-empty.png
+./scripts/polepole-screenshot.sh /tmp/diff-badge-empty.png
 
-pkill -x "IDE Dev" 2>/dev/null
+pkill -x "PolePole Dev" 2>/dev/null
 rm -rf "$CLEAN_DIR"
-rm -f "$HOME/Library/Application Support/ide-dev/projects.json"*
+rm -f "$HOME/Library/Application Support/polepole-dev/projects.json"*
 ```
 
 期待: 中央ペイン右上のバッジが薄い色（secondary）で、件数 Capsule なし。
 
 ### 33-D. ショートカット動作（手動）
 
-`ide-keystroke.sh` は IDE 内 Claude Code からは動かないので、以下は実機 / 別ターミナルから確認する。
+`ide-keystroke.sh` は PolePole 内 Claude Code からは動かないので、以下は実機 / 別ターミナルから確認する。
 
 - ターミナル / ファイルツリーどちらにフォーカスがあっても `Cmd+D` で overlay が開く
 - もう一度 `Cmd+D` を押すと閉じる（トグル）
@@ -1326,30 +1326,30 @@ rm -f "$HOME/Library/Application Support/ide-dev/projects.json"*
 
 ## 34. Sparkle "Check for Updates…"
 
-メニュー > `IDE Dev` > `Check for Updates…` で自前アップデートのチェックが走る。AppleScript でメニュー操作はできないので、メニュー目視と更新フローの完走確認は実機から行う。
+メニュー > `PolePole Dev` > `Check for Updates…` で自前アップデートのチェックが走る。AppleScript でメニュー操作はできないので、メニュー目視と更新フローの完走確認は実機から行う。
 
 ### 34-A. Sparkle 統合（自動）
 
 ```bash
-./scripts/ide-launch.sh
+./scripts/polepole-launch.sh
 sleep 3
-pgrep -lf "IDE Dev.app/Contents/MacOS/IDE Dev" || echo "FAIL: not running"
+pgrep -lf "PolePole Dev.app/Contents/MacOS/PolePole Dev" || echo "FAIL: not running"
 # Info.plist の Sparkle キーが反映されていること
-plutil -p "/tmp/ide-build/Build/Products/Debug/IDE Dev.app/Contents/Info.plist" | grep -E "^\s*\"SU"
+plutil -p "/tmp/polepole-build/Build/Products/Debug/PolePole Dev.app/Contents/Info.plist" | grep -E "^\s*\"SU"
 # Sparkle.framework が embed されていること（dylib + Updater.app + XPCServices）
-ls "/tmp/ide-build/Build/Products/Debug/IDE Dev.app/Contents/Frameworks/Sparkle.framework/Versions/B/" | grep -E "Sparkle|Updater.app|XPCServices"
+ls "/tmp/polepole-build/Build/Products/Debug/PolePole Dev.app/Contents/Frameworks/Sparkle.framework/Versions/B/" | grep -E "Sparkle|Updater.app|XPCServices"
 ```
 
 期待:
-- IDE Dev プロセスが生存
-- `SUFeedURL` = `https://github.com/nyshk97/ide-releases/releases/latest/download/appcast.xml`
+- PolePole Dev プロセスが生存
+- `SUFeedURL` = `https://github.com/nyshk97/polepole-releases/releases/latest/download/appcast.xml`
 - `SUPublicEDKey` が空でない Base64 文字列
 - `SUEnableAutomaticChecks` = false
 - `Sparkle`（dylib）、`Updater.app`、`XPCServices` の 3 つが見える
 
 ### 34-B. メニュー表示（手動）
 
-メニューバー > `IDE Dev` を開き、`About IDE Dev` の **直下** に `Check for Updates…` がある。`SUFeedURL` が設定済みなら enable（クリック可）。空文字なら disable（グレーアウト）。
+メニューバー > `PolePole Dev` を開き、`About PolePole Dev` の **直下** に `Check for Updates…` がある。`SUFeedURL` が設定済みなら enable（クリック可）。空文字なら disable（グレーアウト）。
 
 ### 34-C. release.sh のドライラン（自動）
 
@@ -1357,11 +1357,11 @@ ls "/tmp/ide-build/Build/Products/Debug/IDE Dev.app/Contents/Frameworks/Sparkle.
 
 ```bash
 # Sparkle ツール群が DerivedData にあること
-ls /tmp/ide-build/SourcePackages/artifacts/sparkle/Sparkle/bin/ | grep -E "generate_keys|sign_update"
+ls /tmp/polepole-build/SourcePackages/artifacts/sparkle/Sparkle/bin/ | grep -E "generate_keys|sign_update"
 
 # ダミー zip に EdDSA 署名を打って、edSignature と length が抽出できるか
 cd /tmp && echo test > _t.txt && zip -q _t.zip _t.txt
-SIG=$(/tmp/ide-build/SourcePackages/artifacts/sparkle/Sparkle/bin/sign_update _t.zip)
+SIG=$(/tmp/polepole-build/SourcePackages/artifacts/sparkle/Sparkle/bin/sign_update _t.zip)
 echo "$SIG" | grep -E 'sparkle:edSignature="[^"]+"' && echo "PASS"
 rm -f _t.txt _t.zip
 cd -
@@ -1371,10 +1371,10 @@ cd -
 
 実リリースを 1 本通したあとに以下を実機で確認:
 
-1. 現状の `/Applications/IDE.app` を退避: `mv /Applications/IDE.app /Applications/IDE.app.bak`
+1. 現状の `/Applications/PolePole.app` を退避: `mv /Applications/PolePole.app /Applications/PolePole.app.bak`
 2. 旧バージョン（例: `1.0.9`）の zip を `gh release download v1.0.9 --repo nyshk97/ide -p 'ide.zip' -O /tmp/old-ide.zip` で取得し `/Applications/` に展開
-3. `/Applications/IDE.app` を起動 → メニュー > `IDE` > `Check for Updates…`
+3. `/Applications/PolePole.app` を起動 → メニュー > `PolePole` > `Check for Updates…`
 4. 「新版 X.X.X が利用可能」ダイアログ → `Install Update` → ダウンロード → 自動再起動
-5. 起動した IDE.app の `About` を見て新版になっていることを確認
+5. 起動した PolePole.app の `About` を見て新版になっていることを確認
 
-退避したバックアップを戻すなら: `rm -rf /Applications/IDE.app && mv /Applications/IDE.app.bak /Applications/IDE.app`
+退避したバックアップを戻すなら: `rm -rf /Applications/PolePole.app && mv /Applications/PolePole.app.bak /Applications/PolePole.app`

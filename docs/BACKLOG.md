@@ -24,16 +24,16 @@ ide の今後の着手候補。基本機能は一通り揃っているので、�
 | ファイルツリーの「ターミナルで開く」を直接 `cd` 送信に | 現状は pasteboard コピー（パスは shell エスケープ済み）。中期は active surface に `cd -- <path>\n` 直送。**このメニューを使うようになったら**。ほぼ使わないなら放置可 |
 | ripgrep バンドリング | 現状 macOS 標準 grep で代用（`maxStdoutBytes` で暴走は抑え済み）。**検索が grep だと体感で耐えられなくなったら**。バンドリングは hardened runtime / notarize / entitlements の検証込みで重い |
 | AI 完了通知の精度向上（途中 REMOVE の debounce / 手動クリア / codex 検証） | 完了検知は `OSC 9;4` プログレス（作業中→REMOVE）ベースで実装済み（claude/codex はベルを鳴らさないため）。**ツール呼び出しで誤検知が出てうるさい体験があったら** debounce だけやる |
-| 起動時に「dotfiles / CloudStorage が読めない」を検出して案内する | `IDE.app` にフルディスクアクセスが無いと IDE 内シェルが `~/.zshrc`（→ `~/Library/CloudStorage/` の dotfiles）を `EPERM` で読めず、デフォルトプロンプト・mise 未起動・`claude` not found になる（[docs/DEV.md の TCC の節](./DEV.md#tccプライバシー権限の罠) 参照）。起動時に「`~/.zshrc` が読めない」or「`~/Library/CloudStorage/` にアクセスできない」を検出したら、要件 8.3 の常駐表示で「フルディスクアクセスを付与してください」+ System Settings（`x-apple.systempreferences:com.apple.preference.security?Privacy_AllFiles`）を開くボタンを出す。**次に同じ状況になったとき一発で気づける**ようにしたくなったら。同様に画面収録が無いときの案内も合わせられる |
+| 起動時に「dotfiles / CloudStorage が読めない」を検出して案内する | `PolePole.app` にフルディスクアクセスが無いと PolePole 内シェルが `~/.zshrc`（→ `~/Library/CloudStorage/` の dotfiles）を `EPERM` で読めず、デフォルトプロンプト・mise 未起動・`claude` not found になる（[docs/DEV.md の TCC の節](./DEV.md#tccプライバシー権限の罠) 参照）。起動時に「`~/.zshrc` が読めない」or「`~/Library/CloudStorage/` にアクセスできない」を検出したら、要件 8.3 の常駐表示で「フルディスクアクセスを付与してください」+ System Settings（`x-apple.systempreferences:com.apple.preference.security?Privacy_AllFiles`）を開くボタンを出す。**次に同じ状況になったとき一発で気づける**ようにしたくなったら。同様に画面収録が無いときの案内も合わせられる |
 | 検索 / ツリーの除外ポリシー一元化（整理パス P1-2） | `FileIndex` の `alwaysSkipDirNames`/`cheapSkipDirNames`（`.git` / `node_modules` / `DerivedData` / `.build`）と `FullTextSearcher` の `--exclude-dir`（+ `.refs`）がまだ別管理。`SearchPolicy` 的な enum に寄せると Cmd+P / Cmd+Shift+F / ツリーの挙動差分を見つけやすい。**ripgrep バンドリング（上の行）をやるときに一緒に**。単独でやる動機は薄い |
 | `ProjectsModel` の責務分割 / foreground polling 間引き / ファイルツリーの node 探索の辞書化（整理パス P2-1〜P2-3） | いずれも現状困っていない。**`ProjectsModel` が肥大で触りづらくなったら**（list / workspace registry / search overlay / test bootstrap に分ける）/ **多タブで動作が重くなったら**（idle tab の foreground poll を 2-3 秒間隔に）/ **巨大ツリーの展開が遅いと感じたら**（`nodeByPath: [FilePathKey: FileNode]`） |
-| Release entitlement 変更の実機検証（整理パス P1-7） | `Resources/IDE.entitlements` から `com.apple.security.automation.apple-events` を削除済み（残り 3 つの hardened runtime 例外は libghostty 由来で残置）。Release ビルド + notarize + 実機でターミナル描画 / IME / クリップボードが正常か確認する。低リスクなので単体でリリースを切らず、**次に何かの理由でリリースするタイミングに相乗り**。NG なら entitlement を戻す |
+| Release entitlement 変更の実機検証（整理パス P1-7） | `Resources/PolePole.entitlements` から `com.apple.security.automation.apple-events` を削除済み（残り 3 つの hardened runtime 例外は libghostty 由来で残置）。Release ビルド + notarize + 実機でターミナル描画 / IME / クリップボードが正常か確認する。低リスクなので単体でリリースを切らず、**次に何かの理由でリリースするタイミングに相乗り**。NG なら entitlement を戻す |
 
 ---
 
 ## 当面やらない（要件記載だが今は動機が薄い / 現設計と逆）
 
-- **要件 5 系の AI 連携** — AI 起動ショートカット（Cmd+Shift+T）、カスタム起動テンプレート、プロンプトテンプレートのワンタッチ挿入、プランファイル連携、AI ヘルス監視（claude が応答しない検知）、クロスエージェント引き継ぎ補助。いずれも要件には記載があるが、ターミナルペインで Claude Code をそのまま使えている現状では IDE 側に作り込む動機が薄い。`/handoff` `/plot` 等は Claude Code 側のスキルでカバーできている。**「これがないと不便」と実際に感じたら**個別に上の表へ。
+- **要件 5 系の AI 連携** — AI 起動ショートカット（Cmd+Shift+T）、カスタム起動テンプレート、プロンプトテンプレートのワンタッチ挿入、プランファイル連携、AI ヘルス監視（claude が応答しない検知）、クロスエージェント引き継ぎ補助。いずれも要件には記載があるが、ターミナルペインで Claude Code をそのまま使えている現状では PolePole 側に作り込む動機が薄い。`/handoff` `/plot` 等は Claude Code 側のスキルでカバーできている。**「これがないと不便」と実際に感じたら**個別に上の表へ。
 - **セッション復元（active project / ツリー展開 / プレビュー履歴）** — 要件 2 / 7 が「再起動時はリセット」と明示しているので現設計と逆方向。方針を変えるなら再検討。
 
 ---
@@ -46,8 +46,8 @@ ide の今後の着手候補。基本機能は一通り揃っているので、�
 
 ## 既知の制約（タスクではない・記録用）
 
-- `IDE_TEST_*` 環境変数が複数（`AUTO_ACTIVATE_INDEX` `AUTO_PREVIEW` `AUTO_FULLSEARCH` `TOAST`）— docs/DEV.md にまとめてある。今後増やすなら命名規約を `IDE_TEST_<feature>_<param>` に統一する、という指針だけ。
-- SwiftUI の `onTapGesture` が AppleScript の `click at` に届かない — 動作確認は `IDE_TEST_*` で迂回済み。完全自動化は難しいので手動確認を VERIFY.md に残す方針で確定。
+- `POLEPOLE_TEST_*` 環境変数が複数（`AUTO_ACTIVATE_INDEX` `AUTO_PREVIEW` `AUTO_FULLSEARCH` `TOAST`）— docs/DEV.md にまとめてある。今後増やすなら命名規約を `POLEPOLE_TEST_<feature>_<param>` に統一する、という指針だけ。
+- SwiftUI の `onTapGesture` が AppleScript の `click at` に届かない — 動作確認は `POLEPOLE_TEST_*` で迂回済み。完全自動化は難しいので手動確認を VERIFY.md に残す方針で確定。
 - HSplitView は `idealWidth` を尊重しない — maxWidth で抑える workaround 済み（step1）。
 
 ---

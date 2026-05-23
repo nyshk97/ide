@@ -8,7 +8,8 @@
 
 ## このプロジェクトは何か
 
-**ide**: cmux + Ghostty + yazi + git-watch + Claude Code を 1 つに統合した自作 IDE（macOS 専用）。
+**PolePole**: cmux + Ghostty + yazi + git-watch + Claude Code を 1 つに統合した自作 IDE（macOS 専用）。
+2026-05-23 にプロジェクト名を `ide` から `PolePole` にリネーム済み。技術文脈は小文字 `polepole`、ブランド表記は CamelCase `PolePole`。リポジトリ名は歴史的事情で `nyshk97/ide` のまま。
 
 要件は [REQUIREMENTS.md](./REQUIREMENTS.md)。実装の進捗とアーキ概要は:
 
@@ -24,7 +25,7 @@
 
 1. **要件と整合する変更か** — `REQUIREMENTS.md` のセクション番号で議論する
 2. **plan があるか** — `docs/plans/` の進行中 plan があれば、ステップ通りに進める
-3. **テスト用フラグの位置** — `IDE_TEST_*` 環境変数の一覧は `docs/DEV.md`
+3. **テスト用フラグの位置** — `POLEPOLE_TEST_*` 環境変数の一覧は `docs/DEV.md`
 
 ---
 
@@ -33,10 +34,10 @@
 詳細は [docs/DEV.md](./docs/DEV.md)。最低限:
 
 ```bash
-mise run build                                   # ビルド（regen を含む）
-./scripts/ide-launch.sh                          # 起動（kill + open）
-./scripts/ide-screenshot.sh /tmp/v.png           # フロントウィンドウだけ撮影
-./scripts/ide-keystroke.sh --enter "echo hello"  # キーストローク送信
+mise run build                                        # ビルド（regen を含む）
+./scripts/polepole-launch.sh                          # 起動（kill + open）
+./scripts/polepole-screenshot.sh /tmp/v.png           # フロントウィンドウだけ撮影
+./scripts/polepole-keystroke.sh --enter "echo hello"  # キーストローク送信
 ```
 
 確認手順は [VERIFY.md](./VERIFY.md) の番号付きセクションを「変更内容に関係するものだけ」実行する（毎回全部やらない）。
@@ -48,35 +49,37 @@ mise run build                                   # ビルド（regen を含む�
 修正後にユーザーへ確認を求める前に、自分で動作確認を行うこと。
 
 - **コードの確認**: `mise run build` が通る
-- **UI の確認**: `./scripts/ide-launch.sh` + `./scripts/ide-screenshot.sh` で画面を取って自分で確認する
-- **テスト用フラグを活用**: `IDE_TEST_AUTO_ACTIVATE_INDEX` `IDE_TEST_AUTO_PREVIEW` `IDE_TEST_AUTO_FULLSEARCH` `IDE_TEST_TOAST` で起動時に状態を仕込んで screenshot 取得まで自動化できる
-- **クリック / キーストロークが要る検証は IDE 内 Claude Code からは自動化できない**: `ide-screenshot.sh`（画面収録）は OK だが、`ide-keystroke.sh` 系（osascript の補助アクセス）は `login` 介在で効かない。「読み込む」ボタン押下後の挙動・Markdown のローカルリンククリック・overlay 上の Cmd+C などはユーザーに目視依頼する
+- **UI の確認**: `./scripts/polepole-launch.sh` + `./scripts/polepole-screenshot.sh` で画面を取って自分で確認する
+- **テスト用フラグを活用**: `POLEPOLE_TEST_AUTO_ACTIVATE_INDEX` `POLEPOLE_TEST_AUTO_PREVIEW` `POLEPOLE_TEST_AUTO_FULLSEARCH` `POLEPOLE_TEST_TOAST` で起動時に状態を仕込んで screenshot 取得まで自動化できる
+- **クリック / キーストロークが要る検証は PolePole 内 Claude Code からは自動化できない**: `polepole-screenshot.sh`（画面収録）は OK だが、`polepole-keystroke.sh` 系（osascript の補助アクセス）は `login` 介在で効かない。「読み込む」ボタン押下後の挙動・Markdown のローカルリンククリック・overlay 上の Cmd+C などはユーザーに目視依頼する
 
 「確認しました」だけで済ませず、実行コマンド・出力（抜粋）・pass/fail 判定を報告する。
 
-### ⚠️ IDE の中で検証するには IDE.app に TCC 権限が要る
+### ⚠️ PolePole の中で検証するには PolePole.app に TCC 権限が要る
 
-`ide-screenshot.sh` / `ide-launch.sh` を IDE 内ターミナルの Claude Code から回すには、`/Applications/IDE.app` に **画面収録** と **フルディスクアクセス**（`~/Library/CloudStorage/` 配下の dotfiles を読むため）が付与されている必要がある。剥がれていると「could not create image from display」「`.zshrc` が読めずデフォルトプロンプト・mise/`claude` が PATH に無い」になる。Release ビルドは安定した Developer ID 署名なので brew 更新では剥がれない。詳細・再付与手順は [docs/DEV.md の「TCC（プライバシー）権限の罠」](./docs/DEV.md#tccプライバシー権限の罠)。
+`polepole-screenshot.sh` / `polepole-launch.sh` を PolePole 内ターミナルの Claude Code から回すには、`/Applications/PolePole.app` に **画面収録** と **フルディスクアクセス**（`~/Library/CloudStorage/` 配下の dotfiles を読むため）が付与されている必要がある。剥がれていると「could not create image from display」「`.zshrc` が読めずデフォルトプロンプト・mise/`claude` が PATH に無い」になる。Release ビルドは安定した Developer ID 署名なので brew 更新では剥がれない。詳細・再付与手順は [docs/DEV.md の「TCC（プライバシー）権限の罠」](./docs/DEV.md#tccプライバシー権限の罠)。
 
-### ⚠️ Brew 版データ (`ide/`) は触らない。検証は `ide-dev/` で
+`ide` → `PolePole` リネーム時は Bundle ID が変わるため、旧 IDE.app に付与していた TCC 権限は新 PolePole.app には引き継がれない。初回は System Settings から手動で再付与する。
 
-`~/Library/Application Support/ide/projects.json` には**Brew 配布版 (Bundle ID `local.d0ne1s.ide`) でユーザーが手で pin したプロジェクト一覧**が入っている。Debug ビルドは Bundle ID が `local.d0ne1s.ide.dev` に分離されているので、`mise run build` → `./scripts/ide-launch.sh` 由来の起動・検証では `~/Library/Application Support/ide-dev/projects.json` 側に書かれ、Brew 版データには触らない。
+### ⚠️ Brew 版データ (`polepole/`) は触らない。検証は `polepole-dev/` で
 
-VERIFY.md の検証手順は固定フィクスチャで `ide-dev/projects.json` を上書きする → `rm -f` する流れなので、Dev 版でもピン留めを残したい運用なら念のためバックアップ:
+`~/Library/Application Support/polepole/projects.json` には**Brew 配布版 (Bundle ID `local.d0ne1s.polepole`) でユーザーが手で pin したプロジェクト一覧**が入っている。Debug ビルドは Bundle ID が `local.d0ne1s.polepole.dev` に分離されているので、`mise run build` → `./scripts/polepole-launch.sh` 由来の起動・検証では `~/Library/Application Support/polepole-dev/projects.json` 側に書かれ、Brew 版データには触らない。
+
+VERIFY.md の検証手順は固定フィクスチャで `polepole-dev/projects.json` を上書きする → `rm -f` する流れなので、Dev 版でもピン留めを残したい運用なら念のためバックアップ:
 
 ```bash
 # 検証開始前
 BACKUP_DIR=$(mktemp -d)
-cp -a "$HOME/Library/Application Support/ide-dev/" "$BACKUP_DIR/ide-dev-backup" 2>/dev/null || true
+cp -a "$HOME/Library/Application Support/polepole-dev/" "$BACKUP_DIR/polepole-dev-backup" 2>/dev/null || true
 
 # 検証完了後
-rm -rf "$HOME/Library/Application Support/ide-dev"
-mv "$BACKUP_DIR/ide-dev-backup" "$HOME/Library/Application Support/ide-dev" 2>/dev/null || true
+rm -rf "$HOME/Library/Application Support/polepole-dev"
+mv "$BACKUP_DIR/polepole-dev-backup" "$HOME/Library/Application Support/polepole-dev" 2>/dev/null || true
 ```
 
-**Release configuration を直接起動して検証するときは `ide/` 側を扱うことになる**ので、その経路では引き続き `ide/` を退避してから検証する。
+**Release configuration を直接起動して検証するときは `polepole/` 側を扱うことになる**ので、その経路では引き続き `polepole/` を退避してから検証する。
 
-過去に Bundle ID 分離前のビルドで `ide/` を破壊したインシデントあり（2026-05-09）。分離後はこの経路は塞がっているが、Release 検証時の警告は変わらず有効。
+過去に Bundle ID 分離前のビルドで旧 `ide/` を破壊したインシデントあり（2026-05-09）。分離後はこの経路は塞がっているが、Release 検証時の警告は変わらず有効。
 
 ---
 
@@ -85,17 +88,17 @@ mv "$BACKUP_DIR/ide-dev-backup" "$HOME/Library/Application Support/ide-dev" 2>/d
 [docs/DEV.md の同セクション](./docs/DEV.md#swift-6-strict-concurrency-の落とし穴) にまとまっている。**新しく踏んだら追記する**。
 
 代表例:
-- AppleScript の `click at {x, y}` は SwiftUI の `onTapGesture` に届かないことがある → `IDE_TEST_*` で迂回
+- AppleScript の `click at {x, y}` は SwiftUI の `onTapGesture` に届かないことがある → `POLEPOLE_TEST_*` で迂回
 - `Ctrl+M` の判定は `keyCode == 46`（characters は CR にマップされる）
 - `URL` の `==` は scheme/baseURL の差で一致しないことがある → `URL.standardizedFileURL.path` を String キーに
-- Debug ビルドは PRODUCT_NAME=`IDE Dev` なので `.app` / プロセス / バイナリすべてに空白を含む。動作確認スクリプトでは `pkill -x "IDE Dev"` / `pgrep -f "IDE Dev.app/Contents/MacOS/IDE Dev"` / AppleScript の `tell process "IDE Dev"` のように毎回クオートする
+- Debug ビルドは PRODUCT_NAME=`PolePole Dev` なので `.app` / プロセス / バイナリすべてに空白を含む。動作確認スクリプトでは `pkill -x "PolePole Dev"` / `pgrep -f "PolePole Dev.app/Contents/MacOS/PolePole Dev"` / AppleScript の `tell process "PolePole Dev"` のように毎回クオートする
 
 ---
 
 ## ログの使い分け
 
-- **`Logger.shared.{error|warn|info|debug}(...)`**: 唯一のログ経路。永続ログは `~/Library/Logs/{ide,ide-dev}/`、加えて stderr に出力する
-- **Debug ビルドのみ** `/tmp/ide-poc.log` にもミラーする（`tail -f` で追える、VERIFY 用）。起動時に `Logger.shared.resetDebugMirror()` で空にする
+- **`Logger.shared.{error|warn|info|debug}(...)`**: 唯一のログ経路。永続ログは `~/Library/Logs/{polepole,polepole-dev}/`、加えて stderr に出力する
+- **Debug ビルドのみ** `/tmp/polepole-poc.log` にもミラーする（`tail -f` で追える、VERIFY 用）。起動時に `Logger.shared.resetDebugMirror()` で空にする
 - 旧 `PocLog` は撤去済み（call site はすべて `Logger.shared.debug` に置換）
 
 エラー toast を出したいときは `ErrorBus.shared.notify(_:kind:)`。継続的な状態異常は各 View 内に常駐表示する（要件 8.3）。
@@ -104,7 +107,7 @@ mv "$BACKUP_DIR/ide-dev-backup" "$HOME/Library/Application Support/ide-dev" 2>/d
 
 ## アプリのデータパスは `AppPaths.subdirName` 経由で参照する
 
-`~/Library/Application Support/`、`~/Library/Logs/`、将来追加する Preferences / cache / state 等のサブディレクトリ名は `"ide"` をハードコードせず `AppPaths.subdirName` を経由する（`ProjectsStore` / `Logger` が参考）。Debug ビルドは Bundle ID `local.d0ne1s.ide.dev` を見て自動的に `ide-dev/` に振り分けられる。これを忘れると Brew 配布版データを上書きする経路が復活する。
+`~/Library/Application Support/`、`~/Library/Logs/`、将来追加する Preferences / cache / state 等のサブディレクトリ名は `"polepole"` をハードコードせず `AppPaths.subdirName` を経由する（`ProjectsStore` / `Logger` が参考）。Debug ビルドは Bundle ID `local.d0ne1s.polepole.dev` を見て自動的に `polepole-dev/` に振り分けられる。これを忘れると Brew 配布版データを上書きする経路が復活する。
 
 ---
 
@@ -114,7 +117,7 @@ mv "$BACKUP_DIR/ide-dev-backup" "$HOME/Library/Application Support/ide-dev" 2>/d
 
 要点だけ:
 - `NSEvent.addLocalMonitorForEvents`（`MRUKeyMonitor`）が最優先で、vim/claude 等の TUI 内でも握る
-- Ctrl+M / Cmd+P / Cmd+Shift+F は IDE 側で必ず握り切る（要件 3「逃がし手段なし」）
+- Ctrl+M / Cmd+P / Cmd+Shift+F は PolePole 側で必ず握り切る（要件 3「逃がし手段なし」）
 
 ---
 
@@ -154,7 +157,7 @@ MRU の確定タイミング（修飾キーの release）は `ShortcutsStore.sho
 | `docs/DEV.md` | 開発時の手順・落とし穴 |
 | `docs/BACKLOG.md` | 残タスク・将来アイデア（優先度別） |
 | `docs/COMMERCIALIZATION.md` | 商用化（有償配布）に向けた MUST / SHOULD / NICE とオープン論点 |
-| `docs/plans/*.md` | フェーズ単位の実装計画 |
+| `docs/plans/*.md` | フェーズ単位の実装計画（PolePole リネーム前の `ide` 名義の plan も歴史保存） |
 
 新しい知見が出たら適切な場所に書き戻す。`docs/plans/` のログにも方針変更は残す。
 
