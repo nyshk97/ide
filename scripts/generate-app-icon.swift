@@ -24,13 +24,61 @@ if args.count >= 5 {
 
 guard
     let sourceImage = NSImage(contentsOfFile: sourcePath),
-    let sourceCG = sourceImage.cgImage(forProposedRect: nil, context: nil, hints: nil)
+    let rawSourceCG = sourceImage.cgImage(forProposedRect: nil, context: nil, hints: nil)
 else {
     FileHandle.standardError.write("failed to load source: \(sourcePath)\n".data(using: .utf8)!)
     exit(1)
 }
 
 let cs = CGColorSpaceCreateDeviceRGB()
+
+// polepole-icon.png は alpha なしで白背景が焼き込まれている。
+// 外周から flood-fill で白〜近白を透過にする (象の内部にある highlight は border に
+// 触れないので残る)。これによって下に敷くグラデーション背景が透けて見える。
+let sourceCG: CGImage = {
+    let w = rawSourceCG.width
+    let h = rawSourceCG.height
+    let bytesPerRow = w * 4
+    var px = [UInt8](repeating: 0, count: w * h * 4)
+    guard let buf = CGContext(
+        data: &px, width: w, height: h, bitsPerComponent: 8,
+        bytesPerRow: bytesPerRow, space: cs,
+        bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
+            | CGBitmapInfo.byteOrder32Big.rawValue
+    ) else { return rawSourceCG }
+    buf.draw(rawSourceCG, in: CGRect(x: 0, y: 0, width: w, height: h))
+    let threshold = 20
+    @inline(__always) func idx(_ x: Int, _ y: Int) -> Int { (y * w + x) * 4 }
+    @inline(__always) func isNearWhite(_ x: Int, _ y: Int) -> Bool {
+        let i = idx(x, y)
+        return (255 - Int(px[i])) <= threshold
+            && (255 - Int(px[i + 1])) <= threshold
+            && (255 - Int(px[i + 2])) <= threshold
+    }
+    var visited = [Bool](repeating: false, count: w * h)
+    var stack: [(Int, Int)] = []
+    for x in 0..<w {
+        if isNearWhite(x, 0) { stack.append((x, 0)) }
+        if isNearWhite(x, h - 1) { stack.append((x, h - 1)) }
+    }
+    for y in 0..<h {
+        if isNearWhite(0, y) { stack.append((0, y)) }
+        if isNearWhite(w - 1, y) { stack.append((w - 1, y)) }
+    }
+    while let (x, y) = stack.popLast() {
+        if x < 0 || y < 0 || x >= w || y >= h { continue }
+        let v = y * w + x
+        if visited[v] { continue }
+        if !isNearWhite(x, y) { continue }
+        visited[v] = true
+        px[idx(x, y) + 3] = 0
+        stack.append((x + 1, y))
+        stack.append((x - 1, y))
+        stack.append((x, y + 1))
+        stack.append((x, y - 1))
+    }
+    return buf.makeImage() ?? rawSourceCG
+}()
 guard let ctx = CGContext(
     data: nil,
     width: Int(size),
@@ -49,14 +97,29 @@ ctx.saveGState()
 ctx.addPath(bgPath)
 ctx.clip()
 
-// 白背景で塗りつぶし (squircle の中だけ)。
-ctx.setFillColor(CGColor(red: 1, green: 1, blue: 1, alpha: 1))
-ctx.fill(bgRect)
+// squircle の中だけグラデーション背景 (淡い空色 → 中間の青)。
+let bgGradient = CGGradient(
+    colorsSpace: cs,
+    colors: [
+        CGColor(red: 0.85, green: 0.92, blue: 1.00, alpha: 1), // #D9EBFF (top)
+        CGColor(red: 0.62, green: 0.78, blue: 0.98, alpha: 1), // #9EC7FA (bottom)
+    ] as CFArray,
+    locations: [0, 1]
+)!
+ctx.drawLinearGradient(
+    bgGradient,
+    start: CGPoint(x: 0, y: size),
+    end: CGPoint(x: 0, y: 0),
+    options: []
+)
 
-// ソース画像をアスペクト比維持でフィット (短辺合わせ)。
+// ソース画像をアスペクト比維持でフィット (短辺合わせ) し、padding 分だけ拡大する。
+// source PNG (polepole-icon.png) は象の周囲に余白を含んでおり、そのまま fit すると
+// squircle 内で小さく見える。zoom > 1 で実質的に padding を削る（squircle で clip 済み）。
 let srcW = CGFloat(sourceCG.width)
 let srcH = CGFloat(sourceCG.height)
-let scale = min(size / srcW, size / srcH)
+let zoom: CGFloat = 1.45
+let scale = min(size / srcW, size / srcH) * zoom
 let drawW = srcW * scale
 let drawH = srcH * scale
 let drawRect = CGRect(
