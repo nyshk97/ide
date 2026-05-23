@@ -4,6 +4,7 @@ import { logger } from "hono/logger";
 import type { Bindings } from "./types";
 import { webhookRoute } from "./routes/webhook";
 import { thanksRoute } from "./routes/thanks";
+import { licenseRoute } from "./routes/license";
 
 const app = new Hono<{ Bindings: Bindings }>();
 
@@ -33,13 +34,7 @@ app.get("/healthz", (c) =>
 
 app.route("/stripe-webhook", webhookRoute);
 app.route("/thanks", thanksRoute);
-
-// Phase 3 で実装:
-//   POST /v1/license/activate / deactivate / verify / resend
-app.post("/v1/license/activate", (c) => c.json({ todo: "phase 3" }, 501));
-app.post("/v1/license/deactivate", (c) => c.json({ todo: "phase 3" }, 501));
-app.post("/v1/license/verify", (c) => c.json({ todo: "phase 3" }, 501));
-app.post("/v1/license/resend", (c) => c.json({ todo: "phase 3" }, 501));
+app.route("/v1/license", licenseRoute);
 
 app.onError((err, c) => {
   console.error("unhandled:", err);

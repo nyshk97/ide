@@ -195,7 +195,7 @@ async function upsertLicense(
   return { license, created: license.id === id };
 }
 
-function buildLicenseKeyEmail(license: License): ResendEmail {
+export function buildLicenseKeyEmail(license: License): ResendEmail {
   const subject = "PolePole ライセンスキーのお届け";
   const html = `
 <!DOCTYPE html>

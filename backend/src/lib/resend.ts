@@ -22,7 +22,9 @@ export async function sendEmail(
   enabled: boolean,
   email: ResendEmail
 ): Promise<{ id: string } | null> {
-  if (!enabled || !apiKey || apiKey.startsWith("re_placeholder")) {
+  if (!enabled || !apiKey || apiKey.includes("placeholder")) {
+    // `includes("placeholder")` は startsWith より緩い: dotenv 経由で値がトリム/変換される
+    // 可能性に備えて部分一致で弾く。本物の Resend API key は英数字のみなので衝突しない。
     console.log(`[resend disabled] would send to=${email.to} subject="${email.subject}"`);
     return null;
   }

@@ -5,8 +5,8 @@
 STRIPE_SECRET_KEY="sk_test_xxxxxxxx"
 STRIPE_WEBHOOK_SECRET="whsec_xxxxxxxx"
 
-# Resend API key
-RESEND_API_KEY="re_xxxxxxxx"
+# Resend API key (`re_placeholder_*` のままなら resend.ts が noop で扱う)
+RESEND_API_KEY="re_placeholder_set_later"
 
 # EdDSA 秘密鍵 (改行を \n に escape した 1 行で書く)
 # 元ファイル: $DOTFILES_DIR/secrets/polepole/license-signing-private.pem

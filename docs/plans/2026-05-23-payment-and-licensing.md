@@ -219,22 +219,22 @@ INSERT INTO device (...) SELECT ?, ?, ?, ?, ?, ?, ? WHERE (SELECT COUNT(*) FROM 
 - [x] 動作確認: `wrangler dev --local` で全ルート疎通、`/thanks?session_id=...` で実 Stripe Sandbox API に到達して 404 取得まで確認
 
 ### Phase 3: アクティベーション API [AI🤖]
-- [ ] `POST /v1/license/activate`
-  - [ ] `key + email` で license を引く (両方一致しないと 401)。`license.status` が active 以外なら 403
-  - [ ] **原子的に device 上限チェック + insert/update**: D1 batch (`db.batch([...])`) で transaction を組む。または `INSERT INTO device (...) SELECT ... WHERE (SELECT COUNT(*) FROM device WHERE license_id = ?) < 3` の単一クエリで原子化。`device_hash` が既存なら UPDATE で `last_seen_at` 更新 (上限カウントには既存分を含めない判定が必要なので、最終的に EXISTS チェックを追加)
-  - [ ] 既に 3 台ある場合は `{ error: "device_limit", existing_devices: [{ id, device_name, last_seen_at }, ...] }` を返す (UI 側でスワップ選択に使う)
-  - [ ] 新規登録 or 既存更新が成功したら EdDSA で署名済みトークンを発行して返す
-- [ ] `POST /v1/license/deactivate`
-  - [ ] `key + email + device_id` で device を削除 (削除対象が他人の device でないか必ず license_id 一致を確認)
-  - [ ] 削除後、即座に新規 activate を許可
-- [ ] `POST /v1/license/verify`
-  - [ ] `key + email + device_hash` で device を引く
-  - [ ] `last_seen_at` を更新、`os_version` / `app_version` も最新で上書き
-  - [ ] `license.status` が `active` 以外なら `{ error: "revoked" }` / device 不在なら `{ error: "unknown_device" }`
-  - [ ] **成功時は新しい署名トークン (issued_at = now()) を発行して返す**。アプリ側はこれを Keychain に上書き保存することで 30 日 grace が自動延長される
-- [ ] `POST /v1/license/resend`
-  - [ ] `email` だけで license を引いてメール再送 (同 email に複数 license があれば全部送る)
-  - [ ] **Rate limit**: Workers の rateLimit binding (IP ベース) + `rate_limit_log` への記録 (email ベース) の二段。同じ email から 1 分 1 回 / 1 日 5 回 / 同じ IP から 1 分 3 回
+- [x] `POST /v1/license/activate` (`src/routes/license.ts` + `src/lib/license-ops.ts`)
+  - [x] `key + email` で license を引く (`lookupLicense`、email は case-insensitive)。両方一致しないと 401、revoked/refunded なら 403
+  - [x] **原子的に device 上限チェック + insert/update**: D1 batch で 3 statement (UPDATE / INSERT WHERE NOT EXISTS AND COUNT<3 / SELECT) を実行
+  - [x] 既に 3 台ある場合は `{ error: "device_limit", existing_devices: [...] }` を 409 で返す
+  - [x] 新規登録 or 既存更新成功時に EdDSA で署名済みトークンを発行
+- [x] `POST /v1/license/deactivate`
+  - [x] `key + email + device_id` で device を削除 (`license_id` 一致を WHERE に必須化で他人の device 削除を防止)
+- [x] `POST /v1/license/verify` (`verifyAndRefresh`)
+  - [x] `last_seen_at` / `os_version` / `app_version` を更新
+  - [x] **成功時に新しい署名トークン (issued_at = now()) を返す** → アプリ側で Keychain 上書き = 30 日 grace 自動延長
+  - [x] device 不在は `{ error: "unknown_device" }` 404
+- [x] `POST /v1/license/resend`
+  - [x] `email` で license を引いて Resend で再送 (同 email に複数 license があれば全部送る)
+  - [x] **Rate limit 二段**: Cloudflare binding (IP 1分3回) + `rate_limit_log` (email 1分1回 / 1日5回)
+  - [x] email enumeration 対策: 存在しない email でも 200 を返し、rate_limit_log は消費する
+- [x] テスト用 license を `wrangler d1 execute --local` で seed して 13 シナリオの E2E 確認: activate × 3 → device_limit → re-activate (UPDATE) → deactivate → activate (空きで INSERT) → verify ok → verify unknown_device → wrong email (401) → invalid_credentials → resend noop → resend rate_limited → invalid_body (zod 400)
 
 ### Phase 4: LP + success_url ページ [AI🤖]
 - [ ] `polepole.dev` の vanilla HTML + CSS で 1 ページ作成
@@ -334,6 +334,12 @@ INSERT INTO device (...) SELECT ?, ?, ?, ?, ?, ?, ? WHERE (SELECT COUNT(*) FROM 
 - **2026-05-23 EdDSA 署名のラウンドトリップ確認**: `test/signing.test.ts` で「秘密鍵で署名 → 公開鍵で検証」が通ることを実鍵で検証
   - `.dev.vars` 経由で渡される `\n` エスケープ済み PEM 形式と、生 PEM の両方をカバー
   - これにより Phase 2 で `issueToken` を本格的に使う前に、署名チェーンの健全性を担保
+- **2026-05-23 Phase 3 完了**: activate / deactivate / verify / resend
+  - デバイス上限 3 を D1 batch (UPDATE + INSERT-WHERE-NOT-EXISTS-AND-COUNT + SELECT) で atomic に処理。並列リクエストでも 4 台目がすり抜けない
+  - verify は成功時に必ず新トークンを発行 → アプリ側 Keychain 上書きで grace 自動延長 (短寿命トークンの自然延長設計)
+  - Rate limit 二段: Cloudflare binding (IP 早期遮断) + D1 `rate_limit_log` (email 細粒度)
+  - resend.ts に bug: `.dev.vars` の `RESEND_API_KEY` を Python 書き換え時に置換し忘れて example の `re_xxxxxxxx` が残っていた → guard `startsWith("re_placeholder")` がマッチせず実 Resend API に到達して 401 取得。`.dev.vars.example` の placeholder を `re_placeholder_set_later` に統一 + guard を `includes("placeholder")` に緩めて修正
+  - ローカル開発時の binding rate limit は `unsafe.bindings` が remote resource に当たって連続テストを邪魔する → Phase 4 以降で local bypass を検討
 - **2026-05-23 Phase 2 完了**: fulfillCheckout + /stripe-webhook + /thanks
   - stripe-node SDK は使わず fetch ラッパー (`src/lib/stripe.ts`) で書いた。bundle size 軽い & Workers ネイティブ
   - `validateSession` を pure 関数に切り出して 12 ケースの単体テストでカバー (購入条件のすべての rejection パターン)
