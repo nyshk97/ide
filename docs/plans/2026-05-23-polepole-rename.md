@@ -85,11 +85,9 @@ PolePole はスワヒリ語で「ゆっくりと」を意味し、`polepole.dev`
 ## 実装計画
 
 ### 事前準備 [人間👨‍💻]
-- [ ] `nyshk97/polepole-releases` repo を Claude が `gh repo create --public` で作る作業に同意済み
-      → Phase 5 内で実行する (Claude が確認を取ってから `gh` を叩く)
-- [ ] Dropbox の Sparkle 秘密鍵 (`secrets/sparkle-ed25519-private.key`) と Keychain の
-      `generate_keys` 鍵がアクセス可能なことを確認 (流用する)
-- [ ] notarytool profile `ide-notary` が現状動くことを確認 (流用する)
+- [x] `nyshk97/polepole-releases` repo を Claude が `gh repo create --public` で作る作業に同意済み → 既に作成済 (v1.0.0〜v1.1.0 の release が上がっている、2026-05-24 時点)
+- [x] Dropbox の Sparkle 秘密鍵 (`secrets/sparkle-ed25519-private.key`) と Keychain の `generate_keys` 鍵がアクセス可能なことを確認 — 2026-05-24 の `./scripts/release.sh 1.1.0` で Sparkle EdDSA 署名 (`QCtzuHKxxh...`) が成功 = 鍵が流用できている
+- [x] notarytool profile `ide-notary` が現状動くことを確認 — 2026-05-24 の release.sh で `xcrun notarytool` が `--keychain-profile "ide-notary"` を使って Accepted で notarize 成功
 
 ### Phase 1a: project.yml と Sources/ ディレクトリのリネーム [AI🤖] ✅ commit `fa770c1`
 - [x] `project.yml` を更新
