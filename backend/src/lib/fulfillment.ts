@@ -46,7 +46,10 @@ export function validateSession(
   env: ValidationEnv
 ): { ok: true; data: ValidatedSession } | { ok: false; reason: FulfillRejection } {
   if (session.payment_status !== "paid") return { ok: false, reason: "not_paid" };
-  if (session.amount_total !== Number(env.EXPECTED_AMOUNT))
+  // amount_total は Promotion Code (クーポン) 適用時に減額されるため厳密一致チェックは外す。
+  // 商品の正当性は EXPECTED_PRICE_ID と EXPECTED_PAYMENT_LINK_ID + Stripe 署名検証で担保。
+  // amount_total < 0 だけ最低限弾く (Stripe 仕様上ありえないが defense-in-depth)。
+  if (session.amount_total === null || session.amount_total < 0)
     return { ok: false, reason: "amount_mismatch" };
   if (session.currency?.toLowerCase() !== env.EXPECTED_CURRENCY.toLowerCase())
     return { ok: false, reason: "currency_mismatch" };

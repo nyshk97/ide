@@ -54,8 +54,18 @@ describe("validateSession", () => {
     expect(res).toEqual({ ok: false, reason: "not_paid" });
   });
 
-  it("rejects amount mismatch (price tampering)", () => {
-    const res = validateSession(makeSession({ amount_total: 100 }), ENV);
+  it("accepts amount=0 (100% off coupon scenario)", () => {
+    const res = validateSession(makeSession({ amount_total: 0 }), ENV);
+    expect(res.ok).toBe(true);
+  });
+
+  it("accepts reduced amount (50% off coupon scenario)", () => {
+    const res = validateSession(makeSession({ amount_total: 5900 }), ENV);
+    expect(res.ok).toBe(true);
+  });
+
+  it("rejects negative amount (defense-in-depth)", () => {
+    const res = validateSession(makeSession({ amount_total: -100 } as any), ENV);
     expect(res).toEqual({ ok: false, reason: "amount_mismatch" });
   });
 
