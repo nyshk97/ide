@@ -22,6 +22,10 @@ final class LicenseStore: ObservableObject {
     /// 直近の verify 試行時刻 (起動時に複数回 verify が走らないように)。
     private var lastVerifyAttempt: Date?
 
+    /// 起動時リマインド (残 3 日以下) を 1 セッションで何度も出さないためのフラグ。
+    /// プロセス再起動でリセットされて構わない (= 起動ごとに 1 回出すのが目的)。
+    private var didEmitStartupTrialReminder: Bool = false
+
     /// 時計巻き戻し対策: これまでに観測した最大の now を Keychain に保存する。
     /// 判定時は `max(actualNow, lastObservedNow)` を使う。
     private let lastObservedNowAccount = "last-observed-now"
@@ -139,6 +143,26 @@ final class LicenseStore: ObservableObject {
         }
     }
 
+    // MARK: - Startup reminders
+
+    /// 起動直後 (ContentView.onAppear) に呼ぶ。
+    /// トライアル残り 3 日以下のとき、1 セッション 1 回だけ toast を出す。
+    func emitStartupTrialReminderIfNeeded() {
+        guard !didEmitStartupTrialReminder else { return }
+        guard case .trial(let daysLeft) = state, daysLeft <= 3 else { return }
+        didEmitStartupTrialReminder = true
+        let msg: String
+        if daysLeft <= 0 {
+            // ここに来るのは PaywallView 表示と入れ替わる境界条件のみだが念のため。
+            msg = "PolePole のトライアルが本日終了します。"
+        } else if daysLeft == 1 {
+            msg = "PolePole のトライアルは残り 1 日です。"
+        } else {
+            msg = "PolePole のトライアルは残り \(daysLeft) 日です。"
+        }
+        ErrorBus.shared.notify(msg, kind: .warning)
+    }
+
     // MARK: - Verify (週1)
 
     /// 必要なら verify を 1 回走らせる。
@@ -180,7 +204,27 @@ final class LicenseStore: ObservableObject {
         } catch {
             // ネットワーク or rate limit 等の一時的失敗: token は温存し grace を待つ
             Logger.shared.warn("[license] verify temp failed: \(error)")
+            emitGraceRemainingToast(token: token)
         }
+    }
+
+    /// verify 失敗時 (一時的なネットワーク異常) に「再検証失敗、grace 残り N 日」を toast 表示する。
+    /// grace 残りが 14 日を切ったら警告色 (warning)、4 日以下に切ったらエラー色 (error) で出す。
+    /// それより余裕があるときは info で静かめに通知。
+    private func emitGraceRemainingToast(token: ActivationToken) {
+        let nowSecs = Int64(monotonicNow().timeIntervalSince1970)
+        let expiresAt = token.payload.issuedAt + Int64(token.payload.maxOfflineDays) * 86400
+        let remaining = max(0, Int((expiresAt - nowSecs) / 86400))
+        let kind: ErrorBus.Kind
+        if remaining <= 4 {
+            kind = .error
+        } else if remaining <= 14 {
+            kind = .warning
+        } else {
+            kind = .info
+        }
+        let msg = "ライセンスの再検証に失敗しました。あと \(remaining) 日でロックされます (ネットワーク要確認)"
+        ErrorBus.shared.notify(msg, kind: kind)
     }
 
     // MARK: - Helpers

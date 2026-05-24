@@ -19,6 +19,8 @@ struct ContentView: View {
             // 起動直後に画面が出てから即時 refresh する (init で 1 度走っているが、
             // POLEPOLE_TEST_LICENSE_FAKE_NOW で時計を変えた検証時にも反映させるため)。
             licenseStore.refreshFromDisk()
+            // トライアル残り 3 日以下のときに 1 セッション 1 回 toast。
+            licenseStore.emitStartupTrialReminderIfNeeded()
             // 週1 verify の発火 (issued_at から 7 日経過していれば走る)。
             // 通信が要るので背景タスクで投げる。失敗してもグレース 30 日に守られる。
             Task { await licenseStore.verifyIfNeeded() }

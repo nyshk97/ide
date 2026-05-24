@@ -63,7 +63,7 @@ struct PaywallView: View {
                 Divider()
 
                 VStack(alignment: .leading, spacing: 8) {
-                    Text("既にライセンスをお持ちの方")
+                    Text("ライセンスキーをお持ちの方")
                         .font(.headline)
                     TextField("メールアドレス", text: $email)
                         .textFieldStyle(.roundedBorder)
@@ -136,7 +136,7 @@ struct PaywallView: View {
 
     private var headline: String {
         switch licenseStore.state {
-        case .trialExpired: return "トライアル期間が終了しました"
+        case .trialExpired: return "14 日間のトライアルが終了しました"
         case .deactivated: return "ライセンスが無効化されました"
         default: return ""
         }

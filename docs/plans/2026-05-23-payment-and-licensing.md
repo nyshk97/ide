@@ -298,12 +298,12 @@ Phase 3 終了後の review で High 2 件 + Medium 2 件の指摘を受けた�
   - [x] PaywallView と LicenseSettingsView の両方から sheet を開く動線
 
 ### Phase 7: アプリ側 - 期限切れ / 起動ロック UX [AI🤖]
-- [ ] `PaywallView` の見た目を整える
-  - [ ] 「14 日間のトライアルが終了しました」 / 「ライセンスキーをお持ちの方」フォーム / 「購入する」ボタン (`polepole.dev` へリンク)
-  - [ ] サポート問い合わせリンク (`support@polepole.dev`)
-- [ ] 残日数 7 日以下からメニューバーに警告アイコン (静かなリマインド)
-- [ ] 残日数 3 日以下から起動時に 1 回トーストでリマインド
-- [ ] `ErrorBus.shared` で「ネットワークエラー時に再検証失敗、grace 残り N 日」を toast 表示
+- [x] `PaywallView` の見た目を整える
+  - [x] 「14 日間のトライアルが終了しました」 / 「ライセンスキーをお持ちの方」フォーム / 「購入する」ボタン (`polepole.dev` へリンク)
+  - [x] サポート問い合わせリンク (`support@polepole.dev`)
+- [x] 残日数 7 日以下からメニューバーに警告アイコン (静かなリマインド)。`LicenseMenuBarController` を新規追加し、3 日以下では数字併記 (` 2` 等) + tooltip
+- [x] 残日数 3 日以下から起動時に 1 回トーストでリマインド。`LicenseStore.emitStartupTrialReminderIfNeeded` を `ContentView.onAppear` から発火、`didEmitStartupTrialReminder` でセッション内 dedup
+- [x] `ErrorBus.shared` で「ネットワークエラー時に再検証失敗、grace 残り N 日」を toast 表示。grace 14 日以下で warning、4 日以下で error、それ以上は info
 
 ### Phase 8: メールテンプレ + 利用規約整備 [AI🤖 + 人間👨‍💻]
 - [ ] [AI🤖] Resend 用のメールテンプレ (HTML / プレーンテキスト両方)
@@ -335,6 +335,16 @@ Phase 3 終了後の review で High 2 件 + Medium 2 件の指摘を受けた�
 ## ログ
 
 ### 試したこと・わかったこと
+- **2026-05-24 Phase 7 完了**: 期限切れ / 起動ロック UX
+  - 新規: `LicenseMenuBarController.swift`。`NSStatusBar.system.statusItem` を `LicenseStore.shared.$state` を Combine 購読して show/hide。残 ≤7 日でアイコン (オレンジ三角)、残 ≤3 日で数字併記 (` 2`)、`.activated` / `.trialExpired` / `.deactivated` では非表示 (Paywall と重ねない)。`PolePoleApp.init` で `start()` を 1 回呼ぶ
+  - 追加: `LicenseStore.emitStartupTrialReminderIfNeeded` で残 ≤3 日の起動時に 1 回 ErrorBus.warning toast。`didEmitStartupTrialReminder` セッションフラグで重複防止 (ContentView.onAppear は再表示で複数回呼ばれる)
+  - 追加: `LicenseStore.emitGraceRemainingToast` を `verifyIfNeeded` の network/rate-limit catch 経路に挟む。grace 残り日数で kind を info → warning → error に切り替え
+  - 文言: PaywallView のヘッドラインを「14 日間のトライアルが終了しました」「ライセンスキーをお持ちの方」に微修正
+  - 動作確認: `mise run build` 成功 / 残 5 日 / 残 2 日 / 残 0 日 (trialExpired) で起動して `screencapture -R0,0,2880,40` でメニューバー領域を撮影。
+    - 残 5 日: menu bar 右側にオレンジ三角単体
+    - 残 2 日: menu bar に三角 + ` 2`、画面右下に「PolePole のトライアルは残り 2 日です。」warning toast
+    - 残 0 日: PaywallView が前面 + 「14 日間のトライアルが終了しました」見出し + menu bar アイコン非表示
+  - VERIFY.md に Section 35-H / 35-I 追加
 - **2026-05-23 Phase 6 完了**: アプリ側アクティベーション + ローカル検証を実装
   - 新規ファイル 6 本: `DeviceIdentifier.swift` / `LicenseClient.swift` / `ActivationTokenStore.swift` / `TokenVerifier.swift` / `DeviceSwapSheet.swift` / (拡張) `LicenseStore.swift`
   - 設計の要: 起動時に Keychain → token.json → TokenVerifier (Ed25519) → `issued_at + 30 日` で activated/deactivated 判定。`POLEPOLE_TEST_LICENSE_FAKE_NOW` で時計を上書きできる

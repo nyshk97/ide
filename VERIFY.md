@@ -1558,3 +1558,71 @@ curl -s -X POST http://127.0.0.1:8787/v1/license/activate -H "Content-Type: appl
 
 期待: 最後の呼び出しが HTTP 409 で `{"error":"device_limit","existing_devices":[{...}, {...}, {...}]}` を返す。UI からの sheet 表示・スワップ動作は手動で確認 (アプリの「アクティベート」ボタン押下 → DeviceSwapSheet が開いて 3 台が一覧表示 → 1 台選んで「選択したデバイスを外して、このマシンを追加」)。
 
+### 35-H. 残日数 7 日以下で menu bar 警告アイコン (Phase 7 / 半自動)
+
+```bash
+mise run build
+INSTALL_UNIX=$(date -u -j -f "%Y-%m-%dT%H:%M:%SZ" \
+  "$(cat "$HOME/Library/Application Support/polepole-dev/trial.json" | python3 -c 'import json,sys;print(json.load(sys.stdin)["installDate"])')" "+%s")
+FAKE_5=$((INSTALL_UNIX + 9*86400))   # 残 5 日
+FAKE_2=$((INSTALL_UNIX + 12*86400))  # 残 2 日
+
+# 残 5 日: menu bar に三角アイコン (オレンジ) 単体
+pkill -9 -f "PolePole Dev" || true
+sleep 1
+POLEPOLE_TEST_LICENSE_FAKE_NOW=$FAKE_5 \
+  "/tmp/polepole-build/Build/Products/Debug/PolePole Dev.app/Contents/MacOS/PolePole Dev" &
+sleep 4
+screencapture -x -R 0,0,2880,40 /tmp/v-menubar-5days.png
+
+# 残 2 日: menu bar に三角アイコン + "2" 数字併記 + 起動時トースト
+pkill -9 -f "PolePole Dev" || true
+sleep 1
+POLEPOLE_TEST_LICENSE_FAKE_NOW=$FAKE_2 \
+  "/tmp/polepole-build/Build/Products/Debug/PolePole Dev.app/Contents/MacOS/PolePole Dev" &
+sleep 4
+screencapture -x -R 0,0,2880,40 /tmp/v-menubar-2days.png
+./scripts/polepole-screenshot.sh /tmp/v-toast-2days.png
+```
+
+期待:
+- `v-menubar-5days.png` の menu bar 右側に `exclamationmark.triangle.fill` のオレンジアイコン (数字なし)
+- `v-menubar-2days.png` に同アイコン + ` 2` 数字併記
+- `v-toast-2days.png` の画面右下に「PolePole のトライアルは残り 2 日です。」warning 色トースト
+- 残日数 8 日以上 / trialExpired / activated ではアイコン非表示 (PaywallView と二重表示しないため)
+
+### 35-I. verify 失敗時の grace 残り toast (Phase 7 / 手動)
+
+```bash
+# backend を停止した状態で activated → verify を強制的に走らせる
+# 1) 35-E のステップで通常 activate 済み (token.json に有効 token がある)
+# 2) backend を止める
+pkill -f "wrangler dev" || true
+sleep 1
+
+# 3) verify は issued_at から 7 日経過したら走る。テスト時は token を手で作り変える
+#    のが面倒なので、`POLEPOLE_TEST_LICENSE_FAKE_NOW` で issued_at + 8 日 にセット
+TOKEN=$(python3 -c 'import json;print(json.load(open("'"$HOME"'/Library/Application Support/polepole-dev/token.json"))["token"])')
+ISSUED_AT=$(echo "$TOKEN" | cut -d. -f1 | python3 -c '
+import sys,base64,json
+b = sys.stdin.read().replace("-","+").replace("_","/")
+b += "=" * ((4 - len(b) % 4) % 4)
+print(json.loads(base64.b64decode(b))["issued_at"])
+')
+FAKE_NOW=$((ISSUED_AT + 8*86400))
+
+pkill -9 -f "PolePole Dev" || true
+sleep 1
+POLEPOLE_TEST_LICENSE_FAKE_NOW=$FAKE_NOW POLEPOLE_BACKEND_URL="http://127.0.0.1:8787" \
+  "/tmp/polepole-build/Build/Products/Debug/PolePole Dev.app/Contents/MacOS/PolePole Dev" &
+sleep 5  # verify が走るのを待つ (起動後すぐ ContentView.onAppear で verifyIfNeeded)
+./scripts/polepole-screenshot.sh /tmp/v-grace-toast.png
+grep "verify" "$HOME/Library/Logs/polepole-dev/polepole-dev-$(date -u +%Y-%m-%d).log" | tail -3
+```
+
+期待:
+- ログに `[license] verify temp failed: network(message: ...)` (backend 停止のため connection refused)
+- 画面右下に「ライセンスの再検証に失敗しました。あと NN 日でロックされます (ネットワーク要確認)」のトースト
+- grace 残り 22 日 (issued_at から 8 日経過 = 残 22 日) なので `.info` 色 (青) で表示
+- token は捨てられず、画面は `.activated` のまま (= 通常 3 カラム表示)
+

@@ -25,6 +25,10 @@ struct PolePoleApp: App {
         PreviewWebController.shared.prewarm()
         // クリップボード画像キャッシュの古いもの（1 日以上前）を掃除する。
         cleanupOldClipboardImages()
+        // トライアル残り 7 日以下で menu bar 警告アイコンを表示する。
+        MainActor.assumeIsolated {
+            LicenseMenuBarController.shared.start()
+        }
     }
 
     var body: some Scene {
