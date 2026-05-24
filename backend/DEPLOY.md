@@ -178,3 +178,34 @@ curl -s -o /dev/null -w "POST /stripe-webhook -> %{http_code}\n" -X POST https:/
 - [ ] 8. 本番購入 → activate → サポートメール確認
 
 すべて green になったら v1.0 launch。
+
+---
+
+## 付録: Stripe 操作の落とし穴 (2026-05-24 実地検証)
+
+### A. Promotion Code 作成時の API version 必須
+
+新版 Stripe API (Default Version、概ね 2024 年後半以降) では `POST /v1/promotion_codes` の `coupon` パラメータが `parameter_unknown` で reject される (確認: 2026-05-24 時点)。古い header を明示すれば動く。
+
+```bash
+# NG (新版 default だと unknown parameter)
+curl -X POST -u "$SK:" https://api.stripe.com/v1/promotion_codes -d coupon=...
+
+# OK
+curl -X POST -u "$SK:" -H "Stripe-Version: 2024-06-20" \
+  https://api.stripe.com/v1/promotion_codes -d coupon=...
+```
+
+`coupons` の作成や `payment_links` 作成・update では発生しない (`promotion_codes` 固有)。
+
+### B. stripe CLI の `retrieve / update / delete` が pipe で hang
+
+`stripe webhook_endpoints retrieve`, `update`, `delete` 等を `>` redirect / `tee` / `$(...)` で受けると hang or 空出力で返ってくる (stripe CLI v1.41 系)。`create` 系は redirect でも OK。CLI で取得できない値 (例: 既存 endpoint の signing secret 等) は **curl で `https://api.stripe.com/v1/...` を直接叩く**こと。
+
+### C. AI 自動入力で Stripe Checkout は突破不可
+
+agent-browser 等で test card を自動入力 + submit すると Stripe の **Agentic Commerce Protocol の Agent Disclosure** (Agent Identity Token = Verifiable Credential 要求) が発火して支払いに進めない。E2E テストでは **人間が手で「支払う」を押す**運用にする。代わりに API 経路 (`stripe webhook_endpoints create` / `stripe payment_links update` 等) は自動化できる。
+
+### D. Stripe Checkout の `amount_total` 厳密チェックはクーポンと両立しない
+
+`validateSession` で `session.amount_total === EXPECTED_AMOUNT` の厳密比較を行うと、Promotion Code 適用時に amount が減額 (100% off → 0、50% off → 5900) されて `amount_mismatch` で reject される。商品の正当性は `EXPECTED_PRICE_ID` + `EXPECTED_PAYMENT_LINK_ID` + Stripe 署名検証で担保するので amount 値の比較は不要。`amount_total === null || < 0` だけ defense-in-depth として残す。
