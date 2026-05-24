@@ -356,15 +356,16 @@ Phase 3 終了後の review で High 2 件 + Medium 2 件の指摘を受けた�
 ### Phase 9 D: Launch ready (KYC + Live mode + アプリ release) [人間👨‍💻 + AI🤖]
 **前提**: Stripe 本番アカウントの KYC + 銀行口座登録 + 特商法住所登録が完了していること。Phase 9 D は KYC 完了後にまとめて進める。
 
-- [ ] [人間👨‍💻] Stripe 本番アカウントで KYC + 銀行口座登録 + 特商法住所登録を完了
-- [ ] [人間👨‍💻] Stripe Live mode で Product / Price (¥11,800 JPY) / Payment Link (success_url=`https://polepole.dev/thanks?session_id={CHECKOUT_SESSION_ID}`, card only) を作成
-- [ ] [人間👨‍💻] Stripe Live mode で Webhook endpoint `https://polepole.dev/stripe-webhook` を作成 (events: `checkout.session.completed` / `refund.created` / `charge.refunded`)
-- [ ] [AI🤖] Sandbox 4 secret を Live 値に差し替え (`STRIPE_SECRET_KEY` / `STRIPE_WEBHOOK_SECRET` / `EXPECTED_PRICE_ID` / `EXPECTED_PAYMENT_LINK_ID`) + Workers 再デプロイ
-- [ ] [人間👨‍💻] 法的ページ確定版 (個人事業者氏名 / 住所 / 連絡先) を `backend/public/legal/tokushoho.html` に流し込む + 利用規約 / プライバシーポリシーの最終チェック (Phase 8 [人間] 残タスク)
-- [ ] [AI🤖] アプリ `project.yml` の `MARKETING_VERSION` を `1.1.0` (ライセンス機能初回 release) に bump + commit
-- [ ] [AI🤖 + 人間👨‍💻] `./scripts/release.sh 1.1.0` で archive + notarize + zip + Sparkle 署名 + GitHub Release 作成 (long-running, 10〜15 分)
-- [ ] [人間👨‍💻] `nyshk97/homebrew-tap/Casks/polepole.rb` の version / sha256 を bump して push
-- [ ] [人間👨‍💻] 本番 Stripe Live で実カードで自己購入 (¥11,800 自分払い) → メール受信 → アプリで activate → 通常使用可能 を確認
+- [x] [人間👨‍💻] Stripe 本番アカウントで KYC + 銀行口座登録 + 特商法住所登録を完了 — Stripe Dashboard で d0ne1s 本番アカウントが既に有効化済 (過去取引 ¥100 あり、pk_live_51TKCLj... が有効)
+- [x] [AI🤖] Stripe Live mode で Product / Price (¥11,800 JPY) / Payment Link (success_url=`https://polepole.dev/thanks?session_id={CHECKOUT_SESSION_ID}`, card only) を作成 — `prod_UZagDRsLsyDxK2` / `price_1TaRVKCoQVbco0xptyAFLkTd` / `plink_1TaRVLCoQVbco0xpIURhjjIp` (URL `https://buy.stripe.com/00w28q333cFyavN0pggrS00`)
+- [x] [AI🤖] Stripe Live mode で Webhook endpoint `https://polepole.dev/stripe-webhook` を作成 — `we_1TaRVMCoQVbco0xps3yNRauU` (events: checkout.session.completed / refund.created / charge.refunded)
+- [x] [AI🤖] Sandbox 4 secret を Live 値に差し替え (`STRIPE_SECRET_KEY` / `STRIPE_WEBHOOK_SECRET` / `EXPECTED_PRICE_ID` / `EXPECTED_PAYMENT_LINK_ID`) + Workers 再デプロイ
+- [x] [AI🤖] LP の購入ボタンを Live Payment Link URL に差し替え + 本番再デプロイ
+- [x] [人間👨‍💻 → AI🤖 が代行] 法的ページ確定版 — tokushoho.html の事業者名・運営責任者を `Tsubasa Namatame` に確定 (所在地・電話は「請求時開示」運用)、terms.html / privacy.html の draft-notice を削除
+- [x] [AI🤖] アプリ `project.yml` の `MARKETING_VERSION` を `1.0.2` → `1.1.0` に bump + commit (`c1330f6`)
+- [x] [AI🤖] `./scripts/release.sh 1.1.0` で archive + notarize (Accepted) + staple + zip + Sparkle EdDSA 署名 + GitHub Release 作成 → https://github.com/nyshk97/polepole-releases/releases/tag/v1.1.0 / SHA256 `7d7d4658383df75d7e4825105015b81bbc8a3e00006c06686f8ed192eb5d6ca7` / appcast.xml 自動更新
+- [x] [AI🤖] `nyshk97/homebrew-tap/Casks/polepole.rb` の version / sha256 を bump して push (commit `0603e9d`)、`brew info` で 1.1.0 認識を確認
+- [ ] [人間👨‍💻] 本番 Stripe Live で実カードで自己購入 (¥11,800 自分払い、実質手数料 3.6%+¥40 が損失) → メール受信 → アプリで activate → 通常使用可能 を確認
 - [ ] [人間👨‍💻] `support@polepole.dev` 宛にテストメール送信 → 受信できることを確認
 - [ ] [人間👨‍💻] (Optional) Resend で DMARC レコード (`TXT _dmarc v=DMARC1; p=none;`) を Cloudflare DNS に追加 — メール到達率改善
 
@@ -381,6 +382,19 @@ Phase 3 終了後の review で High 2 件 + Medium 2 件の指摘を受けた�
 ## ログ
 
 ### 試したこと・わかったこと
+- **2026-05-24 Phase 9 D (Launch ready AI 担当分) 完了**: KYC 完了済の本番 Stripe アカウントで Live 化を一気通貫
+  - **意外な発見**: Stripe 本番アカウント `d0ne1s` は既に KYC + 銀行口座登録完了済 (過去 ¥100 の取引履歴あり)。Phase 9 D の前提条件 (1〜2 営業日待ち) はゼロで通過
+  - Live mode 新規 secret key を「**シークレットキーを作成 → 構築した連携を強化**」で発行 (既存の `sk_live_...45dx` は full reveal できない仕様)、 `/tmp/sk_live.txt` に保存 → AI が CLI 経由で:
+    - `stripe products create` → `prod_UZagDRsLsyDxK2`
+    - `stripe prices create` (¥11,800 JPY) → `price_1TaRVKCoQVbco0xptyAFLkTd`
+    - `stripe payment_links create` (card only, success_url=`https://polepole.dev/thanks?session_id={CHECKOUT_SESSION_ID}`) → `plink_1TaRVLCoQVbco0xpIURhjjIp` / URL `https://buy.stripe.com/00w28q333cFyavN0pggrS00`
+    - `stripe webhook_endpoints create` (3 events) → `we_1TaRVMCoQVbco0xps3yNRauU` / 新 whsec_ を取得
+  - Workers の 4 secret を Sandbox から Live 値に上書き + `wrangler deploy --env production` で再展開 (Version ID `a0fdf6e7-...`)
+  - LP `backend/public/index.html` の購入ボタン URL を Sandbox placeholder から Live Payment Link URL に差し替え + 本番再デプロイ
+  - 法的 3 ページの確定版を投入: tokushoho の販売事業者 / 運営責任者を `Tsubasa Namatame` に確定、所在地と電話は「ご請求があった場合、遅滞なく開示します」運用を維持。terms / privacy の draft-notice を削除
+  - `project.yml` の `MARKETING_VERSION` を 1.0.2 → 1.1.0 に bump、`./scripts/release.sh 1.1.0` を 1 発で archive + notarize + staple + zip + Sparkle 署名 + appcast 累積更新 + GitHub Release 作成。所要時間およそ 5 分。SHA256 `7d7d4658383df75d7e4825105015b81bbc8a3e00006c06686f8ed192eb5d6ca7`
+  - `nyshk97/homebrew-tap/Casks/polepole.rb` を `/tmp` に clone → version/sha256 を bump → push → cleanup (一時 clone を `rm -rf`) も全部 AI で完結。CLAUDE.md の trash 系 rm の罠は `/tmp` 配下なので問題なし。`brew info --cask nyshk97/tap/polepole` で 1.1.0 を認識
+  - 残: 実カードで本番購入確認 / `support@polepole.dev` のメール受信確認 / (Optional) DMARC
 - **2026-05-24 鍵入れ替え動作確認**: 本番 EdDSA 公開鍵 (`Resources/License/license-pubkey.pem`) をアプリにバンドルした後、Sandbox 鍵で署名された token がローカル DBG ビルドで `signatureInvalid` として拒否され、`ActivationTokenStore.clear()` 経路でトライアル復帰することを確認 (`[license] token verify failed: signatureInvalid. falling back to trial path` → `state = trial(14 days left)`)。本番アプリ (release 1.1.0) は本番 Workers の token と pair で動作する設計通り
 - **2026-05-24 Resend `polepole.dev` 検証完了**: Cloudflare DNS Auto configure 経由で追加した DKIM/SPF/MX が Amazon SES 側で verified に。Resend Dashboard の status が緑になり、本番メール送信パスが整った
 - **2026-05-24 Phase 9 C 本番デプロイ完了 (Sandbox Stripe で先行)**:
