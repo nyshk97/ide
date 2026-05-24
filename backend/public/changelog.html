@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>更新情報 — PolePole</title>
+  <meta name="description" content="PolePole のリリース履歴。新機能・改善・修正の一覧。">
+  <meta property="og:title" content="更新情報 — PolePole">
+  <meta property="og:description" content="PolePole のリリース履歴。新機能・改善・修正の一覧。">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://polepole.dev/changelog">
+  <link rel="canonical" href="https://polepole.dev/changelog">
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <header class="site-header">
+    <div class="container">
+      <a href="/" class="logo">PolePole</a>
+      <nav class="site-nav">
+        <a href="/#features">特徴</a>
+        <a href="/#pricing">価格</a>
+        <a href="/#download">ダウンロード</a>
+        <a href="/changelog" class="nav-active">更新情報</a>
+        <span class="lang-switch">
+          <span class="lang-current">JA</span>
+          <span class="lang-divider">·</span>
+          <a href="/en/changelog" class="lang-link">EN</a>
+        </span>
+      </nav>
+    </div>
+  </header>
+
+  <main class="changelog-page">
+    <div class="container">
+      <h1>更新情報</h1>
+      <p class="changelog-intro">PolePole の最新リリースと変更履歴です。</p>
+      <p class="changelog-sparkle-note">アプリ内の「PolePole → Check for Updates…」から自動アップデートを受け取れます。</p>
+
+      <div class="cl-timeline">
+      <article class="cl-release cl-unreleased">
+        <header class="cl-release-header">
+          <span class="cl-version">Unreleased</span>
+          
+        </header>
+        <div class="cl-category">
+          <h3 class="cl-cat-title">✨ Added</h3>
+          <ul>
+            <li>ライセンス購入フローを追加。14 日無料トライアル → Stripe で決済 → メールで届くライセンスキーでアクティベーション</li>
+            <li>トライアル期限切れ後の起動ロック画面を追加。期限切れ後はライセンスを入れるまで起動できない</li>
+            <li>公式サイト <a href="https://polepole.dev">polepole.dev</a> を公開 (LP + プライバシーポリシー + 利用規約 + 特定商取引法)</li>
+            <li>問い合わせフォームを公式サイトに追加 (HyperForm 連携)</li>
+            <li>公式サイトを英語対応 (現時点では <code>/en/</code> 配下はスタブ + 言語スイッチ。本翻訳は近日)</li>
+          </ul>
+        </div>
+        <div class="cl-category">
+          <h3 class="cl-cat-title">📝 Changed</h3>
+          <ul>
+            <li>LP の hero CTA を「無料で試す」+「価格を見る」に整理。購入ボタンも「ライセンスを購入する」に統一</li>
+          </ul>
+        </div>
+      </article>
+      <article class="cl-release">
+        <header class="cl-release-header">
+          <span class="cl-version">v1.0.0</span>
+          <time class="cl-date">2026-05-23</time>
+        </header>
+        <div class="cl-category">
+          <h3 class="cl-cat-title">📝 Changed</h3>
+          <ul>
+            <li><code>ide</code> から <strong>PolePole</strong> にリブランド (これ以前は <code>ide</code> という名前で内部開発)。Bundle ID は <code>local.d0ne1s.polepole</code> (Debug ビルドは <code>.dev</code> suffix)</li>
+            <li>アプリアイコンを刷新 (青グラデ背景に象のアイコン)</li>
+          </ul>
+        </div>
+      </article>
+      </div>
+    </div>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container">
+      <div>
+        <a href="/legal/terms">利用規約</a>
+        <a href="/legal/privacy">プライバシーポリシー</a>
+        <a href="/legal/tokushoho">特定商取引法に基づく表記</a>
+        <a href="/contact">お問い合わせ</a>
+      </div>
+      <div class="lang-switch">
+        <span class="lang-current">JA</span>
+        <span class="lang-divider">·</span>
+        <a href="/en/changelog" class="lang-link">EN</a>
+      </div>
+      <div class="copy">© 2026 PolePole</div>
+    </div>
+  </footer>
+</body>
+</html>

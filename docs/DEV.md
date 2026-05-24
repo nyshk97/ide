@@ -33,7 +33,11 @@
 ## リリース
 
 1. `project.yml` の `MARKETING_VERSION` を bump → コミット（`fix:` 系とは別に `chore: バージョンを X に bump`）。`CURRENT_PROJECT_VERSION` は `$(MARKETING_VERSION)` で連動するので bump 不要
-2. `scripts/release.sh <version>` — Release ビルド（Developer ID 署名 + notarize + staple）→ `git push origin main` → **2 つの repo に release を作成**:
+2. `scripts/release.sh <version>` を実行
+   - **CHANGELOG 編集の pause** が入る。直近 commit を出すので、それを参考に `docs/CHANGELOG.md` の `[Unreleased]` セクションを埋める（各項目は `- ja: ...` / `- en: ...` のペア。ユーザー目視で気づく変更だけ）
+   - Enter で続行すると release.sh が `[Unreleased]` → `[<version>] - <date>` にリネームして commit
+   - 該当 section を抜き出して GitHub Release notes (ja/en 両方の md) と Sparkle appcast の `<description>` (ja のみの HTML) を自動生成 → release/feed に投入
+   - 同時に Release ビルド（Developer ID 署名 + notarize + staple）→ `git push origin main` → **2 つの repo に release を作成**:
    - `nyshk97/ide` — 既存どおり zip を asset として上げる（homebrew cask の URL 互換）
    - `nyshk97/polepole-releases` — Sparkle 配信用。zip + `appcast.xml` を上げる
 3. release.sh が `sign_update` で zip を **EdDSA 署名** し、過去の `appcast.xml` を取得 → 新 `<item>` を `</channel>` 直前に挿入してアップロードする（累積）

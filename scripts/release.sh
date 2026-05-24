@@ -37,6 +37,115 @@ fi
 
 VERSION="$1"
 TAG="v$VERSION"
+CHANGELOG="$PROJECT_ROOT/docs/CHANGELOG.md"
+RELEASE_NOTES_MD="$PROJECT_ROOT/build/release-notes-${VERSION}.md"
+SPARKLE_DESC_HTML="$PROJECT_ROOT/build/sparkle-description-${VERSION}.html"
+mkdir -p "$PROJECT_ROOT/build"
+
+# === Step 1: changelog edit pause ===
+# release.sh は CHANGELOG.md の [Unreleased] section をリリースノートとして使う。
+# 起動時に直近 commit を出して「[Unreleased] を埋めてから Enter」で待つ。
+# 編集は AI に任せても手で書いてもよい。
+if [ ! -f "$CHANGELOG" ]; then
+  echo "ERROR: $CHANGELOG が見つかりません"
+  exit 1
+fi
+if ! grep -q "^## \[Unreleased\]" "$CHANGELOG"; then
+  echo "ERROR: docs/CHANGELOG.md に '## [Unreleased]' セクションがありません"
+  exit 1
+fi
+
+# 直前リリースの version を CHANGELOG.md から拾う ([Unreleased] の次の ## [X.Y.Z])
+LAST_VERSION=$(awk '/^## \[Unreleased\]/{f=1; next} f && /^## \[([^]]+)\]/{match($0, /\[([^]]+)\]/); print substr($0, RSTART+1, RLENGTH-2); exit}' "$CHANGELOG")
+if [ -n "$LAST_VERSION" ] && git rev-parse "v${LAST_VERSION}" >/dev/null 2>&1; then
+  echo ""
+  echo "==> 前回リリース v${LAST_VERSION} 以降の commit:"
+  git log "v${LAST_VERSION}..HEAD" --pretty=format:"  %h %s" | head -100
+  echo ""
+else
+  echo ""
+  echo "==> 直近 30 commit (CHANGELOG から前回リリースタグを特定できず):"
+  git log -30 --pretty=format:"  %h %s"
+  echo ""
+fi
+echo ""
+echo "↑ これを参考に $CHANGELOG の [Unreleased] セクションを埋めてください:"
+echo "    - ユーザー目視で気づく変更だけ書く (内部リファクタ・ドキュメント変更は除く)"
+echo "    - 各項目は '- ja: ...' と '- en: ...' のペアで書く"
+echo "    - カテゴリは ✨ Added / 📝 Changed / 🐛 Fixed / 🗑️ Removed / 🔒 Security / ⚠️ Deprecated"
+echo ""
+read -r -p "  編集が終わったら Enter で続行 (Ctrl+C で中断): " _
+
+# === Step 2: [Unreleased] → [<version>] - <today> 書き換え + commit ===
+TODAY=$(date +%Y-%m-%d)
+python3 - "$CHANGELOG" "$VERSION" "$TODAY" <<'PY'
+import sys, re, pathlib
+path = pathlib.Path(sys.argv[1])
+version, date = sys.argv[2], sys.argv[3]
+text = path.read_text()
+new = re.sub(
+    r"^## \[Unreleased\]\s*$",
+    f"## [Unreleased]\n\n## [{version}] - {date}",
+    text, count=1, flags=re.M,
+)
+if new == text:
+    sys.exit("ERROR: [Unreleased] を書き換えられませんでした")
+path.write_text(new)
+print(f"  CHANGELOG.md: [Unreleased] の下に [{version}] - {date} を挿入")
+PY
+
+if ! git diff --quiet "$CHANGELOG"; then
+  git add "$CHANGELOG"
+  git commit -m "docs(changelog): release ${VERSION}"
+  echo "  CHANGELOG.md を commit (release ${VERSION})"
+fi
+
+# === Step 3: 該当 section から release notes (md) と Sparkle description (HTML) を生成 ===
+python3 - "$CHANGELOG" "$VERSION" "$RELEASE_NOTES_MD" "$SPARKLE_DESC_HTML" <<'PY'
+import sys, re, pathlib
+md_path = pathlib.Path(sys.argv[1])
+version = sys.argv[2]
+notes_path = pathlib.Path(sys.argv[3])
+desc_path = pathlib.Path(sys.argv[4])
+md = md_path.read_text()
+pattern = re.compile(rf"^## \[{re.escape(version)}\][^\n]*\n(.*?)(?=^## \[|\Z)", re.S | re.M)
+m = pattern.search(md)
+if not m:
+    sys.exit(f"ERROR: CHANGELOG から [{version}] section を抽出できません")
+body = m.group(1).strip()
+
+# --- release notes (markdown, ja/en 両方そのまま) ---
+notes = f"# PolePole {version}\n\n{body}\n"
+notes_path.write_text(notes)
+print(f"  Wrote {notes_path}")
+
+# --- Sparkle description (HTML, ja のみ抽出) ---
+def inline(text):
+    text = text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+    text = re.sub(r"`([^`]+)`", r"<code>\1</code>", text)
+    text = re.sub(r"\*\*([^*]+)\*\*", r"<strong>\1</strong>", text)
+    text = re.sub(r"\[([^\]]+)\]\(([^)\s]+)\)", r'<a href="\2">\1</a>', text)
+    return text
+
+html = ['<style>body{font:-apple-system-body;color:#1d1d1f;line-height:1.5}h3{font-size:14px;margin:16px 0 6px}ul{margin:0;padding-left:20px}li{margin:3px 0}code{background:#f5f5f7;padding:1px 5px;border-radius:3px;font-size:90%}</style>']
+in_ul = False
+for line in body.split("\n"):
+    line = line.rstrip()
+    if line.startswith("### "):
+        if in_ul:
+            html.append("</ul>"); in_ul = False
+        html.append(f"<h3>{inline(line[4:])}</h3>")
+    elif line.startswith("- ja:"):
+        if not in_ul:
+            html.append("<ul>"); in_ul = True
+        html.append(f"<li>{inline(line[5:].strip())}</li>")
+    elif line.startswith("- en:"):
+        continue  # Sparkle JP のみ (将来 EN appcast を別途出すなら追加)
+if in_ul:
+    html.append("</ul>")
+desc_path.write_text("\n".join(html))
+print(f"  Wrote {desc_path}")
+PY
 
 echo "==> Running fresh build (always rebuild to avoid uploading stale zip)..."
 "$SCRIPT_DIR/build.sh"
@@ -109,12 +218,16 @@ else
 EOF
 fi
 
+DESC_BODY=$(cat "$SPARKLE_DESC_HTML")
 NEW_ITEM="    <item>
       <title>${SHORT_VERSION}</title>
       <pubDate>${PUB_DATE}</pubDate>
       <sparkle:version>${BUNDLE_VERSION}</sparkle:version>
       <sparkle:shortVersionString>${SHORT_VERSION}</sparkle:shortVersionString>
       <sparkle:minimumSystemVersion>${MIN_OS}</sparkle:minimumSystemVersion>
+      <description><![CDATA[
+${DESC_BODY}
+]]></description>
       <enclosure
         url=\"${DOWNLOAD_URL}\"
         sparkle:edSignature=\"${ED_SIG}\"
@@ -151,7 +264,7 @@ gh release create "$TAG" \
   "$APPCAST_PATH" \
   --repo "${RELEASES_REPO}" \
   --title "$TAG" \
-  --notes "polepole $VERSION"
+  --notes-file "$RELEASE_NOTES_MD"
 
 SHA256=$(shasum -a 256 "$ZIP_PATH" | awk '{print $1}')
 echo ""

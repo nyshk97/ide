@@ -398,6 +398,134 @@ footer.site-footer .lang-switch .lang-divider {
   margin: 0;
 }
 
+/* ===== Changelog ===== */
+.site-nav a.nav-active {
+  color: var(--text);
+  font-weight: 500;
+}
+.changelog-page {
+  padding: 64px 0 96px;
+}
+.changelog-page h1 {
+  font-size: 36px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  margin: 0 0 12px;
+}
+.changelog-page .changelog-intro {
+  font-size: 16px;
+  color: var(--text-muted);
+  margin: 0 0 6px;
+}
+.changelog-page .changelog-sparkle-note {
+  font-size: 13px;
+  color: var(--text-muted);
+  margin: 0 0 48px;
+}
+.cl-timeline {
+  display: flex;
+  flex-direction: column;
+  gap: 48px;
+  border-left: 2px solid var(--border);
+  padding-left: 32px;
+  margin-left: 8px;
+}
+.cl-release {
+  position: relative;
+}
+.cl-release::before {
+  content: "";
+  position: absolute;
+  left: -41px;
+  top: 10px;
+  width: 12px;
+  height: 12px;
+  background: var(--accent);
+  border: 2px solid var(--bg);
+  border-radius: 50%;
+}
+.cl-release.cl-unreleased::before {
+  background: var(--bg);
+  border: 2px solid var(--accent);
+}
+.cl-release-header {
+  display: flex;
+  align-items: baseline;
+  gap: 16px;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+}
+.cl-version {
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  padding: 2px 12px;
+  background: var(--bg-elevated);
+  border-radius: 980px;
+  color: var(--text);
+}
+.cl-unreleased .cl-version {
+  background: transparent;
+  border: 1px dashed var(--text-muted);
+  color: var(--text-muted);
+}
+.cl-date {
+  font-size: 14px;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+.cl-category {
+  margin-bottom: 20px;
+}
+.cl-category:last-child {
+  margin-bottom: 0;
+}
+.cl-cat-title {
+  font-size: 15px;
+  font-weight: 600;
+  margin: 0 0 8px;
+  color: var(--text);
+  letter-spacing: -0.005em;
+}
+.cl-category ul {
+  margin: 0;
+  padding-left: 22px;
+  list-style: none;
+}
+.cl-category li {
+  position: relative;
+  padding: 4px 0;
+  font-size: 15px;
+  line-height: 1.55;
+}
+.cl-category li::before {
+  content: "›";
+  position: absolute;
+  left: -16px;
+  color: var(--text-muted);
+}
+.cl-category li code {
+  background: var(--bg-elevated);
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-size: 13px;
+  font-family: ui-monospace, "SF Mono", SFMono-Regular, monospace;
+}
+.cl-empty {
+  font-size: 14px;
+  color: var(--text-muted);
+  font-style: italic;
+  margin: 8px 0 0;
+}
+
+@media (max-width: 640px) {
+  .changelog-page { padding: 48px 0 64px; }
+  .changelog-page h1 { font-size: 28px; }
+  .cl-timeline { gap: 36px; padding-left: 24px; margin-left: 4px; }
+  .cl-release::before { left: -33px; }
+  .cl-version { font-size: 18px; }
+}
+
 /* ===== Mobile ===== */
 @media (max-width: 640px) {
   .hero { padding: 64px 0 48px; }

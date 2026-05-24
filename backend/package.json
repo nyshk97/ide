@@ -5,6 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "wrangler dev --local --persist-to .wrangler/state",
+    "build:changelog": "node scripts/build-changelog.mjs",
+    "predeploy": "pnpm build:changelog",
     "deploy": "wrangler deploy",
     "test": "vitest run",
     "test:watch": "vitest",

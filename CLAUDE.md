@@ -133,6 +133,33 @@ MRU の確定タイミング（修飾キーの release）は `ShortcutsStore.sho
 
 ---
 
+## リリースノート (CHANGELOG)
+
+ユーザー目視で気づくレベルの変更は `docs/CHANGELOG.md` の `[Unreleased]` セクションに残す。基本は **リリース時** に AI が `release.sh` の pause 中に git log を見て一括で書く運用なので、日々のコミットでは追記しなくて良い。
+
+書く形式:
+
+```markdown
+### ✨ Added
+- ja: 機能 A を追加
+- en: Added feature A
+```
+
+- 各項目は **必ず `- ja:` と `- en:` のペア** で書く（`backend/scripts/build-changelog.mjs` が prefix で振り分けて `/changelog` と `/en/changelog` を生成する）
+- カテゴリは `✨ Added` / `📝 Changed` / `🐛 Fixed` / `🗑️ Removed` / `🔒 Security` / `⚠️ Deprecated` から選ぶ
+- 内部リファクタ / docs-only / CI 調整は **書かない**
+- 詳しい運用は [docs/CHANGELOG.md](./docs/CHANGELOG.md) の冒頭 "書き方" セクション参照
+
+`scripts/release.sh <version>` が走ると以下が自動で起きる:
+
+1. 直近 commit を表示して pause → AI/人間が `[Unreleased]` を埋める
+2. `[Unreleased]` → `[<version>] - <date>` にリネーム + commit
+3. 該当 section を抜き出して GitHub Release notes (md, ja/en 両方) と Sparkle appcast の `<description>` (HTML, ja のみ) を生成 → release / feed に注入
+
+公式サイトの `/changelog` `/en/changelog` は `pnpm build:changelog` (= `node backend/scripts/build-changelog.mjs`) で再生成する。`wrangler deploy` の `predeploy` フックに入っているので、デプロイすれば自動で最新になる。
+
+---
+
 ## 計画と実装の進め方
 
 新しい大きなタスクのときは:
@@ -158,6 +185,7 @@ MRU の確定タイミング（修飾キーの release）は `ShortcutsStore.sho
 | `docs/DEV.md` | 開発時の手順・落とし穴 |
 | `docs/BACKLOG.md` | 残タスク・将来アイデア（優先度別） |
 | `docs/COMMERCIALIZATION.md` | 商用化（有償配布）に向けた MUST / SHOULD / NICE とオープン論点 |
+| `docs/CHANGELOG.md` | リリースノートの source-of-truth（Keep a Changelog 形式、ja/en 並列）。公式サイト `/changelog` `/en/changelog` と Sparkle appcast description / GitHub Release notes の元になる |
 | `docs/plans/*.md` | フェーズ単位の実装計画（PolePole リネーム前の `ide` 名義の plan も歴史保存） |
 
 新しい知見が出たら適切な場所に書き戻す。`docs/plans/` のログにも方針変更は残す。
