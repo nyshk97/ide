@@ -319,11 +319,13 @@ Phase 3 終了後の review で High 2 件 + Medium 2 件の指摘を受けた�
 - [ ] サ終時用に EdDSA 秘密鍵を Dropbox dotfiles 配下に保管 (Sparkle 鍵と同じ運用)
 
 ### Phase 9: E2E テスト + 本番デプロイ [AI🤖 + 人間👨‍💻]
-- [ ] [AI🤖] Stripe Test mode で End-to-End: 購入 → メール受信 → アクティベート → デバイス確認 → 別マシンで activate → 4 台目で上限超過ダイアログ確認
-- [ ] [AI🤖] オフライン耐性: 認証成功後にネットワーク遮断 → 30 日経過シミュレーション (TimeMachine で時計を動かす or `POLEPOLE_TEST_LICENSE_FAKE_NOW` 環境変数を仕込む)
-- [ ] [AI🤖] リファンドテスト: Stripe Dashboard で test mode の refund 実行 → アプリが次回 verify でロックされる
-- [ ] [人間👨‍💻] 本番 Stripe で実カードで自己購入してフロー全体を確認 (¥11,800 自分払い)
-- [ ] [人間👨‍💻] サポートメール受信確認 (`support@polepole.dev`)
+- [x] [AI🤖] **A-1 アプリ起動 E2E**: D1 seed → `/v1/license/activate` → token.json → アプリ起動 → `[license] state = activated (expires in 29 days)` を確認 + screenshot で Paywall 非表示の通常 3 カラム表示
+- [x] [AI🤖] **A-2 オフライン耐性**: A-1 続きで backend 停止 → `POLEPOLE_TEST_LICENSE_FAKE_NOW=issued_at+8d` で起動 → verify 失敗で grace 残り 22 日 toast (info 色) → 続いて `=issued_at+31d` で起動 → `[license] token expired ... -> deactivated` + Paywall「ライセンスが無効化されました」
+- [x] [AI🤖] **A-3 device_limit**: D1 で device を全消し → curl で 3 台 activate → 4 台目 (実 device hash) で `HTTP 409 {"error":"device_limit","existing_devices":[…3件…]}` を確認
+- [x] [AI🤖] **A-4 refund 連動**: clean state → activate → token.json → D1 で `license.status='refunded'` に UPDATE → `POLEPOLE_TEST_LICENSE_FAKE_NOW=issued_at+8d` で起動 → verify 経路で server から `licenseRefunded` を受領 → `[license] verify rejected, clearing token` → token.json と Keychain から token が消され `[license] state = trial(14 days left)` でトライアル経路に戻る
+- [ ] [AI🤖] **Stripe Test mode の webhook E2E** (`stripe trigger` 経由) — Phase 9 後半 (B) に分割。`stripe trigger` は line_items を上書きできず `validateSession` で reject されるため、`stripe listen --forward-to localhost:8787/stripe-webhook` + 実 test card で UI 経由購入で確認する
+- [ ] [人間👨‍💻] 本番 Stripe で実カードで自己購入してフロー全体を確認 (¥11,800 自分払い) — **launch 前**
+- [ ] [人間👨‍💻] サポートメール受信確認 (`support@polepole.dev`) — **launch 前**
 
 ### 動作確認 [人間👨‍💻]
 - [ ] 新規 macOS ユーザーアカウントで PolePole.app を起動 → トライアル開始 → 14 日後ロックを `POLEPOLE_TEST_LICENSE_FAKE_NOW` で確認
@@ -335,6 +337,13 @@ Phase 3 終了後の review で High 2 件 + Medium 2 件の指摘を受けた�
 ## ログ
 
 ### 試したこと・わかったこと
+- **2026-05-24 Phase 9 (AI 担当分 = A-1〜A-4) 完了**: ローカル D1 + curl seed で E2E を 1 通し確認
+  - A-1: clean state → backend pnpm dev → D1 seed → `/v1/license/activate` で実 `IOPlatformExpertDevice` device hash で activate → token.json に token を書く → アプリ起動 → ログに `state = activated (expires in 29 days)` + Paywall 非表示
+  - A-2: backend を kill → `POLEPOLE_TEST_LICENSE_FAKE_NOW=issued_at+8d` で起動 → ContentView.onAppear から verifyIfNeeded が走り connection refused → ErrorBus に info toast「ライセンスの再検証に失敗しました。あと 22 日でロックされます」が右下に出る (screenshot 取得済)。続いて `issued_at+31d` で起動 → `state.deactivated` + Paywall「ライセンスが無効化されました / 30 日以上オンライン検証ができなかったため、ロックされました」表示
+  - A-3: D1 で device を全消し → curl で 3 台分 activate → 4 台目 (実 device hash) で `HTTP 409 {"error":"device_limit","existing_devices":[…3件…]}` が返る
+  - A-4: clean state → activate → license.status を `'refunded'` に UPDATE → `FAKE_NOW=issued_at+8d` で起動 → verify が走り server が `LicenseClientError.licenseRefunded` を返す → LicenseStore.verifyIfNeeded の reject catch で `ActivationTokenStore.clear()` → トライアル経路に戻り `state = trial(14 days left)`
+  - **罠の記録**: A-4 の最初の試行で `[license] keychain vs token.json mismatch, using keychain` ログが出て古い token が拾われた。原因: 前 A シナリオで書いた Keychain `activation-token` と `last-observed-now` が残ったまま、token.json だけ新しい値で上書きしていた。clean state には Keychain 3 entry (`trial-install-date` / `activation-token` / `last-observed-now`) + Application Support 2 file (`trial.json` / `token.json`) を全部消す必要がある。VERIFY 38-A の冒頭にこの手順を明記
+  - 残: webhook E2E (`stripe trigger`) は `validateSession` で reject される構造的問題があるので Phase 9 後半 (Stripe CLI listen + 実 test card UI 購入) に分割。本番デプロイ手前のフィクスチャ作成を兼ねる
 - **2026-05-24 Phase 8 (AI 担当分) 完了**: Resend 用メールテンプレ 3 種を集約
   - 新規: `backend/src/lib/email-templates.ts`
     - `buildLicenseKeyEmail(license)` — 件名「【PolePole】ご購入ありがとうございます — ライセンスキーをお届けします」。fulfillment.ts から呼ばれる

@@ -1725,5 +1725,141 @@ pkill -f "wrangler" || true
 - HTTP レスポンス: `{"status":"ok"}`
 - ログに `[resend disabled] would send to=test@example.com subject="【PolePole】ライセンスキーの再送"` (購入直後の subject ではなく再送 subject が選ばれていることを確認)
 
+## 38. Phase 9 E2E (AI 単独で完結する範囲)
+
+35-E〜G 同等の手順だが、A-1 → A-2 → A-3 → A-4 を 1 セッションで通して通すための統合シナリオ。
+
+### 38 共通: clean state にする
+
+**重要**: 残骸 Keychain entry を消し忘れると `[license] keychain vs token.json mismatch, using keychain` で前テストの token が拾われ、`last-observed-now` の時計巻き戻し対策と相まって本来 valid な token も expired 扱いされる。Keychain 3 entry と Application Support 2 file をすべて消す:
+
+```bash
+pkill -9 -f "PolePole Dev" || true
+pkill -f "wrangler" || true
+sleep 1
+security delete-generic-password -s "local.d0ne1s.polepole.dev" -a "trial-install-date" 2>/dev/null
+security delete-generic-password -s "local.d0ne1s.polepole.dev" -a "activation-token"   2>/dev/null
+security delete-generic-password -s "local.d0ne1s.polepole.dev" -a "last-observed-now"  2>/dev/null
+rm -f "$HOME/Library/Application Support/polepole-dev/trial.json"
+rm -f "$HOME/Library/Application Support/polepole-dev/token.json"
+```
+
+### 38-A. アプリ起動 E2E (D1 seed → activate → activated)
+
+```bash
+cd backend && pnpm dev >/tmp/wrangler-phase9.log 2>&1 &
+sleep 4
+curl -s http://localhost:8787/healthz
+
+TEST_KEY="polepole-PHA9-TEST-EFGH-JKMN"
+TEST_EMAIL="phase9@example.com"
+pnpm exec wrangler d1 execute polepole-licenses --local --persist-to .wrangler/state \
+  --command "DELETE FROM device WHERE license_id = '$TEST_KEY'; DELETE FROM license WHERE id = '$TEST_KEY'; INSERT INTO license (id, email, stripe_session_id, stripe_payment_intent_id, amount, currency, status, created_at, updated_at, email_sent_at) VALUES ('$TEST_KEY', '$TEST_EMAIL', 'cs_phase9', 'pi_phase9', 11800, 'jpy', 'active', $(date +%s), $(date +%s), $(date +%s));"
+
+REAL_DEVICE_HASH=$(/usr/bin/swift - <<'SWIFT'
+import IOKit; import CryptoKit; import Foundation
+let s = IOServiceGetMatchingService(kIOMainPortDefault, IOServiceMatching("IOPlatformExpertDevice"))
+let cf = IORegistryEntryCreateCFProperty(s, kIOPlatformUUIDKey as CFString, kCFAllocatorDefault, 0)
+IOObjectRelease(s)
+let uuid = (cf?.takeRetainedValue() as? String) ?? ""
+print(SHA256.hash(data: Data(uuid.utf8)).map { String(format: "%02x", $0) }.joined())
+SWIFT
+)
+RESPONSE=$(curl -s -X POST http://localhost:8787/v1/license/activate -H "Content-Type: application/json" \
+  -d "{\"key\":\"$TEST_KEY\",\"email\":\"$TEST_EMAIL\",\"device_hash\":\"$REAL_DEVICE_HASH\",\"device_name\":\"polepole-phase9\",\"app_version\":\"1.0.0\"}")
+TOKEN=$(echo "$RESPONSE" | python3 -c 'import json,sys;print(json.load(sys.stdin)["token"])')
+mkdir -p "$HOME/Library/Application Support/polepole-dev"
+python3 -c "import json; print(json.dumps({'token':'$TOKEN'}))" > "$HOME/Library/Application Support/polepole-dev/token.json"
+ISSUED_AT=$(echo "$TOKEN" | cut -d. -f1 | python3 -c 'import sys,base64,json;b=sys.stdin.read().replace("-","+").replace("_","/");b+="="*((4-len(b)%4)%4);print(json.loads(base64.b64decode(b))["issued_at"])')
+
+POLEPOLE_BACKEND_URL="http://127.0.0.1:8787" \
+  "/tmp/polepole-build/Build/Products/Debug/PolePole Dev.app/Contents/MacOS/PolePole Dev" &
+sleep 4
+grep "license" "$HOME/Library/Logs/polepole-dev/polepole-dev-$(date -u +%Y-%m-%d).log" | tail -2
+./scripts/polepole-screenshot.sh /tmp/v-phase9-activated.png
+```
+
+期待: ログに `[license] state = activated (expires in 29 days)`、screenshot で Paywall 非表示の通常 3 カラム表示。
+
+### 38-B. オフライン耐性 (verify 失敗 toast → grace 切れ deactivated)
+
+```bash
+# 38-A の続きで実行
+pkill -9 -f "PolePole Dev" || true
+pkill -f "wrangler" || true   # backend を止める = オフライン状態
+sleep 2
+
+# 8 日経過: verify が走るが backend 不在で network エラー → toast
+FAKE_8D=$((ISSUED_AT + 8*86400))
+POLEPOLE_TEST_LICENSE_FAKE_NOW=$FAKE_8D POLEPOLE_BACKEND_URL="http://127.0.0.1:8787" \
+  "/tmp/polepole-build/Build/Products/Debug/PolePole Dev.app/Contents/MacOS/PolePole Dev" &
+sleep 2   # toast は 4 秒で消えるので 2 秒で screenshot を撮る
+./scripts/polepole-screenshot.sh /tmp/v-phase9-grace-toast.png
+grep "verify temp failed" "$HOME/Library/Logs/polepole-dev/polepole-dev-$(date -u +%Y-%m-%d).log" | tail -1
+
+# 31 日経過: token 期限切れで deactivated
+pkill -9 -f "PolePole Dev" || true; sleep 1
+FAKE_31D=$((ISSUED_AT + 31*86400))
+POLEPOLE_TEST_LICENSE_FAKE_NOW=$FAKE_31D POLEPOLE_BACKEND_URL="http://127.0.0.1:8787" \
+  "/tmp/polepole-build/Build/Products/Debug/PolePole Dev.app/Contents/MacOS/PolePole Dev" &
+sleep 4
+grep "token expired" "$HOME/Library/Logs/polepole-dev/polepole-dev-$(date -u +%Y-%m-%d).log" | tail -1
+./scripts/polepole-screenshot.sh /tmp/v-phase9-deactivated.png
+```
+
+期待:
+- 8 日経過: 画面右下に info 色 toast「ライセンスの再検証に失敗しました。あと 22 日でロックされます (ネットワーク要確認)」/ ログに `verify temp failed: network(...)`
+- 31 日経過: ログに `token expired (issued_at + 30d < now), -> deactivated` / Paywall「ライセンスが無効化されました」表示
+
+### 38-C. device_limit (4 台目で 409)
+
+```bash
+# 38-A の clean state + backend 起動済みから (38-B 後なら backend を再起動)
+cd backend && pnpm dev >/tmp/wrangler-phase9.log 2>&1 &
+sleep 4
+
+TEST_KEY="polepole-PHA9-TEST-EFGH-JKMN"
+TEST_EMAIL="phase9@example.com"
+pnpm exec wrangler d1 execute polepole-licenses --local --persist-to .wrangler/state \
+  --command "DELETE FROM device WHERE license_id = '$TEST_KEY'; UPDATE license SET status='active' WHERE id='$TEST_KEY';"
+
+for i in 1 2 3; do
+  HASH=$(printf "deadbeef%56s" "device$i" | tr ' ' '0')
+  curl -s -X POST http://localhost:8787/v1/license/activate -H "Content-Type: application/json" \
+    -d "{\"key\":\"$TEST_KEY\",\"email\":\"$TEST_EMAIL\",\"device_hash\":\"$HASH\",\"device_name\":\"fake-dev-$i\",\"app_version\":\"1.0.0\"}" \
+    | python3 -c 'import json,sys; r=json.load(sys.stdin); print("activate -", r.get("status"))'
+done
+
+REAL_DEVICE_HASH=...  # 38-A と同じ Swift one-liner で取得
+curl -s -w "[HTTP %{http_code}]" -X POST http://localhost:8787/v1/license/activate -H "Content-Type: application/json" \
+  -d "{\"key\":\"$TEST_KEY\",\"email\":\"$TEST_EMAIL\",\"device_hash\":\"$REAL_DEVICE_HASH\",\"device_name\":\"4th\",\"app_version\":\"1.0.0\"}"
+```
+
+期待: 4 台目で `HTTP 409` + `{"error":"device_limit","existing_devices":[…3件…]}`。各 device の id / device_name / activated_at / last_seen_at が含まれる。
+
+### 38-D. refund 連動 (license.status='refunded' → 次回 verify で token clear)
+
+```bash
+# 38-A 同様に clean state → activate → token.json まで通したあと、backend は動いてる前提で:
+TEST_KEY="polepole-PHA9-TEST-EFGH-JKMN"
+pnpm exec wrangler d1 execute polepole-licenses --local --persist-to .wrangler/state \
+  --command "UPDATE license SET status = 'refunded' WHERE id = '$TEST_KEY';"
+
+pkill -9 -f "PolePole Dev" || true; sleep 1
+FAKE_8D=$((ISSUED_AT + 8*86400))
+POLEPOLE_TEST_LICENSE_FAKE_NOW=$FAKE_8D POLEPOLE_BACKEND_URL="http://127.0.0.1:8787" \
+  "/tmp/polepole-build/Build/Products/Debug/PolePole Dev.app/Contents/MacOS/PolePole Dev" &
+sleep 5
+grep -E "verify rejected|state = " "$HOME/Library/Logs/polepole-dev/polepole-dev-$(date -u +%Y-%m-%d).log" | tail -3
+test -f "$HOME/Library/Application Support/polepole-dev/token.json" \
+  && echo "FAIL: token.json still exists" \
+  || echo "PASS: token.json removed by verify reject path"
+```
+
+期待:
+- ログに `[license] state = activated (expires in 22 days)` の直後に `[license] verify rejected, clearing token` → `[license] state = trial(14 days left)`
+- `token.json` が消えている (verify reject 経路で `ActivationTokenStore.clear()` が呼ばれた)
+- Keychain `activation-token` も消えている
+
 
 
