@@ -328,26 +328,55 @@ Phase 3 終了後の review で High 2 件 + Medium 2 件の指摘を受けた�
 - [x] **Cloudflare DNS に AAAA `polepole.dev → 100::` (proxied) を追加** — Workers Routes が apex 流量を引き取るためのプレースホルダ
 - [ ] Stripe を **Live mode** に切り替えて Payment Link / Webhook を本番 ID で再発行 — **launch 直前 (KYC + 銀行口座登録後)**
 
-### Phase 9: E2E テスト + 本番デプロイ [AI🤖 + 人間👨‍💻]
-- [x] [AI🤖] **A-1 アプリ起動 E2E**: D1 seed → `/v1/license/activate` → token.json → アプリ起動 → `[license] state = activated (expires in 29 days)` を確認 + screenshot で Paywall 非表示の通常 3 カラム表示
-- [x] [AI🤖] **A-2 オフライン耐性**: A-1 続きで backend 停止 → `POLEPOLE_TEST_LICENSE_FAKE_NOW=issued_at+8d` で起動 → verify 失敗で grace 残り 22 日 toast (info 色) → 続いて `=issued_at+31d` で起動 → `[license] token expired ... -> deactivated` + Paywall「ライセンスが無効化されました」
-- [x] [AI🤖] **A-3 device_limit**: D1 で device を全消し → curl で 3 台 activate → 4 台目 (実 device hash) で `HTTP 409 {"error":"device_limit","existing_devices":[…3件…]}` を確認
-- [x] [AI🤖] **A-4 refund 連動**: clean state → activate → token.json → D1 で `license.status='refunded'` に UPDATE → `POLEPOLE_TEST_LICENSE_FAKE_NOW=issued_at+8d` で起動 → verify 経路で server から `licenseRefunded` を受領 → `[license] verify rejected, clearing token` → token.json と Keychain から token が消され `[license] state = trial(14 days left)` でトライアル経路に戻る
-- [x] [AI🤖 + 人間👨‍💻] **B-1〜B-5 Stripe Test mode の webhook + refund E2E**
-  - B-1: `stripe listen --api-key <PolePole Sandbox key> --forward-to localhost:8787/stripe-webhook` を起動、出力された `whsec_` を `.dev.vars` に同期、backend を再起動
-  - B-2: `stripe payment_links retrieve` で URL `https://buy.stripe.com/test_...` を取得、success_url を一時的に `http://localhost:8787/thanks?session_id={CHECKOUT_SESSION_ID}` に切替 (検証完了後に `https://polepole.dev/thanks?...` に戻した)
-  - B-3: agent-browser で UI 自動操作を試みたが **Stripe Agentic Commerce Protocol の Agent Disclosure** が起動して Agent Identity Token を要求し、AI 単独では支払いが完了できなかった。ユーザーが手動でブラウザ (任意) で test card 4242 で購入 → `/thanks` redirect でキー `polepole-GAGR-7RWE-MMQP-JETF` 表示まで確認
-  - B-4: `stripe listen` に `checkout.session.completed` 受信 / backend webhook 200 OK / Resend noop ログに件名「【PolePole】ご購入ありがとうございます — ライセンスキーをお届けします」(購入直後テンプレ Phase 8) / D1 に `polepole-GAGR-7RWE-MMQP-JETF` 行が `status=active`, `email_sent_at` 入りで作成
-  - B-5: 実 device で activate → token.json に書く → `stripe refunds create -d payment_intent=pi_...` で refund → webhook `charge.refunded` / `refund.created` → backend が `markRefunded` で D1 を `status=refunded` に更新 → アプリを `FAKE_NOW=issued_at+8d` で起動 → `[license] state = activated (expires in 22 days)` の直後に `verify rejected, clearing token` → `state = trial(14 days left)` でトライアル経路復帰 + `token.json` 削除を確認
-- [ ] [人間👨‍💻] 本番 Stripe で実カードで自己購入してフロー全体を確認 (¥11,800 自分払い) — **launch 前 (本番デプロイ後)**
-- [ ] [人間👨‍💻] サポートメール受信確認 (`support@polepole.dev`) — **launch 前 (Resend ドメイン認証後)**
+### Phase 9 A: E2E テスト (ローカル D1 / curl) [AI🤖]
+- [x] **A-1 アプリ起動 E2E**: D1 seed → `/v1/license/activate` → token.json → アプリ起動 → `state = activated (expires in 29 days)` + Paywall 非表示の通常 3 カラム表示
+- [x] **A-2 オフライン耐性**: backend 停止 → `FAKE_NOW=issued_at+8d` で起動 → verify 失敗で grace 残り 22 日 toast (info 色) → 続いて `=issued_at+31d` で起動 → `token expired -> deactivated` + Paywall「ライセンスが無効化されました」
+- [x] **A-3 device_limit**: D1 で device を全消し → curl で 3 台 activate → 4 台目 (実 device hash) で `HTTP 409 {"error":"device_limit","existing_devices":[…3件…]}` を確認
+- [x] **A-4 refund 連動**: clean state → activate → token.json → D1 で `license.status='refunded'` に UPDATE → `FAKE_NOW=issued_at+8d` で起動 → server から `licenseRefunded` 受領 → `verify rejected, clearing token` → トライアル経路復帰
 
-### 動作確認 [人間👨‍💻]
-- [ ] 新規 macOS ユーザーアカウントで PolePole.app を起動 → トライアル開始 → 14 日後ロックを `POLEPOLE_TEST_LICENSE_FAKE_NOW` で確認
+### Phase 9 B: Stripe Sandbox webhook + refund E2E [AI🤖 + 人間👨‍💻]
+- [x] B-1 [AI🤖] `stripe listen --api-key <Sandbox key> --forward-to localhost:8787/stripe-webhook` を起動、whsec_ を `.dev.vars` に同期、backend 再起動
+- [x] B-2 [AI🤖] `stripe payment_links retrieve` で URL 取得、success_url を一時的に `http://localhost:8787/thanks?session_id={CHECKOUT_SESSION_ID}` に切替 (検証完了後に本番 URL に戻した)
+- [x] B-3 [人間👨‍💻] ブラウザで実 test card 4242 で UI 経由購入 → `/thanks` redirect でキー `polepole-GAGR-7RWE-MMQP-JETF` 表示 (AI 自動入力は Stripe Agentic Commerce Protocol の Agent Disclosure で block されるため)
+- [x] B-4 [AI🤖] stripe listen + backend ログ + D1 + Resend noop で fulfillment 確認 (件名「【PolePole】ご購入ありがとうございます — ライセンスキーをお届けします」が Phase 8 テンプレで発火)
+- [x] B-5 [AI🤖] `stripe refunds create` → markRefunded → D1 `status=refunded` → アプリ verify reject → token clear → トライアル経路復帰
+
+### Phase 9 C: 本番 Workers デプロイ (Sandbox Stripe で先行) [AI🤖 + 人間👨‍💻]
+- [x] C-1 [AI🤖] 本番 D1 `polepole-licenses-prod` 作成 + migration 0001/0002 適用
+- [x] C-2 [AI🤖] `wrangler.toml` に `[env.production].routes = polepole.dev/*` 追加
+- [x] C-3 [AI🤖] アプリ LicenseClient の Release baseURL を `https://polepole.dev` に統合 (subdomain `api.polepole.dev` 廃止)
+- [x] C-4 [AI🤖] `wrangler deploy --env production --dry-run` で binding 確認
+- [x] C-5 [人間👨‍💻] 本番 EdDSA 鍵ペア生成 → Workers に `LICENSE_SIGNING_PRIVATE_KEY` 投入 + Dropbox dotfiles にバックアップ + 公開鍵を `Resources/License/license-pubkey.pem` に上書き
+- [x] C-6 [AI🤖] Stripe Sandbox に固定 Webhook endpoint (`we_1TaQeYE5fnkZYeUc8CJo3fGN`) 作成 + Sandbox 4 secret (`STRIPE_SECRET_KEY` / `STRIPE_WEBHOOK_SECRET` / `EXPECTED_PRICE_ID` / `EXPECTED_PAYMENT_LINK_ID`) を Workers に投入
+- [x] C-7 [人間👨‍💻] Resend `polepole.dev` ドメイン登録 + Cloudflare DNS Auto configure (DKIM/SPF/MX を `send.polepole.dev` subdomain に自動追加) + 本番 API key 発行 → Workers に `RESEND_API_KEY` 投入
+- [x] C-8 [人間👨‍💻] Cloudflare DNS に `AAAA polepole.dev → 100::` (Proxied) のプレースホルダ追加 (Workers Routes apex 用)
+- [x] C-9 [AI🤖] `pnpm exec wrangler deploy --env production` で本番デプロイ実行 (Worker startup time 6ms, assets 5 ファイル upload)
+- [x] C-10 [AI🤖] agent-browser 経由で smoke test: `/` LP / `/legal/terms` / `/healthz` / `/thanks` (no param エラー応答) すべて pass
+
+### Phase 9 D: Launch ready (KYC + Live mode + アプリ release) [人間👨‍💻 + AI🤖]
+**前提**: Stripe 本番アカウントの KYC + 銀行口座登録 + 特商法住所登録が完了していること。Phase 9 D は KYC 完了後にまとめて進める。
+
+- [ ] [人間👨‍💻] Stripe 本番アカウントで KYC + 銀行口座登録 + 特商法住所登録を完了
+- [ ] [人間👨‍💻] Stripe Live mode で Product / Price (¥11,800 JPY) / Payment Link (success_url=`https://polepole.dev/thanks?session_id={CHECKOUT_SESSION_ID}`, card only) を作成
+- [ ] [人間👨‍💻] Stripe Live mode で Webhook endpoint `https://polepole.dev/stripe-webhook` を作成 (events: `checkout.session.completed` / `refund.created` / `charge.refunded`)
+- [ ] [AI🤖] Sandbox 4 secret を Live 値に差し替え (`STRIPE_SECRET_KEY` / `STRIPE_WEBHOOK_SECRET` / `EXPECTED_PRICE_ID` / `EXPECTED_PAYMENT_LINK_ID`) + Workers 再デプロイ
+- [ ] [人間👨‍💻] 法的ページ確定版 (個人事業者氏名 / 住所 / 連絡先) を `backend/public/legal/tokushoho.html` に流し込む + 利用規約 / プライバシーポリシーの最終チェック (Phase 8 [人間] 残タスク)
+- [ ] [AI🤖] アプリ `project.yml` の `MARKETING_VERSION` を `1.1.0` (ライセンス機能初回 release) に bump + commit
+- [ ] [AI🤖 + 人間👨‍💻] `./scripts/release.sh 1.1.0` で archive + notarize + zip + Sparkle 署名 + GitHub Release 作成 (long-running, 10〜15 分)
+- [ ] [人間👨‍💻] `nyshk97/homebrew-tap/Casks/polepole.rb` の version / sha256 を bump して push
+- [ ] [人間👨‍💻] 本番 Stripe Live で実カードで自己購入 (¥11,800 自分払い) → メール受信 → アプリで activate → 通常使用可能 を確認
+- [ ] [人間👨‍💻] `support@polepole.dev` 宛にテストメール送信 → 受信できることを確認
+- [ ] [人間👨‍💻] (Optional) Resend で DMARC レコード (`TXT _dmarc v=DMARC1; p=none;`) を Cloudflare DNS に追加 — メール到達率改善
+
+### Phase 9 E: 最終動作確認 (Phase 9 D 完了後の launch ready check) [人間👨‍💻]
+**前提**: Phase 9 D が完了して brew cask `polepole.rb` が新版 (1.1.0) を指している状態。
+
+- [ ] 新規 macOS ユーザーアカウントで `brew install --cask nyshk97/tap/polepole` → 起動 → トライアル開始 → 14 日後ロックを `POLEPOLE_TEST_LICENSE_FAKE_NOW` で確認
 - [ ] Keychain Access から install date を手で消した上で再起動 → Application Support 側の残骸で trial 残日数が復元されるか
 - [ ] 期限切れ状態でアプリを起動 → PaywallView が全 view を覆っているか (メニュー・ターミナル・プレビュー全て不可)
-- [ ] テスト購入 → メール受信 → Settings からアクティベート → 通常使用可能
+- [ ] 本番 Stripe Live で実カードで購入 → メール受信 → Settings からアクティベート → 通常使用可能
 - [ ] Wi-Fi 切断状態でアプリ起動 → ローカルトークンで起動可能 / 警告 toast が出る
+- [ ] 別 Mac (or 別 macOS ユーザー) でも同じキーで activate → 2 台目まで OK / 4 台目で device limit ダイアログが出るか手動確認
 
 ## ログ
 
@@ -479,6 +508,7 @@ Phase 3 終了後の review で High 2 件 + Medium 2 件の指摘を受けた�
   - **本番運用に使う EdDSA 鍵は Phase 9 直前に人間が手動で生成**し、AI セッションには一切流さない (Sandbox 用とは別鍵)
 
 ### 方針変更
+- **2026-05-24 Phase 9 分割**: 元の `Phase 9: E2E + 本番デプロイ` が肥大化したので **A (ローカル E2E) / B (Stripe Sandbox E2E) / C (本番 Workers デプロイ) / D (Launch ready: Stripe Live + アプリ release) / E (最終動作確認)** の 5 段階に分割。AI 完結部分 (A/B/C) は完了済、KYC 待ちで D/E が残る構造。本番 Workers は **Sandbox Stripe で先行稼働** させ、Stripe Live 切替は KYC 完了後 (Phase 9 D の 4 secret 差し替えだけで切替完了する設計)
 - **2026-05-24 Phase 4**: `Cloudflare Pages へデプロイ` → **Workers Assets 統合に変更**。理由: (1) Pages と Workers で別ドメイン (`polepole.dev` vs `api.polepole.dev`) を立てると Stripe success_url が指す `polepole.dev/thanks` の処理に Pages Functions or Worker route の別配線が要る、(2) Workers v4 の `[assets]` directive で同等のことが 1 デプロイで完結する、(3) static 量がごく少ない (5 HTML + 1 CSS)。Pages の Git 連携メリットは現時点で不要
 - **2026-05-23 Phase 1 着手時**: `polepole-backend/` を別 repo にする案 → **monorepo (本 repo 内 `backend/`) に変更**。理由: PolePole 本体もクローズド配布なので別 repo にする強い理由が薄い / セッション切り替え不要 / git log・CI・mise 設定を共有できて運用が軽い。将来 OSS 化や権限分離が必要になったら切り出す
 - **2026-05-23** plan 初版へのレビュー指摘 7 件を反映:
