@@ -132,17 +132,6 @@ final class LicenseStore: ObservableObject {
         refreshFromDisk()
     }
 
-    /// 紛失ライセンスの再送。
-    func resendLicense(email: String) async -> Bool {
-        do {
-            _ = try await client.resend(email: email)
-            return true
-        } catch {
-            Logger.shared.warn("[license] resend failed: \(error)")
-            return false
-        }
-    }
-
     // MARK: - Startup reminders
 
     /// 起動直後 (ContentView.onAppear) に呼ぶ。

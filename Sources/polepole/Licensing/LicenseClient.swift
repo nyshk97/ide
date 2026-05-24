@@ -131,11 +131,6 @@ struct LicenseClient: Sendable {
         return try await post("/v1/license/verify", body: body)
     }
 
-    func resend(email: String) async throws -> GenericOkResponse {
-        let body: [String: String] = ["email": email]
-        return try await post("/v1/license/resend", body: body)
-    }
-
     // MARK: - Transport
 
     private func post<Req: Encodable, Res: Decodable>(_ path: String, body: Req) async throws -> Res {

@@ -4,7 +4,7 @@ import SwiftUI
 /// トライアル期限切れ or deactivated 状態のときに全 view を覆って表示する画面。
 ///
 /// - 「14 日間のトライアルが終了しました」(or「ライセンスが無効化されました」) の見出し
-/// - 価格 (¥11,800 / Lifetime License)
+/// - 価格 (¥9,900 / Lifetime License)
 /// - 「購入する」ボタン (polepole.dev の購入ページへ)
 /// - ライセンスキー入力フォーム
 /// - お問い合わせフォーム (polepole.dev/contact) へのリンク
@@ -26,11 +26,9 @@ struct PaywallView: View {
                 .contentShape(Rectangle())
                 .onTapGesture {}
 
-            VStack(spacing: 24) {
-                VStack(spacing: 8) {
-                    Image(systemName: "lock.shield")
-                        .font(.system(size: 48))
-                        .foregroundStyle(.secondary)
+            VStack(spacing: 18) {
+                VStack(spacing: 6) {
+                    appIcon
                     Text(headline)
                         .font(.title).bold()
                     Text(subhead)
@@ -41,9 +39,9 @@ struct PaywallView: View {
 
                 Divider()
 
-                VStack(spacing: 12) {
+                VStack(spacing: 10) {
                     HStack(alignment: .firstTextBaseline, spacing: 8) {
-                        Text("¥11,800")
+                        Text("¥9,900")
                             .font(.system(size: 32, weight: .bold, design: .rounded))
                         Text("Lifetime License")
                             .font(.callout)
@@ -89,33 +87,20 @@ struct PaywallView: View {
                     }
                 }
 
-                Spacer().frame(height: 4)
-
-                HStack(spacing: 16) {
-                    Button("お問い合わせ") {
-                        if let url = URL(string: "https://polepole.dev/contact") {
-                            NSWorkspace.shared.open(url)
-                        }
+                Button("お問い合わせ") {
+                    if let url = URL(string: "https://polepole.dev/contact") {
+                        NSWorkspace.shared.open(url)
                     }
-                    .buttonStyle(.link)
-                    Button("ライセンスキーを再送") {
-                        Task {
-                            let trimmed = email.trimmingCharacters(in: .whitespaces)
-                            if !trimmed.isEmpty {
-                                _ = await licenseStore.resendLicense(email: trimmed)
-                            }
-                        }
-                    }
-                    .buttonStyle(.link)
-                    .disabled(!email.contains("@"))
                 }
+                .buttonStyle(.link)
                 .font(.caption)
             }
-            .padding(40)
+            .padding(28)
             .frame(maxWidth: 520)
             .background(Color(nsColor: .windowBackgroundColor))
             .clipShape(RoundedRectangle(cornerRadius: 16))
             .shadow(radius: 24)
+            .padding(36)
         }
         .onChange(of: licenseStore.activateError) { _, err in
             if case .deviceLimit(let existing) = err {
@@ -150,6 +135,20 @@ struct PaywallView: View {
             return "30 日以上オンライン検証ができなかったため、ロックされました。\n再度アクティベートしてください。"
         default:
             return ""
+        }
+    }
+
+    @ViewBuilder
+    private var appIcon: some View {
+        if let icon = NSApp.applicationIconImage {
+            Image(nsImage: icon)
+                .resizable()
+                .interpolation(.high)
+                .frame(width: 64, height: 64)
+        } else {
+            Image(systemName: "lock.shield")
+                .font(.system(size: 48))
+                .foregroundStyle(.secondary)
         }
     }
 
