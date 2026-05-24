@@ -53,7 +53,7 @@
     <ul>
       <li>利用者の同意がある場合</li>
       <li>法令に基づく場合</li>
-      <li>本サービス運用上必要な業務委託先 (決済: Stripe、メール送信: Resend、インフラ: Cloudflare) への提供</li>
+      <li>本サービス運用上必要な業務委託先 (決済: Stripe、メール送信: Resend、インフラ: Cloudflare、配布物および自動アップデート: GitHub、お問い合わせフォーム: HyperForm) への提供</li>
     </ul>
 
     <h2>5. 利用する第三者サービス</h2>
@@ -61,10 +61,12 @@
       <li><strong>Stripe</strong>: 決済処理。<a href="https://stripe.com/jp/privacy">プライバシーポリシー</a></li>
       <li><strong>Resend</strong>: ライセンスキー送付メールの配信。<a href="https://resend.com/legal/privacy-policy">プライバシーポリシー</a></li>
       <li><strong>Cloudflare</strong>: Web サイトおよび API のホスティング。<a href="https://www.cloudflare.com/privacypolicy/">プライバシーポリシー</a></li>
+      <li><strong>GitHub (GitHub, Inc.)</strong>: 本ソフトウェアの配布物 (DMG ファイル) および自動アップデート用フィード (appcast.xml) のホスティング。<a href="https://docs.github.com/site-policy/privacy-policies/github-general-privacy-statement">プライバシーポリシー</a></li>
+      <li><strong>HyperForm</strong>: お問い合わせフォームの送信処理および受付確認メールの配信。<a href="https://hyperform.jp/">サービス概要</a></li>
     </ul>
 
     <h2>6. 自動アップデート (Sparkle) の通信</h2>
-    <p>本ソフトウェアは Sparkle フレームワークを用いた自動アップデート機能を備えており、利用者がアップデート確認操作を行ったときに当方サーバーに対してアプリバージョン情報を含む HTTP リクエストを送信します。IP アドレスはアクセスログに一定期間記録されますが、個人を特定する目的では使用しません。</p>
+    <p>本ソフトウェアは Sparkle フレームワークを用いた自動アップデート機能を備えており、利用者がアップデート確認操作を行ったとき、および定期的なバックグラウンドチェック時に、GitHub Releases (<code>github.com/nyshk97/polepole-releases</code>) に対してアプリバージョン情報を含む HTTP リクエストを送信します。リクエスト元 IP アドレス、User-Agent 等は GitHub 側のアクセスログに一定期間記録されますが、当方はこれらの情報を取得・保管しません。</p>
 
     <h2>7. 保管期間</h2>
     <ul>
