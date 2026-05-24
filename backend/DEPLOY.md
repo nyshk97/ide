@@ -209,3 +209,7 @@ agent-browser 等で test card を自動入力 + submit すると Stripe の **A
 ### D. Stripe Checkout の `amount_total` 厳密チェックはクーポンと両立しない
 
 `validateSession` で `session.amount_total === EXPECTED_AMOUNT` の厳密比較を行うと、Promotion Code 適用時に amount が減額 (100% off → 0、50% off → 5900) されて `amount_mismatch` で reject される。商品の正当性は `EXPECTED_PRICE_ID` + `EXPECTED_PAYMENT_LINK_ID` + Stripe 署名検証で担保するので amount 値の比較は不要。`amount_total === null || < 0` だけ defense-in-depth として残す。
+
+### E. Payment Link には locale 設定が存在しない
+
+Checkout Session には `locale` パラメータ (`auto` / `en` / `ja` ...) があるが、Payment Link は **常にブラウザ言語で auto 表示** される仕様で、Dashboard の編集画面にも per-link の言語設定項目が無い (確認: 2026-05-24 時点)。i18n 対応時に「Dashboard で locale を auto に設定する」タスクを積んでも N/A になる。Payment Link を使う限り、何もしなくても顧客のブラウザ言語で Checkout が表示される。
