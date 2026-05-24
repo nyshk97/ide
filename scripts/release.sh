@@ -60,7 +60,9 @@ LAST_VERSION=$(awk '/^## \[Unreleased\]/{f=1; next} f && /^## \[([^]]+)\]/{match
 if [ -n "$LAST_VERSION" ] && git rev-parse "v${LAST_VERSION}" >/dev/null 2>&1; then
   echo ""
   echo "==> 前回リリース v${LAST_VERSION} 以降の commit:"
-  git log "v${LAST_VERSION}..HEAD" --pretty=format:"  %h %s" | head -100
+  # --max-count で git log 側で打ち切る (| head -100 だと head 終了の SIGPIPE で
+  # git log が落ち、set -o pipefail のもと release.sh 全体が exit する)
+  git log "v${LAST_VERSION}..HEAD" --max-count=100 --pretty=format:"  %h %s"
   echo ""
 else
   echo ""
