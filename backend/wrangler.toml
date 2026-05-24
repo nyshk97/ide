@@ -17,6 +17,14 @@ EXPECTED_AMOUNT = "11800"
 EXPECTED_CURRENCY = "jpy"
 RESEND_ENABLED = "true"
 
+# LP / 法的ページ等を Workers Assets として配信する。
+# Worker のルート (src/index.ts) で hit しない GET だけ assets が serve する
+# (`run_worker_first = false` がデフォルト)。動的ルート ( /thanks /stripe-webhook /v1/* /healthz )
+# は Worker 側で先に当たるので影響なし。
+[assets]
+directory = "./public"
+not_found_handling = "404-page"
+
 [[d1_databases]]
 binding = "DB"
 database_name = "polepole-licenses"
@@ -43,6 +51,10 @@ name = "polepole-backend"
 EXPECTED_AMOUNT = "11800"
 EXPECTED_CURRENCY = "jpy"
 RESEND_ENABLED = "true"
+
+[env.production.assets]
+directory = "./public"
+not_found_handling = "404-page"
 
 [[env.production.d1_databases]]
 binding = "DB"

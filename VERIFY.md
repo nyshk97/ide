@@ -1626,3 +1626,63 @@ grep "verify" "$HOME/Library/Logs/polepole-dev/polepole-dev-$(date -u +%Y-%m-%d)
 - grace 残り 22 日 (issued_at から 8 日経過 = 残 22 日) なので `.info` 色 (青) で表示
 - token は捨てられず、画面は `.activated` のまま (= 通常 3 カラム表示)
 
+## 36. LP + 法的ページ (Phase 4)
+
+### 36-A. Workers Assets + 動的ルート共存 (自動)
+
+```bash
+cd backend
+pnpm typecheck                 # 0 エラー
+pnpm test                      # 23 tests pass
+pnpm dev >/tmp/wrangler-dev.log 2>&1 &
+sleep 2
+
+# static (assets)
+curl -s -o /dev/null -w "GET / -> %{http_code} (%{size_download} bytes)\n"           http://localhost:8787/
+curl -s -o /dev/null -w "GET /styles.css -> %{http_code} (%{size_download} bytes)\n" http://localhost:8787/styles.css
+curl -sIL -o /dev/null -w "%{http_code} <- GET /legal/terms.html (after redirect)\n" http://localhost:8787/legal/terms.html
+curl -s -o /dev/null -w "GET /legal/terms -> %{http_code}\n"                         http://localhost:8787/legal/terms
+curl -s -o /dev/null -w "GET /legal/privacy -> %{http_code}\n"                       http://localhost:8787/legal/privacy
+curl -s -o /dev/null -w "GET /legal/tokushoho -> %{http_code}\n"                     http://localhost:8787/legal/tokushoho
+
+# 動的 (Worker)
+curl -s -o /dev/null -w "GET /healthz -> %{http_code}\n"           http://localhost:8787/healthz
+curl -s -o /dev/null -w "GET /thanks (no params) -> %{http_code}\n" http://localhost:8787/thanks
+
+# 後片付け
+pkill -f "wrangler dev" || true
+```
+
+期待:
+- `/` → 200 で LP HTML が返る
+- `/styles.css` → 200 で CSS が返る
+- `/legal/*.html` → 307 で拡張子なしに正規化 → 200 (Workers Assets のデフォルト)
+- `/healthz` → 200 / `/thanks` → 400 (Worker 側ハンドラが先に当たる、assets には流れない)
+- `/nonexistent` → 404 (assets の 404 ページ)
+
+### 36-B. LP の見栄え (手動)
+
+```bash
+cd backend && pnpm dev >/dev/null 2>&1 &
+sleep 2
+open -a Safari http://localhost:8787/
+```
+
+確認:
+- ヘッドライン: 「Claude Code をストレスなく回す。」
+- 価格セクション: ¥11,800 / Lifetime License / 14日トライアル / 3台アクティベート / 全 major version 無料アップデート
+- ダウンロード: `brew install --cask nyshk97/tap/polepole` のコードブロック + DMG リンク
+- フッター: 利用規約 / プライバシーポリシー / 特商法表記 / お問い合わせ
+- システム設定の Light/Dark に追従して配色が切り替わる
+- Stripe Payment Link / Zenn 記事 URL / スクショは launch 時に確定値に差し替える placeholder
+
+### 36-C. 法的ページのドラフト確認 (手動)
+
+```
+http://localhost:8787/legal/terms
+http://localhost:8787/legal/privacy
+http://localhost:8787/legal/tokushoho
+```
+
+各ページ冒頭に「⚠️ 本ページはドラフトです。launch 前に確定版に差し替えます (Phase 8)。」の draft-notice が表示されること。terms は第 7 条「サービス終了時の救済」で 90 日前 universal token 配布を明記、privacy は Stripe / Resend / Cloudflare の第三者提供を明記。
+

@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>PolePole — Claude Code をストレスなく回す macOS ワークスペース</title>
+  <meta name="description" content="PolePole は Claude Code / Codex CLI など、ターミナルで動く AI コーディング CLI を快適に使うための macOS 専用ワークスペース。ターミナル + ファイルプレビュー + プロジェクト管理を 1 つに統合。¥11,800 買い切り / Lifetime License。">
+  <meta property="og:title" content="PolePole — macOS ワークスペース">
+  <meta property="og:description" content="Claude Code をストレスなく回す macOS ワークスペース。¥11,800 買い切り / Lifetime License">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://polepole.dev/">
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <header class="site-header">
+    <div class="container">
+      <a href="/" class="logo">PolePole</a>
+      <nav class="site-nav">
+        <a href="#features">特徴</a>
+        <a href="#pricing">価格</a>
+        <a href="#download">ダウンロード</a>
+      </nav>
+    </div>
+  </header>
+
+  <section class="hero">
+    <div class="container">
+      <h1>Claude Code を<br>ストレスなく回す。</h1>
+      <p class="tagline">
+        Claude Code / Codex CLI など、ターミナルで動く AI コーディング CLI を快適に使うための macOS ワークスペース。<br>
+        ターミナル・ファイルプレビュー・プロジェクト管理を 1 つに統合しました。
+      </p>
+      <div class="cta">
+        <a href="#download" class="btn btn-primary">14 日間 無料で試す</a>
+        <!-- TODO: 本番 Stripe Payment Link で差し替え -->
+        <a href="https://buy.stripe.com/test_REPLACE_ME" class="btn btn-secondary">¥11,800 を購入する</a>
+      </div>
+    </div>
+  </section>
+
+  <div class="screenshot">
+    <!-- TODO: 実機スクショに差し替え。Phase 4 ではプレースホルダ。 -->
+    <div class="placeholder">screenshot (TBD)</div>
+  </div>
+
+  <section id="features" class="alt">
+    <div class="container">
+      <h2>特徴</h2>
+      <p class="sub">特定の AI ツールやエディタに縛られず、CLI 中心で開発したい人のために。</p>
+      <div class="features">
+        <div class="feature">
+          <h3>libghostty ターミナル統合</h3>
+          <p>Ghostty 設定 (<code>~/.config/ghostty/config</code>) をそのまま継承。プロジェクトごとにタブを保持。</p>
+        </div>
+        <div class="feature">
+          <h3>VS Code 風ファイルツリー</h3>
+          <p>SwiftUI 製のツリー + プレビュー (シンタックスハイライト)。閲覧専用に振り切って軽快に。</p>
+        </div>
+        <div class="feature">
+          <h3>プロジェクト切替 (Ctrl+M)</h3>
+          <p>MRU 順のプロジェクト切替オーバーレイ。ターミナル状態を保ったまま 1 アクションで移動。</p>
+        </div>
+        <div class="feature">
+          <h3>Cmd+P / Cmd+Shift+F</h3>
+          <p>ファイル名検索と全文検索が即座。プレビューはツリーに戻る Cmd+J で 1 タップ往復。</p>
+        </div>
+        <div class="feature">
+          <h3>git 差分オーバーレイ</h3>
+          <p>Cmd+D で差分を全画面表示。レビューや作業中の確認に。</p>
+        </div>
+        <div class="feature">
+          <h3>Apple Silicon ネイティブ</h3>
+          <p>macOS 専用 / Apple Silicon 限定。Sparkle で自動アップデート対応。</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="pricing">
+    <div class="container">
+      <h2>価格</h2>
+      <p class="sub">買い切り。サブスクリプションはありません。</p>
+      <div class="pricing-card">
+        <div class="price">¥11,800<small>(税込)</small></div>
+        <p class="price-sub">Lifetime License — 全メジャーバージョン無料アップデート</p>
+        <ul>
+          <li>14 日間の無料トライアル</li>
+          <li>1 ライセンスにつき 3 台までアクティベート</li>
+          <li>全メジャーバージョン無料アップデート (v1 / v2 / v3 …)</li>
+          <li>サポート: <a href="mailto:support@polepole.dev">support@polepole.dev</a></li>
+        </ul>
+        <!-- TODO: 本番 Stripe Payment Link で差し替え -->
+        <a href="https://buy.stripe.com/test_REPLACE_ME" class="btn btn-primary">¥11,800 を購入する</a>
+      </div>
+    </div>
+  </section>
+
+  <section id="download" class="alt">
+    <div class="container">
+      <h2>ダウンロード</h2>
+      <p class="sub">14 日間 無料で試せます。期限内にアクティベートすればそのまま使い続けられます。</p>
+      <div class="download-block">
+        <h3 style="margin-top: 24px;">Homebrew (推奨)</h3>
+        <pre class="code">brew install --cask nyshk97/tap/polepole</pre>
+        <h3 style="margin-top: 32px;">直接ダウンロード</h3>
+        <p>
+          <a href="https://github.com/nyshk97/polepole-releases/releases/latest" class="btn btn-secondary">最新版 .dmg を取得</a>
+        </p>
+        <p style="margin-top: 32px; font-size: 14px; color: var(--text-muted);">
+          動作環境: macOS 14 以降 / Apple Silicon
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="container" style="text-align: center;">
+      <h2>使い方</h2>
+      <p class="sub">セットアップから推奨ワークフローまで、Zenn の launch 記事で詳しく紹介しています。</p>
+      <!-- TODO: launch 時に Zenn 記事 URL を差し込む -->
+      <p>
+        <a href="https://zenn.dev/d0ne1s" class="btn btn-secondary">Zenn の解説記事を読む</a>
+      </p>
+    </div>
+  </section>
+
+  <footer class="site-footer">
+    <div class="container">
+      <div>
+        <a href="/legal/terms.html">利用規約</a>
+        <a href="/legal/privacy.html">プライバシーポリシー</a>
+        <a href="/legal/tokushoho.html">特定商取引法に基づく表記</a>
+        <a href="mailto:support@polepole.dev">お問い合わせ</a>
+      </div>
+      <div class="copy">© 2026 PolePole</div>
+    </div>
+  </footer>
+</body>
+</html>

@@ -247,19 +247,19 @@ Phase 3 終了後の review で High 2 件 + Medium 2 件の指摘を受けた�
 - [x] 動作確認: `pnpm typecheck` / `pnpm test` (23 tests) / `wrangler dev --local` 起動 / `wrangler deploy --env production --dry-run` で全 binding が表示されることを確認
 
 ### Phase 4: LP + success_url ページ [AI🤖]
-- [ ] `polepole.dev` の vanilla HTML + CSS で 1 ページ作成
-  - [ ] タイトル / 1 文の価値提案 / スクリーンショット 1〜2 枚
-  - [ ] 価格 (¥11,800 / Lifetime License) / Stripe Payment Link への購入ボタン
-  - [ ] ダウンロードリンク (Cask + 直 DMG)
-  - [ ] Zenn 詳細記事へのリンク
-  - [ ] 利用規約 / プライバシーポリシー / 特商法表記へのリンク (フッター)
-- [ ] `/thanks` ページ (Workers で session_id を受けて HTML を返す)
-  - [ ] Phase 2 の `fulfillCheckout(sessionId, source="thanks_page")` を呼んで Stripe API で検証 + license 発行 (webhook 失敗時の保険)
-  - [ ] D1 から license を引いてキー表示 + 「メールでも送りました」案内
-  - [ ] fulfillment 失敗時の friendly エラー (上記)
-  - [ ] アクティベート手順の説明
-- [ ] `/legal/{terms,privacy,tokushoho}` の静的ページ
-- [ ] Cloudflare Pages へデプロイ。`polepole.dev` を割り当て
+- [x] `polepole.dev` の vanilla HTML + CSS で 1 ページ作成 (`backend/public/index.html` + `backend/public/styles.css`)
+  - [x] タイトル / 1 文の価値提案 / スクリーンショット 1〜2 枚 (スクショは `placeholder` div で実機撮影は launch 直前)
+  - [x] 価格 (¥11,800 / Lifetime License) / Stripe Payment Link への購入ボタン (Payment Link URL は `https://buy.stripe.com/test_REPLACE_ME` placeholder、本番値は事前準備で差し替え)
+  - [x] ダウンロードリンク (Cask + 直 DMG)
+  - [x] Zenn 詳細記事へのリンク (placeholder)
+  - [x] 利用規約 / プライバシーポリシー / 特商法表記へのリンク (フッター)
+- [x] `/thanks` ページ (Workers で session_id を受けて HTML を返す) → Phase 2 で実装済み (`backend/src/routes/thanks.ts`)
+  - [x] Phase 2 の `fulfillCheckout(sessionId, source="thanks_page")` を呼んで Stripe API で検証 + license 発行
+  - [x] D1 から license を引いてキー表示 + 「メールでも送りました」案内
+  - [x] fulfillment 失敗時の friendly エラー
+  - [x] アクティベート手順の説明
+- [x] `/legal/{terms,privacy,tokushoho}` の静的ページ (`backend/public/legal/*.html`、Phase 8 で確定版に差し替え予定の draft 表記入り)
+- [x] ~~Cloudflare Pages へデプロイ~~ → **方針変更**: Workers Assets (`[assets] directory = "./public"`) で 1 Worker から LP + 法的ページ + /thanks + API を全て配信。デプロイは `pnpm deploy --env production` 1 本。`polepole.dev` の DNS 割り当ては事前準備の人間タスク
 
 ### Phase 5前の準備 [人間👨‍💻]
 - [ ] Stripe Payment Link を Test mode で作成 (¥11,800 / 円建て / success_url を `https://polepole.dev/thanks?session_id={CHECKOUT_SESSION_ID}` に設定)
@@ -335,6 +335,18 @@ Phase 3 終了後の review で High 2 件 + Medium 2 件の指摘を受けた�
 ## ログ
 
 ### 試したこと・わかったこと
+- **2026-05-24 Phase 4 完了**: LP + 法的ページ + Workers Assets 配線
+  - 新規: `backend/public/` 配下に `index.html` (LP) / `styles.css` (ダーク/ライト自動切替の Apple-like CSS) / `legal/{terms,privacy,tokushoho}.html` (Phase 8 で確定版に差し替え予定の draft 表記入り)
+  - `wrangler.toml`: dev + production の両方に `[assets] directory = "./public"` `not_found_handling = "404-page"` を追加
+  - `src/index.ts`: `app.get("/", text(...))` を削除。動的ルートは `/thanks` `/stripe-webhook` `/v1/license/*` `/healthz` のみ、それ以外は Workers Assets が serve
+  - 動作確認: `pnpm typecheck` / `pnpm test` (23 tests pass) / `wrangler dev --local` で各エンドポイント疎通確認
+    - `GET /` → 200 (LP HTML, 6443 bytes)
+    - `GET /styles.css` → 200 (6602 bytes)
+    - `GET /legal/terms.html` → 307 → `/legal/terms` → 200 (Workers Assets が拡張子なしに自動正規化)
+    - `GET /healthz` → 200 (Worker)
+    - `GET /thanks` (params なし) → 400 (Worker、session_id 必須)
+    - `GET /nonexistent` → 404 (assets の 404 page)
+  - Safari で `http://localhost:8787/` を開いて目視: ダークモードで「Claude Code をストレスなく回す。」ヘッドライン + 価格 + 購入ボタンが正しく描画
 - **2026-05-24 Phase 7 完了**: 期限切れ / 起動ロック UX
   - 新規: `LicenseMenuBarController.swift`。`NSStatusBar.system.statusItem` を `LicenseStore.shared.$state` を Combine 購読して show/hide。残 ≤7 日でアイコン (オレンジ三角)、残 ≤3 日で数字併記 (` 2`)、`.activated` / `.trialExpired` / `.deactivated` では非表示 (Paywall と重ねない)。`PolePoleApp.init` で `start()` を 1 回呼ぶ
   - 追加: `LicenseStore.emitStartupTrialReminderIfNeeded` で残 ≤3 日の起動時に 1 回 ErrorBus.warning toast。`didEmitStartupTrialReminder` セッションフラグで重複防止 (ContentView.onAppear は再表示で複数回呼ばれる)
@@ -408,6 +420,7 @@ Phase 3 終了後の review で High 2 件 + Medium 2 件の指摘を受けた�
   - **本番運用に使う EdDSA 鍵は Phase 9 直前に人間が手動で生成**し、AI セッションには一切流さない (Sandbox 用とは別鍵)
 
 ### 方針変更
+- **2026-05-24 Phase 4**: `Cloudflare Pages へデプロイ` → **Workers Assets 統合に変更**。理由: (1) Pages と Workers で別ドメイン (`polepole.dev` vs `api.polepole.dev`) を立てると Stripe success_url が指す `polepole.dev/thanks` の処理に Pages Functions or Worker route の別配線が要る、(2) Workers v4 の `[assets]` directive で同等のことが 1 デプロイで完結する、(3) static 量がごく少ない (5 HTML + 1 CSS)。Pages の Git 連携メリットは現時点で不要
 - **2026-05-23 Phase 1 着手時**: `polepole-backend/` を別 repo にする案 → **monorepo (本 repo 内 `backend/`) に変更**。理由: PolePole 本体もクローズド配布なので別 repo にする強い理由が薄い / セッション切り替え不要 / git log・CI・mise 設定を共有できて運用が軽い。将来 OSS 化や権限分離が必要になったら切り出す
 - **2026-05-23** plan 初版へのレビュー指摘 7 件を反映:
   - 鍵の役割を逆に書いていた → Workers env=秘密鍵 / アプリ=公開鍵に修正

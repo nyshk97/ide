@@ -22,7 +22,8 @@ app.use(
   })
 );
 
-app.get("/", (c) => c.text("PolePole backend OK"));
+// `/` を含む static asset は wrangler.toml の [assets] 設定により
+// public/ ディレクトリから自動配信される。Hono ルートは動的処理だけを担当。
 
 app.get("/healthz", (c) =>
   c.json({
