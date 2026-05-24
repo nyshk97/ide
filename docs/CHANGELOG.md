@@ -31,6 +31,7 @@ PolePole の更新履歴。形式は [Keep a Changelog](https://keepachangelog.c
 
 ## [Unreleased]
 
+## [1.1.2] - 2026-05-24
 ### ✨ Added
 - ja: 公式サイトに [/guide](https://polepole.dev/guide) ページを追加 (初回起動・ライセンス適用・アップデート・Ghostty 設定の早見表)
 - en: Added a new [/guide](https://polepole.dev/guide) page on the official site, covering first launch, license activation, updates, and Ghostty configuration
