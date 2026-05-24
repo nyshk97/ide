@@ -3,10 +3,10 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>PolePole — Claude Code をストレスなく回す macOS ワークスペース</title>
-  <meta name="description" content="PolePole は Claude Code / Codex CLI など、ターミナルで動く AI コーディング CLI を快適に使うための macOS 専用ワークスペース。ターミナル + ファイルプレビュー + プロジェクト管理を 1 つに統合。¥11,800 買い切り / Lifetime License。">
-  <meta property="og:title" content="PolePole — macOS ワークスペース">
-  <meta property="og:description" content="Claude Code をストレスなく回す macOS ワークスペース。¥11,800 買い切り / Lifetime License">
+  <title>PolePole — AI コーディング CLI のための All-in-One ワークスペース (macOS)</title>
+  <meta name="description" content="PolePole は Claude Code / Codex CLI など、ターミナルで動く AI コーディング CLI のための All-in-One ワークスペース (macOS 専用)。ターミナル・ファイルプレビュー・プロジェクト切替をひとつのウィンドウで扱えます。¥9,900 買い切り / Lifetime License。">
+  <meta property="og:title" content="PolePole — AI コーディング CLI のための All-in-One ワークスペース">
+  <meta property="og:description" content="AI コーディング CLI のための All-in-One ワークスペース (macOS)。¥9,900 買い切り / Lifetime License">
   <meta property="og:type" content="website">
   <meta property="og:url" content="https://polepole.dev/">
   <link rel="canonical" href="https://polepole.dev/">
@@ -18,8 +18,8 @@
       <a href="/" class="logo">PolePole</a>
       <nav class="site-nav">
         <a href="#features">特徴</a>
-        <a href="#pricing">価格</a>
         <a href="#download">ダウンロード</a>
+        <a href="#pricing">ライセンス</a>
         <a href="/changelog">更新情報</a>
         <span class="lang-switch">
           <span class="lang-current">JA</span>
@@ -32,21 +32,17 @@
 
   <section class="hero">
     <div class="container">
-      <h1>Claude Code を<br>ストレスなく回す。</h1>
+      <img src="/app-icon.png" alt="" class="app-icon" width="256" height="256">
+      <h1>AI コーディング CLI のための<br>All-in-One ワークスペース</h1>
       <p class="tagline">
-        Claude Code / Codex CLI など、ターミナルで動く AI コーディング CLI を快適に使うための macOS ワークスペース。<br>
-        ターミナル・ファイルプレビュー・プロジェクト管理を 1 つに統合しました。
+        Claude Code / Codex CLI などのターミナル系 AI ツールに最適化。<br>
+        ターミナル・ファイルプレビュー・プロジェクト切替を 1 画面で。
       </p>
-      <div class="cta">
-        <a href="#download" class="btn btn-primary">14 日間 無料で試す</a>
-        <a href="#pricing" class="btn btn-secondary">価格を見る</a>
-      </div>
     </div>
   </section>
 
   <div class="screenshot">
-    <!-- TODO: 実機スクショに差し替え。Phase 4 ではプレースホルダ。 -->
-    <div class="placeholder">screenshot (TBD)</div>
+    <img src="/hero-screenshot.jpg" alt="PolePole の画面: 左にプロジェクト一覧、中央にファイルツリーとプレビュー、右に Claude Code と Codex を並べたターミナル" width="2400" height="1511" loading="eager">
   </div>
 
   <section id="features" class="alt">
@@ -71,7 +67,7 @@
           <p>ファイル名検索と全文検索が即座。プレビューはツリーに戻る Cmd+J で 1 タップ往復。</p>
         </div>
         <div class="feature">
-          <h3>git 差分オーバーレイ</h3>
+          <h3>git diff プレビュー</h3>
           <p>Cmd+D で差分を全画面表示。レビューや作業中の確認に。</p>
         </div>
         <div class="feature">
@@ -82,30 +78,11 @@
     </div>
   </section>
 
-  <section id="pricing">
-    <div class="container">
-      <h2>価格</h2>
-      <p class="sub">買い切り。サブスクリプションはありません。</p>
-      <div class="pricing-card">
-        <div class="price">¥11,800<small>(税込)</small></div>
-        <p class="price-sub">Lifetime License — 全メジャーバージョン無料アップデート</p>
-        <ul>
-          <li>14 日間の無料トライアル</li>
-          <li>1 ライセンスにつき 3 台までアクティベート</li>
-          <li>全メジャーバージョン無料アップデート (v1 / v2 / v3 …)</li>
-          <li>サポート: <a href="/contact">お問い合わせフォーム</a></li>
-        </ul>
-        <a href="https://buy.stripe.com/00w28q333cFyavN0pggrS00" class="btn btn-primary">ライセンスを購入する</a>
-      </div>
-    </div>
-  </section>
-
   <section id="download" class="alt">
     <div class="container">
       <h2>ダウンロード</h2>
-      <p class="sub">14 日間 無料で試せます。期限内にアクティベートすればそのまま使い続けられます。</p>
       <div class="download-block">
-        <h3 style="margin-top: 24px;">Homebrew (推奨)</h3>
+        <h3 style="margin-top: 24px;">Homebrew</h3>
         <pre class="code">brew install --cask nyshk97/tap/polepole</pre>
         <h3 style="margin-top: 32px;">直接ダウンロード</h3>
         <p>
@@ -118,14 +95,19 @@
     </div>
   </section>
 
-  <section>
-    <div class="container" style="text-align: center;">
-      <h2>使い方</h2>
-      <p class="sub">セットアップから推奨ワークフローまで、Zenn の launch 記事で詳しく紹介しています。</p>
-      <!-- TODO: launch 時に Zenn 記事 URL を差し込む -->
-      <p>
-        <a href="https://zenn.dev/d0ne1s" class="btn btn-secondary">Zenn の解説記事を読む</a>
-      </p>
+  <section id="pricing">
+    <div class="container">
+      <h2>ライセンス</h2>
+      <p class="sub">買い切り。月額費用はかかりません。</p>
+      <div class="pricing-card">
+        <div class="price">¥9,900<small>(税込)</small></div>
+        <ul>
+          <li>14 日間の無料トライアル後に必要</li>
+          <li>1 ライセンスにつき 3 台までアクティベート</li>
+          <li>全メジャーバージョン無料アップデート</li>
+        </ul>
+        <a href="https://buy.stripe.com/cNi8wObzzeNGfQ7fkagrS01" class="btn btn-primary">ライセンスを購入する</a>
+      </div>
     </div>
   </section>
 

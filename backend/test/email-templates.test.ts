@@ -11,7 +11,7 @@ const sampleLicense: License = {
   email: "buyer@example.com",
   stripe_session_id: "cs_test_123",
   stripe_payment_intent_id: "pi_test_123",
-  amount: 11800,
+  amount: 9900,
   currency: "jpy",
   status: "active",
   email_sent_at: null,

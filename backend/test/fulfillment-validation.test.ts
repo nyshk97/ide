@@ -3,7 +3,7 @@ import { validateSession, type ValidationEnv } from "../src/lib/fulfillment";
 import type { StripeCheckoutSession } from "../src/lib/stripe";
 
 const ENV: ValidationEnv = {
-  EXPECTED_AMOUNT: "11800",
+  EXPECTED_AMOUNT: "9900",
   EXPECTED_CURRENCY: "jpy",
   EXPECTED_PRICE_ID: "price_test",
   EXPECTED_PAYMENT_LINK_ID: "plink_test",
@@ -14,7 +14,7 @@ function makeSession(overrides: Partial<StripeCheckoutSession> = {}): StripeChec
     id: "cs_test_123",
     object: "checkout.session",
     payment_status: "paid",
-    amount_total: 11800,
+    amount_total: 9900,
     currency: "jpy",
     customer_details: { email: "buyer@example.com" },
     payment_intent: "pi_test_123",
@@ -34,7 +34,7 @@ describe("validateSession", () => {
     if (res.ok) {
       expect(res.data).toEqual({
         email: "buyer@example.com",
-        amount: 11800,
+        amount: 9900,
         currency: "jpy",
         paymentIntentId: "pi_test_123",
       });

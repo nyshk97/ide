@@ -156,7 +156,7 @@ curl -s -o /dev/null -w "POST /stripe-webhook -> %{http_code}\n" -X POST https:/
 ## 8. 本番購入で最終確認 [人間タスク]
 
 1. Safari で `https://polepole.dev/` を開く → 「購入する」ボタン
-2. Stripe Payment Link で実カード (本人) で ¥11,800 払い (返金可なので動作確認用)
+2. Stripe Payment Link で実カード (本人) で ¥9,900 払い (返金可なので動作確認用)
 3. `https://polepole.dev/thanks?session_id=...` でキー表示
 4. `nyshk97@gmail.com` (購入時メアド) にキー発行メールが届く
 5. アプリで Settings > ライセンス → メアドとキー入力 → activated になる
@@ -178,6 +178,44 @@ curl -s -o /dev/null -w "POST /stripe-webhook -> %{http_code}\n" -X POST https:/
 - [ ] 8. 本番購入 → activate → サポートメール確認
 
 すべて green になったら v1.0 launch。
+
+---
+
+## 価格変更ワークフロー
+
+価格 (例: ¥11,800 → ¥9,900) を変更するときに更新が連動する箇所と、CLI で完結させる手順。漏れがあると「LP は新価格表示なのに webhook で金額検証 fail」 / 「Stripe は旧価格のまま」のミスマッチが起きる。
+
+### 影響範囲チェックリスト
+
+- [ ] LP `backend/public/index.html`:
+  - [ ] `.price` の表示価格
+  - [ ] `<meta name="description">` の「¥XX,XXX 買い切り / Lifetime License」
+  - [ ] `<meta property="og:description">` の同じ文言
+  - [ ] 購入ボタン `<a class="btn btn-primary">` の `href` (新 Payment Link URL)
+- [ ] 法的表記 `backend/public/legal/tokushoho.html` の「販売価格」
+- [ ] 決済検証 `backend/wrangler.toml` の `EXPECTED_AMOUNT` (**dev `[vars]` と production `[env.production.vars]` の 2 箇所**)
+- [ ] テスト:
+  - [ ] `backend/test/fulfillment-validation.test.ts` の `EXPECTED_AMOUNT` / `amount_total` / `amount`
+  - [ ] `backend/test/email-templates.test.ts` の sample license `amount`
+- [ ] Stripe 側:
+  - [ ] 新 Price (`stripe prices create -d product=<既存> -d currency=jpy -d unit_amount=<新>`)
+  - [ ] 新 Payment Link (`stripe payment_links create` で `after_completion[redirect][url]=https://polepole.dev/thanks?session_id={CHECKOUT_SESSION_ID}` / `allow_promotion_codes=true`)
+  - [ ] 旧 Price `active=false` で archive
+  - [ ] 旧 Payment Link `active=false` で deactivate
+- [ ] Secrets:
+  - [ ] `echo -n "<new_price_id>" | pnpm exec wrangler secret put EXPECTED_PRICE_ID --env production`
+  - [ ] `echo -n "<new_plink_id>" | pnpm exec wrangler secret put EXPECTED_PAYMENT_LINK_ID --env production`
+- [ ] DEPLOY.md §8 の検証手順の参考価格
+- [ ] `pnpm exec wrangler deploy --env production` で反映
+- [ ] 本番アクセスで `.price` 表示と購入ボタン URL を agent-browser で確認
+- [ ] (人間タスク) 新 Payment Link を Safari で開いて新価格表示の最終目視 + 可能なら 1 件踏んで refund して fulfillment 通すか確認
+
+### Stripe CLI を使うための前提 (グローバル CLAUDE.md の「Stripe CLI の癖」と重複するが運用に必要なので再掲)
+
+1. CLI が `[default]` profile に本番アカウントの key を保持しているか確認: `stripe config --list` で `account_id` が本番 (`acct_...`) か、`live_mode_api_key` セクションがあるか
+2. ただし `stripe login` の自動取得は `rk_live_*` (restricted key) で **Price 作成等の write API が 401**。必ず Stripe Dashboard の Secret key (`sk_live_*`) を `stripe login --interactive` で投入
+3. live key は keychain から `security find-generic-password -s "StripeCLI" -a "default.live_mode_api_key" -w` で取り出し、`export STRIPE_API_KEY=$(...)` で渡す
+4. Payment Link の URL slug (`buy.stripe.com/XXX`) と API ID (`plink_xxx`) は別物。`payment_links list` で実 ID を引いてから操作する
 
 ---
 

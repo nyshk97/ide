@@ -13,7 +13,7 @@ compatibility_flags = ["nodejs_compat"]
 
 # ===== development (`wrangler dev` / 引数なし deploy はここを見る) =====
 [vars]
-EXPECTED_AMOUNT = "11800"
+EXPECTED_AMOUNT = "9900"
 EXPECTED_CURRENCY = "jpy"
 RESEND_ENABLED = "true"
 
@@ -56,7 +56,7 @@ routes = [
 ]
 
 [env.production.vars]
-EXPECTED_AMOUNT = "11800"
+EXPECTED_AMOUNT = "9900"
 EXPECTED_CURRENCY = "jpy"
 RESEND_ENABLED = "true"
 
