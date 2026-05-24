@@ -323,7 +323,7 @@ Phase 3 終了後の review で High 2 件 + Medium 2 件の指摘を受けた�
 - [x] **本番 EdDSA 鍵ペア再生成 + 投入** — `openssl ed25519` で生成、`LICENSE_SIGNING_PRIVATE_KEY` を Workers に投入、Dropbox dotfiles にバックアップ、公開鍵 `Resources/License/license-pubkey.pem` をアプリにバンドル
 - [x] **Stripe Sandbox の固定 Webhook endpoint 作成** — `stripe webhook_endpoints create` で `https://polepole.dev/stripe-webhook` 宛て (we_1TaQeYE5fnkZYeUc8CJo3fGN)、`STRIPE_WEBHOOK_SECRET` を Workers に投入
 - [x] **Sandbox 4 secrets を本番 Workers に投入** — `STRIPE_SECRET_KEY` / `STRIPE_WEBHOOK_SECRET` / `EXPECTED_PRICE_ID` / `EXPECTED_PAYMENT_LINK_ID` (launch 直前で Live mode に差し替え予定)
-- [x] **Resend `polepole.dev` ドメイン登録 + Cloudflare DNS Auto configure** — DKIM / SPF / MX レコードを `send.polepole.dev` subdomain で自動追加、verifying domain 中
+- [x] **Resend `polepole.dev` ドメイン登録 + Cloudflare DNS Auto configure** — DKIM / SPF / MX レコードを `send.polepole.dev` subdomain で自動追加、**2026-05-24 10:54 に status = Verified (緑) を確認**
 - [x] **Resend 本番 API key 発行 + Workers に `RESEND_API_KEY` 投入**
 - [x] **Cloudflare DNS に AAAA `polepole.dev → 100::` (proxied) を追加** — Workers Routes が apex 流量を引き取るためのプレースホルダ
 - [ ] Stripe を **Live mode** に切り替えて Payment Link / Webhook を本番 ID で再発行 — **launch 直前 (KYC + 銀行口座登録後)**
@@ -381,6 +381,8 @@ Phase 3 終了後の review で High 2 件 + Medium 2 件の指摘を受けた�
 ## ログ
 
 ### 試したこと・わかったこと
+- **2026-05-24 鍵入れ替え動作確認**: 本番 EdDSA 公開鍵 (`Resources/License/license-pubkey.pem`) をアプリにバンドルした後、Sandbox 鍵で署名された token がローカル DBG ビルドで `signatureInvalid` として拒否され、`ActivationTokenStore.clear()` 経路でトライアル復帰することを確認 (`[license] token verify failed: signatureInvalid. falling back to trial path` → `state = trial(14 days left)`)。本番アプリ (release 1.1.0) は本番 Workers の token と pair で動作する設計通り
+- **2026-05-24 Resend `polepole.dev` 検証完了**: Cloudflare DNS Auto configure 経由で追加した DKIM/SPF/MX が Amazon SES 側で verified に。Resend Dashboard の status が緑になり、本番メール送信パスが整った
 - **2026-05-24 Phase 9 C 本番デプロイ完了 (Sandbox Stripe で先行)**:
   - `pnpm exec wrangler deploy --env production` で本番 Worker が live。`polepole.dev/*` route 確立
   - Assets 5 ファイル (LP/CSS/法的 3) アップロード、Worker startup time 6ms
