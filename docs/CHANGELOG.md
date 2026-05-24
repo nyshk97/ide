@@ -30,6 +30,8 @@ PolePole の更新履歴。形式は [Keep a Changelog](https://keepachangelog.c
 「内部リファクタ」「ドキュメント追加」「CI 調整」などユーザー目視で気づかない変更は **書かない**。
 
 ## [Unreleased]
+
+## [1.1.1] - 2026-05-24
 ### 📝 Changed
 - ja: トライアル期限切れ画面 (ペイウォール) を整理。アプリアイコンを表示し、価格表記を公式サイトと同じ ¥9,900 に統一、レイアウトの余白を調整しました
 - en: Polished the trial-expiry paywall: shows the app icon, matches the website's ¥9,900 price, and tightened the layout spacing
