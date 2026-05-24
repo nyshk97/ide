@@ -21,7 +21,7 @@ thanksRoute.get("/", async (c) => {
       return c.html(
         errorPage(
           `この決済はライセンス発行条件を満たしていませんでした (reason: ${result.reason})。
-お心当たりが無い場合は support@polepole.dev までご連絡ください。`
+お心当たりが無い場合は https://polepole.dev/contact よりご連絡ください。`
         ),
         400
       );
@@ -32,7 +32,7 @@ thanksRoute.get("/", async (c) => {
     return c.html(
       errorPage(
         `内部エラーで処理に失敗しました。お手数ですが、購入時のメールアドレスを添えて
-support@polepole.dev にご連絡ください。`
+https://polepole.dev/contact よりご連絡ください。`
       ),
       500
     );
@@ -69,12 +69,12 @@ function successPage(key: string, email: string, emailSent: boolean) {
   <p class="small">
     ${emailSent
       ? "同じ内容をメールでもお送りしました。届かない場合は迷惑メールフォルダもご確認ください。"
-      : "メール送信に失敗しているか、配信が遅れています。このページのキーを保管しておくか、support@polepole.dev までお問い合わせください。"}
+      : "メール送信に失敗しているか、配信が遅れています。このページのキーを保管しておくか、https://polepole.dev/contact よりお問い合わせください。"}
   </p>
   <p class="small">
     ・1 ライセンスにつき 3 台までアクティベートできます<br>
     ・全メジャーバージョン無料アップデート (Lifetime License)<br>
-    ・お問い合わせ: <a href="mailto:support@polepole.dev">support@polepole.dev</a>
+    ・お問い合わせ: <a href="https://polepole.dev/contact">お問い合わせフォーム</a>
   </p>
 </body>
 </html>`;

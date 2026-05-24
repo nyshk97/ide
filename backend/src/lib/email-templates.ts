@@ -10,8 +10,8 @@
 import type { License } from "../types";
 import type { ResendEmail } from "./resend";
 
-const FROM = "PolePole <support@polepole.dev>";
-const SUPPORT_EMAIL = "support@polepole.dev";
+const FROM = "PolePole <noreply@polepole.dev>";
+const CONTACT_URL = "https://polepole.dev/contact";
 const SITE_URL = "https://polepole.dev";
 
 // HTML の共通スタイル。
@@ -47,7 +47,7 @@ export function buildLicenseKeyEmail(license: License): ResendEmail {
     ・1 ライセンスにつき <strong>3 台まで</strong>アクティベートできます<br>
     ・全メジャーバージョン無料アップデート (Lifetime License)<br>
     ・トライアル中の方は、Settings から本キーを入力するだけで継続利用可能です<br>
-    ・ご不明な点は <a href="mailto:${SUPPORT_EMAIL}">${SUPPORT_EMAIL}</a> までお問い合わせください
+    ・ご不明な点は <a href="${CONTACT_URL}">お問い合わせフォーム</a> よりお問い合わせください
   </p>
   <p style="${NOTE_STYLE} margin-top: 32px;">— PolePole / <a href="${SITE_URL}">${SITE_URL}</a></p>
 </body>
@@ -64,7 +64,7 @@ export function buildLicenseKeyEmail(license: License): ResendEmail {
   ・1 ライセンスにつき 3 台までアクティベートできます
   ・全メジャーバージョン無料アップデート (Lifetime License)
   ・トライアル中の方は、Settings から本キーを入力するだけで継続利用可能です
-  ・ご不明な点は ${SUPPORT_EMAIL} までお問い合わせください
+  ・ご不明な点は ${CONTACT_URL} よりお問い合わせください
 
 — PolePole / ${SITE_URL}`;
 
@@ -95,7 +95,7 @@ export function buildLicenseResendEmail(license: License): ResendEmail {
   <p style="${NOTE_STYLE}">
     ・1 ライセンスにつき 3 台までアクティベートできます<br>
     ・既存のアクティベート状況は維持されています (本メールはキー送付のみ)<br>
-    ・ご不明な点は <a href="mailto:${SUPPORT_EMAIL}">${SUPPORT_EMAIL}</a> までお問い合わせください
+    ・ご不明な点は <a href="${CONTACT_URL}">お問い合わせフォーム</a> よりお問い合わせください
   </p>
   <p style="${NOTE_STYLE} margin-top: 32px;">— PolePole / <a href="${SITE_URL}">${SITE_URL}</a></p>
 </body>
@@ -113,7 +113,7 @@ export function buildLicenseResendEmail(license: License): ResendEmail {
 ご利用にあたって:
   ・1 ライセンスにつき 3 台までアクティベートできます
   ・既存のアクティベート状況は維持されています (本メールはキー送付のみ)
-  ・ご不明な点は ${SUPPORT_EMAIL} までお問い合わせください
+  ・ご不明な点は ${CONTACT_URL} よりお問い合わせください
 
 — PolePole / ${SITE_URL}`;
 
@@ -164,7 +164,7 @@ export function buildUniversalTokenEmail(args: UniversalTokenEmailArgs): ResendE
     A. サービス終了後は新規アップデートを提供できなくなりますが、最終版は永続的にご利用いただけます。
   </p>
   <p style="${NOTE_STYLE}">
-    本件に関するお問い合わせは <a href="mailto:${SUPPORT_EMAIL}">${SUPPORT_EMAIL}</a> までお願いします。<br>
+    本件に関するお問い合わせは <a href="${CONTACT_URL}">お問い合わせフォーム</a> よりお願いします。<br>
     長らくのご愛顧、誠にありがとうございました。
   </p>
   <p style="${NOTE_STYLE} margin-top: 32px;">— PolePole / <a href="${SITE_URL}">${SITE_URL}</a></p>
@@ -201,7 +201,7 @@ export function buildUniversalTokenEmail(args: UniversalTokenEmailArgs): ResendE
   Q. アプリのアップデートはどうなる?
   A. サービス終了後は新規アップデートを提供できなくなりますが、最終版は永続的にご利用いただけます。
 
-本件に関するお問い合わせは ${SUPPORT_EMAIL} までお願いします。
+本件に関するお問い合わせは ${CONTACT_URL} よりお願いします。
 長らくのご愛顧、誠にありがとうございました。
 
 — PolePole / ${SITE_URL}`;

@@ -7,7 +7,7 @@ import SwiftUI
 /// - 価格 (¥11,800 / Lifetime License)
 /// - 「購入する」ボタン (polepole.dev の購入ページへ)
 /// - ライセンスキー入力フォーム
-/// - サポートメール (support@polepole.dev)
+/// - お問い合わせフォーム (polepole.dev/contact) へのリンク
 ///
 /// 要件 6 / 8.3 に従い、これが出ている間は背景の全機能 (メニュー操作も含む) を
 /// 受け付けない。`ContentView` の ZStack overlay として最前面に重ねる。
@@ -93,7 +93,7 @@ struct PaywallView: View {
 
                 HStack(spacing: 16) {
                     Button("お問い合わせ") {
-                        if let url = URL(string: "mailto:support@polepole.dev") {
+                        if let url = URL(string: "https://polepole.dev/contact") {
                             NSWorkspace.shared.open(url)
                         }
                     }

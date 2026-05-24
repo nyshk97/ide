@@ -22,8 +22,8 @@ const sampleLicense: License = {
 describe("buildLicenseKeyEmail (購入直後)", () => {
   const email = buildLicenseKeyEmail(sampleLicense);
 
-  it("from は support@polepole.dev", () => {
-    expect(email.from).toBe("PolePole <support@polepole.dev>");
+  it("from は noreply@polepole.dev (送信専用)", () => {
+    expect(email.from).toBe("PolePole <noreply@polepole.dev>");
   });
   it("to は license.email", () => {
     expect(email.to).toBe("buyer@example.com");
@@ -40,11 +40,11 @@ describe("buildLicenseKeyEmail (購入直後)", () => {
     expect(email.text).toContain(sampleLicense.id);
     expect(email.text).toContain(sampleLicense.email);
   });
-  it("HTML/text の両方に Lifetime License とサポート連絡先が含まれる", () => {
+  it("HTML/text の両方に Lifetime License とお問い合わせフォーム URL が含まれる", () => {
     expect(email.html).toMatch(/Lifetime License/);
-    expect(email.html).toContain("support@polepole.dev");
+    expect(email.html).toContain("https://polepole.dev/contact");
     expect(email.text).toMatch(/Lifetime License/);
-    expect(email.text).toContain("support@polepole.dev");
+    expect(email.text).toContain("https://polepole.dev/contact");
   });
 });
 
