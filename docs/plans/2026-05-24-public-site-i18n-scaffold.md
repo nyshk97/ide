@@ -54,7 +54,8 @@ PolePole の公開サイト (`backend/public/` + Hono `/thanks`) はまだ日本
 
 - [x] HyperForm で英語問い合わせ用 form endpoint を新規作成し、endpoint ID を控える（既存 `tlzJV69s` と並列。返信メッセージ・自動返信メールも英語で設定）
   - 2026-05-24: `xAkLczSf` (PolePole[en] プロジェクト) として発行済み
-- [ ] Stripe Dashboard で Payment Link `00w28q333cFyavN0pggrS00` の言語設定が「Auto-detect / Customer's language」になっているか確認。なっていなければそちらに変更
+- [x] Stripe Dashboard で Payment Link `00w28q333cFyavN0pggrS00` の言語設定が「Auto-detect / Customer's language」になっているか確認
+  - 2026-05-24: Payment Link は仕様上 **常にブラウザ言語で auto 表示** され、Dashboard に言語オーバーライド設定自体が無い (Checkout Session には `locale` パラメータがあるが Payment Link には無い)。何もしなくて OK
 - [x] HyperForm 英語 endpoint ID を AI に共有 → `backend/public/en/contact.html` に反映済み
 
 ### Phase 1: JP ページに言語スイッチ slot を追加 [AI🤖]
@@ -135,7 +136,7 @@ Cloudflare Assets default で `.html` → extensionless に 301 されること�
 
 - [ ] ブラウザで `/` を開き、ヘッダーの EN スイッチをクリック → `/en/` のスタブが表示されることを目視
 - [ ] `/en/contact` の言語スイッチをクリック → `/contact`（`/` ではない）に戻ることを確認
-- [ ] `/en/contact` で英語 HyperForm にテスト送信 1 件、英語の自動返信が届くことを確認
+- [x] `/en/contact` で英語 HyperForm にテスト送信 1 件、英語の自動返信が届くことを確認 (2026-05-24)
 - [ ] Stripe Payment Link を実際に開き、ブラウザ言語を英語にすると Checkout 画面が英語表記になることを確認
 
 ## ログ
@@ -154,4 +155,5 @@ Cloudflare Assets default で `.html` → extensionless に 301 されること�
 
 ### 方針変更
 
-- 2026-05-24: EN contact form の HyperForm endpoint を `xAkLczSf` (PolePole[en] プロジェクト) に差し替え。残るは Stripe Dashboard の locale 設定確認 + 人間目視確認のみ
+- 2026-05-24: EN contact form の HyperForm endpoint を `xAkLczSf` (PolePole[en] プロジェクト) に差し替え
+- 2026-05-24: 当初「Stripe Dashboard で Payment Link の locale=auto 確認」を Phase 0 に積んでいたが、実際は Stripe Payment Link に locale オーバーライド設定自体が無く、常にブラウザ言語で auto 表示される仕様だった。Checkout Session の `locale` パラメータと混同していた。タスクは N/A 扱いでクリア
