@@ -9,10 +9,19 @@ export const thanksRoute = new Hono<{ Bindings: Bindings }>();
 // session_id を Stripe API で検証 → fulfillCheckout (webhook と同じ関数) → license を画面表示。
 // webhook より /thanks の方が先に届くケースが普通なので、ここでほぼ毎回 license が新規作成される想定。
 
+// i18n scaffold: `?lang=en` を受ける slot だけ用意。中身は当面 JP 固定。
+// 本翻訳投入時に EN HTML を生やす + Stripe 側 success_url に `?lang=en` を埋める
+// (EN 用 Payment Link を別途作って success_url に組み込む) ことで EN レンダリングに切り替わる。
+type Lang = "ja" | "en";
+function parseLang(c: { req: { query: (k: string) => string | undefined } }): Lang {
+  return c.req.query("lang") === "en" ? "en" : "ja";
+}
+
 thanksRoute.get("/", async (c) => {
+  const lang = parseLang(c);
   const sessionId = c.req.query("session_id");
   if (!sessionId) {
-    return c.html(errorPage("session_id がありません。購入完了ページから来てください。"), 400);
+    return c.html(errorPage("session_id がありません。購入完了ページから来てください。", lang), 400);
   }
 
   try {
@@ -21,25 +30,29 @@ thanksRoute.get("/", async (c) => {
       return c.html(
         errorPage(
           `この決済はライセンス発行条件を満たしていませんでした (reason: ${result.reason})。
-お心当たりが無い場合は https://polepole.dev/contact よりご連絡ください。`
+お心当たりが無い場合は https://polepole.dev/contact よりご連絡ください。`,
+          lang
         ),
         400
       );
     }
-    return c.html(successPage(result.license.id, result.license.email, result.emailSent));
+    return c.html(successPage(result.license.id, result.license.email, result.emailSent, lang));
   } catch (err) {
     console.error("/thanks fulfillment error:", err);
     return c.html(
       errorPage(
         `内部エラーで処理に失敗しました。お手数ですが、購入時のメールアドレスを添えて
-https://polepole.dev/contact よりご連絡ください。`
+https://polepole.dev/contact よりご連絡ください。`,
+        lang
       ),
       500
     );
   }
 });
 
-function successPage(key: string, email: string, emailSent: boolean) {
+function successPage(key: string, email: string, emailSent: boolean, _lang: Lang) {
+  // TODO(i18n): _lang === "en" になったら EN HTML を生やす。
+  // それまでは JP 固定でレンダリング。
   return html`<!DOCTYPE html>
 <html lang="ja">
 <head>
@@ -80,7 +93,8 @@ function successPage(key: string, email: string, emailSent: boolean) {
 </html>`;
 }
 
-function errorPage(message: string) {
+function errorPage(message: string, _lang: Lang = "ja") {
+  // TODO(i18n): _lang === "en" になったら EN HTML を生やす。
   return html`<!DOCTYPE html>
 <html lang="ja">
 <head>

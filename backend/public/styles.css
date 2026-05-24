@@ -355,6 +355,49 @@ footer.site-footer .copy {
   opacity: 0;
 }
 
+/* ===== Language switch ===== */
+.lang-switch {
+  margin-left: 24px;
+  padding-left: 24px;
+  border-left: 1px solid var(--border);
+  display: inline-flex;
+  gap: 8px;
+  font-size: 13px;
+  align-items: center;
+}
+.lang-switch .lang-current {
+  color: var(--text);
+  font-weight: 500;
+}
+.lang-switch .lang-link {
+  color: var(--text-muted);
+}
+.lang-switch .lang-link:hover { color: var(--text); text-decoration: none; }
+.lang-switch .lang-disabled {
+  color: var(--text-muted);
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+.lang-switch .lang-divider {
+  color: var(--text-muted);
+  opacity: 0.5;
+}
+
+footer.site-footer .lang-switch {
+  border-left: none;
+  padding-left: 0;
+  margin-left: 0;
+  margin-top: 12px;
+  justify-content: center;
+  display: flex;
+}
+footer.site-footer .lang-switch a,
+footer.site-footer .lang-switch .lang-current,
+footer.site-footer .lang-switch .lang-disabled,
+footer.site-footer .lang-switch .lang-divider {
+  margin: 0;
+}
+
 /* ===== Mobile ===== */
 @media (max-width: 640px) {
   .hero { padding: 64px 0 48px; }
@@ -363,4 +406,5 @@ footer.site-footer .copy {
   section { padding: 56px 0; }
   section h2 { font-size: 26px; }
   .site-nav a { margin-left: 12px; font-size: 13px; }
+  .lang-switch { margin-left: 12px; padding-left: 12px; }
 }
