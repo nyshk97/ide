@@ -320,9 +320,13 @@ Phase 3 終了後の review で High 2 件 + Medium 2 件の指摘を受けた�
 - [x] **wrangler.toml** に `[env.production].routes = [{pattern = "polepole.dev/*", zone_name = "polepole.dev"}]` 追加
 - [x] **アプリ LicenseClient の Release baseURL** を `https://polepole.dev` に統合 (subdomain `api.polepole.dev` は廃止、Workers Assets 統合に合わせる)
 - [x] **dry-run** で D1 / Rate Limiter / vars binding が production env から見えることを確認
-- [ ] Stripe を Live mode に切り替え、Payment Link を本番 ID で再発行 — DEPLOY.md §2
-- [ ] Workers / Resend / DNS 周りを Live 用に切り替え — DEPLOY.md §2.3 / §3 / §4
-- [ ] サ終時用に EdDSA 秘密鍵を Dropbox dotfiles 配下に保管 — DEPLOY.md §1
+- [x] **本番 EdDSA 鍵ペア再生成 + 投入** — `openssl ed25519` で生成、`LICENSE_SIGNING_PRIVATE_KEY` を Workers に投入、Dropbox dotfiles にバックアップ、公開鍵 `Resources/License/license-pubkey.pem` をアプリにバンドル
+- [x] **Stripe Sandbox の固定 Webhook endpoint 作成** — `stripe webhook_endpoints create` で `https://polepole.dev/stripe-webhook` 宛て (we_1TaQeYE5fnkZYeUc8CJo3fGN)、`STRIPE_WEBHOOK_SECRET` を Workers に投入
+- [x] **Sandbox 4 secrets を本番 Workers に投入** — `STRIPE_SECRET_KEY` / `STRIPE_WEBHOOK_SECRET` / `EXPECTED_PRICE_ID` / `EXPECTED_PAYMENT_LINK_ID` (launch 直前で Live mode に差し替え予定)
+- [x] **Resend `polepole.dev` ドメイン登録 + Cloudflare DNS Auto configure** — DKIM / SPF / MX レコードを `send.polepole.dev` subdomain で自動追加、verifying domain 中
+- [x] **Resend 本番 API key 発行 + Workers に `RESEND_API_KEY` 投入**
+- [x] **Cloudflare DNS に AAAA `polepole.dev → 100::` (proxied) を追加** — Workers Routes が apex 流量を引き取るためのプレースホルダ
+- [ ] Stripe を **Live mode** に切り替えて Payment Link / Webhook を本番 ID で再発行 — **launch 直前 (KYC + 銀行口座登録後)**
 
 ### Phase 9: E2E テスト + 本番デプロイ [AI🤖 + 人間👨‍💻]
 - [x] [AI🤖] **A-1 アプリ起動 E2E**: D1 seed → `/v1/license/activate` → token.json → アプリ起動 → `[license] state = activated (expires in 29 days)` を確認 + screenshot で Paywall 非表示の通常 3 カラム表示
@@ -348,6 +352,16 @@ Phase 3 終了後の review で High 2 件 + Medium 2 件の指摘を受けた�
 ## ログ
 
 ### 試したこと・わかったこと
+- **2026-05-24 Phase 9 C 本番デプロイ完了 (Sandbox Stripe で先行)**:
+  - `pnpm exec wrangler deploy --env production` で本番 Worker が live。`polepole.dev/*` route 確立
+  - Assets 5 ファイル (LP/CSS/法的 3) アップロード、Worker startup time 6ms
+  - Secret 6 件投入完了: `LICENSE_SIGNING_PRIVATE_KEY` (本番 EdDSA) / `STRIPE_SECRET_KEY` (Sandbox sk_test) / `STRIPE_WEBHOOK_SECRET` (固定 endpoint 用) / `RESEND_API_KEY` (本番) / `EXPECTED_PRICE_ID` / `EXPECTED_PAYMENT_LINK_ID`
+  - Resend: `polepole.dev` を Cloudflare 経由で Auto configure (DKIM/SPF/MX が `send.polepole.dev` subdomain に自動追加)、本番 API key 発行 → Workers 投入
+  - **罠 1: Workers Routes だけでは DNS が機能しない** — `pnpm wrangler deploy` 後も `polepole.dev` に A/AAAA レコードが無いと curl が `Could not resolve host`。Cloudflare Dashboard で `AAAA polepole.dev → 100::` (Proxied) のプレースホルダを追加して解消。これは Cloudflare 公式の推奨手順
+  - **罠 2: stripe CLI のサブコマンドが redirect で hang** — `stripe webhook_endpoints retrieve` / `delete` を `>` リダイレクトに渡すと対話 prompt のような挙動でプロセスが返らない。`create` は OK。回避: 既存 endpoint の signing secret を最初の create 時点で控えて再利用、必要なら別途新規 endpoint を立てて旧を Dashboard で消す
+  - **罠 3: Claude Code Bash sandbox 内で curl が DNS 引けない** — `host` / `dig @1.1.1.1` は引けるのに `curl` だけ NXDOMAIN を返す。agent-browser 経由でブラウザ HTTP を使えば smoke test できる
+  - Smoke test (agent-browser 経由): `/` LP 描画 ✅ / `/legal/terms` 利用規約タイトル ✅ / `/healthz` JSON ✅ / `/thanks` (no param) エラーページ「session_id がありません」✅
+  - 残: アプリ Release ビルド + Sparkle 配信 (`scripts/release.sh`) / Stripe Live mode 切替 + 実購入確認 / Resend domain の verifying 完了待ち
 - **2026-05-24 Phase 9 C (本番デプロイ AI 担当分) 完了**:
   - 本番 D1 作成: `wrangler d1 create polepole-licenses-prod` (APAC、UUID `291d3fd4-3a52-4fc3-a60d-edff2d94473a`)
   - **罠**: `wrangler d1 migrations apply polepole-licenses-prod --remote` は top-level の `[[d1_databases]]` から名前を引きに行くので、production env でしか定義していない DB に対しては `--env production` を明示する必要があった (`Couldn't find a D1 DB with the name ... in your wrangler.toml` エラー)

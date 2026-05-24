@@ -1940,5 +1940,49 @@ echo "----- D1 license status -----"
 
 期待: stripe listen に `refund.created` + `charge.refunded` が来る、D1 license.status が `refunded` に変わる。続いて 38-D 手順 (activate → FAKE_NOW=issued_at+8d で起動 → verify reject) と同じ流れで、アプリ側が refund を検知して token を clear することを確認する。
 
+## 39. 本番 polepole.dev smoke test (Phase 9 C)
+
+### 39-A. ブラウザ経由の smoke test (推奨、agent-browser)
+
+```bash
+# Claude Code の Bash sandbox 内では curl が DNS 引けないので agent-browser を使う
+for path in / /legal/terms /healthz "/thanks"; do
+  agent-browser --session smoke open "https://polepole.dev${path}"
+  agent-browser --session smoke get title
+  agent-browser --session smoke get url
+  echo "---"
+done
+agent-browser --session smoke close
+```
+
+期待:
+- `/` → タイトル「PolePole — Claude Code をストレスなく回す macOS ワークスペース」
+- `/legal/terms` → タイトル「利用規約 — PolePole」、URL は `.html` 拡張子なしに正規化 (Workers Assets の auto trailing-slash 挙動)
+- `/healthz` → JSON `{"ok":true,"name":"polepole-backend","time":"..."}`
+- `/thanks` (no param) → エラーページ "session_id がありません。購入完了ページから来てください。"
+
+### 39-B. ターミナル経由の smoke test (sandbox 外の terminal で)
+
+`! ` プレフィックスでユーザー側 terminal から実行 (Claude Code Bash sandbox 内では DNS 引けないため):
+
+```bash
+! curl -s -o /tmp/lp.html -w "HTTP %{http_code} size=%{size_download}B\n" https://polepole.dev/
+! curl -s https://polepole.dev/healthz
+! curl -s -o /dev/null -w "HTTP %{http_code} (期待 400)\n" https://polepole.dev/thanks
+! curl -s -o /dev/null -w "HTTP %{http_code} (期待 400)\n" -X POST https://polepole.dev/stripe-webhook
+```
+
+期待: 順に 200 / JSON / 400 / 400。
+
+### 39-C. Cloudflare DNS の最低構成 (回復時の参照)
+
+Workers Routes 経由で apex を受けるには、DNS タブに以下が必要:
+
+| Type | Name | Content | Proxy |
+|---|---|---|---|
+| AAAA | @ (polepole.dev) | `100::` | Proxied (orange) |
+
+加えて Resend ドメイン認証で `send.polepole.dev` 配下に MX / TXT が入る (Auto configure で自動)。
+
 
 
