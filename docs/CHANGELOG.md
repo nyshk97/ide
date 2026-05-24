@@ -30,6 +30,15 @@ PolePole の更新履歴。形式は [Keep a Changelog](https://keepachangelog.c
 「内部リファクタ」「ドキュメント追加」「CI 調整」などユーザー目視で気づかない変更は **書かない**。
 
 ## [Unreleased]
+### 📝 Changed
+- ja: トライアル期限切れ画面 (ペイウォール) を整理。アプリアイコンを表示し、価格表記を公式サイトと同じ ¥9,900 に統一、レイアウトの余白を調整しました
+- en: Polished the trial-expiry paywall: shows the app icon, matches the website's ¥9,900 price, and tightened the layout spacing
+- ja: ご購入後のライセンス受け取りページを刷新。アプリアイコン・ライセンスキーのコピーボタン・3 ステップのアクティベートガイドを追加しました
+- en: Redesigned the post-purchase license page with the app icon, copy-to-clipboard buttons, and a 3-step activation guide
+
+### 🗑️ Removed
+- ja: ペイウォールの「ライセンスキーを再送」ボタンを削除しました (紛失時はお問い合わせフォームからご連絡ください)
+- en: Removed the "Resend license key" button from the paywall (please use the contact form if you lose your key)
 
 ## [1.1.0] - 2026-05-24
 ### ✨ Added
