@@ -365,9 +365,24 @@ Phase 3 終了後の review で High 2 件 + Medium 2 件の指摘を受けた�
 - [x] [AI🤖] アプリ `project.yml` の `MARKETING_VERSION` を `1.0.2` → `1.1.0` に bump + commit (`c1330f6`)
 - [x] [AI🤖] `./scripts/release.sh 1.1.0` で archive + notarize (Accepted) + staple + zip + Sparkle EdDSA 署名 + GitHub Release 作成 → https://github.com/nyshk97/polepole-releases/releases/tag/v1.1.0 / SHA256 `7d7d4658383df75d7e4825105015b81bbc8a3e00006c06686f8ed192eb5d6ca7` / appcast.xml 自動更新
 - [x] [AI🤖] `nyshk97/homebrew-tap/Casks/polepole.rb` の version / sha256 を bump して push (commit `0603e9d`)、`brew info` で 1.1.0 認識を確認
-- [ ] [人間👨‍💻] 本番 Stripe Live で実カードで自己購入 (¥11,800 自分払い、実質手数料 3.6%+¥40 が損失) → メール受信 → アプリで activate → 通常使用可能 を確認
-- [ ] [人間👨‍💻] `support@polepole.dev` 宛にテストメール送信 → 受信できることを確認
+- [x] [人間👨‍💻 + AI🤖] **本番 Stripe Live で自己購入 → /thanks → メール → アクティベート まで一気通貫成功**
+  - 本番 LP の購入ボタン → Stripe Checkout (Live) → クーポン `POLEPOLE-ETERNAL-FREE-D0NE1S` 適用で ¥0 → 支払う → `/thanks` で license key `polepole-H4E5-3P2N-YG8B-AJ2R` 表示
+  - `nyshk97@gmail.com` に Resend 経由で「【PolePole】ご購入ありがとうございます…」メール到着 (購入直後テンプレ Phase 8、Amazon SES Tokyo → Gmail)
+  - PolePole.app 1.1.0 (brew で `brew upgrade --cask polepole` で更新) → Settings → ライセンスタブ → メアドとキー入力 → 「アクティベート済み」緑チェック表示、`state = activated (expires in 30 days)`、device hash (`a51630de41dd...`) と最終認証時刻が表示
+  - D1 license レコード: amount=0, status=active, email_sent_at 入り。クーポン適用ケースが本番 Live で正常完了
+  - **発見した不具合**: 初回試行で `validateSession` の `amount_total === 11800` チェックがクーポン適用時に `amount_mismatch` で reject していた。Phase 5/6/7/8/9 D 全部 ¥11,800 ぴったり前提の設計 → `commit 05c393a` で amount チェック撤廃 (商品正当性は EXPECTED_PRICE_ID + EXPECTED_PAYMENT_LINK_ID + Stripe 署名で担保)、テストも 14 件に拡張。`fulfillment_reject_log` に旧失敗が記録されているのも確認 = Phase 3.5 で導入した監査機能が機能している
+- [ ] [人間👨‍💻] `support@polepole.dev` 宛にテストメール送信 → 受信できることを確認 (受信ルーティングは Resend `Enable Receiving` が未設定なので別途)
 - [ ] [人間👨‍💻] (Optional) Resend で DMARC レコード (`TXT _dmarc v=DMARC1; p=none;`) を Cloudflare DNS に追加 — メール到達率改善
+
+### Phase 9 D + クーポン (今日の追加成果)
+- [x] [AI🤖] **Stripe Coupon + Promotion Code 2 種類を Live で発行**
+  - Coupon `6JQCJFNY` (100% off, one-time, applies_to=prod_UZagDRsLsyDxK2)
+  - Coupon `8F1u0f4Q` (50% off, one-time, applies_to 同上)
+  - Promotion Code `POLEPOLE-ETERNAL-FREE-D0NE1S` (100% off, max 10, 無期限, first_time_transaction=true)
+  - Promotion Code `LAUNCH50` (50% off, max 100, 90 日, first_time_transaction=true)
+  - Payment Link を `allow_promotion_codes=true` に update
+  - LP `index.html`: hero の二重 CTA を「14 日間 無料で試す」+「価格を見る」に整理 + pricing カードのボタンを「ライセンスを購入する」に
+- [x] [AI🤖] STRIPE_SECRET_KEY ローテーション + Workers に新キー投入 + 動作確認 (会話に露出した key の defense-in-depth)
 
 ### Phase 9 E: 最終動作確認 (Phase 9 D 完了後の launch ready check) [人間👨‍💻]
 **前提**: Phase 9 D が完了して brew cask `polepole.rb` が新版 (1.1.0) を指している状態。
