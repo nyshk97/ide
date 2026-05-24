@@ -31,6 +31,22 @@ PolePole の更新履歴。形式は [Keep a Changelog](https://keepachangelog.c
 
 ## [Unreleased]
 
+### ✨ Added
+- ja: 公式サイトに [/guide](https://polepole.dev/guide) ページを追加 (初回起動・ライセンス適用・アップデート・Ghostty 設定の早見表)
+- en: Added a new [/guide](https://polepole.dev/guide) page on the official site, covering first launch, license activation, updates, and Ghostty configuration
+
+### 📝 Changed
+- ja: Cmd+P (ファイル名検索) と Cmd+Shift+F (全文検索) で、`.gitignore` を持たないプロジェクトでも `node_modules` / `target` / `__pycache__` / `dist` / `vendor` / `.next` などの典型的なディレクトリを常に検索対象から除外するようにしました
+- en: Cmd+P (file search) and Cmd+Shift+F (full-text search) now always exclude common build/vendor/cache directories (`node_modules`, `target`, `__pycache__`, `dist`, `vendor`, `.next`, etc.) even when the project has no `.gitignore`
+- ja: ファイルツリーの reload ボタン・preview ↔ tree 切替ボタン・`.gitignored` 表示トグルに、Git ボタンと同じホバー背景を付けて操作可能な要素であることを分かりやすくしました
+- en: The reload button, preview ↔ tree toggle, and the hide-ignored toggle in the file tree now share the same hover background as the Git button, making them feel more clearly clickable
+- ja: ファイルツリーを reload した後も、開いていたディレクトリの展開状態を保持するようにしました
+- en: The file tree now keeps each directory's expand state across reloads
+
+### 🗑️ Removed
+- ja: Cmd+P 検索オーバーレイの「ignored を含む」トグルボタンを削除しました (常に除外する挙動に統一)
+- en: Removed the "include ignored" toggle button from the Cmd+P overlay (it now always excludes ignored entries)
+
 ## [1.1.1] - 2026-05-24
 ### 📝 Changed
 - ja: トライアル期限切れ画面 (ペイウォール) を整理。アプリアイコンを表示し、価格表記を公式サイトと同じ ¥9,900 に統一、レイアウトの余白を調整しました

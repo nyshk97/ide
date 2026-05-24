@@ -28,20 +28,6 @@ struct QuickSearchView: View {
                             onSelect(results[selection])
                         }
                     }
-                Button {
-                    index.includeIgnored.toggle()
-                } label: {
-                    Image(systemName: index.includeIgnored
-                          ? "circle.fill"
-                          : "circle.lefthalf.filled")
-                        .foregroundStyle(index.includeIgnored ? Color.accentColor : .secondary)
-                        .frame(width: 18, height: 18)
-                }
-                .buttonStyle(.plain)
-                .focusable(false)
-                .help(index.includeIgnored
-                      ? "Exclude ignored files from results"
-                      : "Include ignored files in results")
             }
             .padding(.horizontal, 12)
             .frame(height: 36)

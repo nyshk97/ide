@@ -28,19 +28,15 @@ enum FullTextSearcher {
         guard let grep = BinaryLocator.grep else { return [] }
 
         // -r 再帰、-n 行番号、-I バイナリ除外、-F 固定文字列扱い、--exclude-dir で重い dir をスキップ
+        // 無視 dir のリストは [[IgnoredDirectories]] に集約（Cmd+P と統一）
+        var arguments: [String] = ["-rnIH", "-F"]
+        arguments.append(contentsOf: IgnoredDirectories.grepExcludeDirArguments)
+        arguments.append(trimmed)
+        arguments.append(".")
+
         let result = ProcessRunner.run(
             executable: grep,
-            arguments: [
-                "-rnIH",
-                "-F",
-                "--exclude-dir=.git",
-                "--exclude-dir=node_modules",
-                "--exclude-dir=DerivedData",
-                "--exclude-dir=.build",
-                "--exclude-dir=.refs",
-                trimmed,
-                ".",
-            ],
+            arguments: arguments,
             cwd: repoRoot,
             timeout: timeoutSeconds,
             maxStdoutBytes: maxStdoutBytes

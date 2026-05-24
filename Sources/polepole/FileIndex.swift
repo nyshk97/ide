@@ -13,14 +13,6 @@ final class FileIndex: ObservableObject {
     @Published private(set) var entries: [Entry] = []
     @Published private(set) var isBuilding: Bool = false
 
-    /// `.gitignore` 対象を検索結果に含めるか。トグル切替で再スキャン。
-    /// 起動時はプロジェクトを問わず false（要件 6.1: デフォルトで除外）。
-    @Published var includeIgnored: Bool = false {
-        didSet {
-            if oldValue != includeIgnored { rebuild() }
-        }
-    }
-
     /// 直近開いたファイルのパス → 開いた時刻。スコアリング上位に効かせる。
     var recents: [FilePathKey: Date] = [:]
 
@@ -42,9 +34,8 @@ final class FileIndex: ObservableObject {
     func rebuild() {
         isBuilding = true
         let root = project.path
-        let includeIgnored = self.includeIgnored
         Task.detached { [weak self] in
-            let entries = Self.scan(root: root, includeIgnored: includeIgnored)
+            let entries = Self.scan(root: root)
             await MainActor.run {
                 self?.entries = entries
                 self?.isBuilding = false
@@ -135,17 +126,17 @@ final class FileIndex: ObservableObject {
     ///
     /// 要件 6.1:
     /// - 隠しファイル（.gitignore, .mise.toml 等）は含める
-    /// - `.gitignore` 対象はデフォルトで除外
-    /// - `includeIgnored=true`（Cmd+P の「ignore も含める」トグル ON）のときは全部含める
+    /// - `.gitignore` 対象は除外（git repo は `git ls-files` 経由で自動的に効く）
+    /// - アプリ側で事前定義した [[IgnoredDirectories]]（node_modules / target / __pycache__ 等）も常用除外
     ///
-    /// Git repo かつ `includeIgnored=false` のときは `git ls-files` に寄せる（独自 BFS より
-    /// `.gitignore` の再現性が高く、ファイル単位の ignore も効く）。それ以外は従来の BFS。
-    nonisolated private static func scan(root: URL, includeIgnored: Bool) -> [Entry] {
+    /// Git repo では `git ls-files` に寄せる（独自 BFS より `.gitignore` の再現性が高く、
+    /// ファイル単位の ignore も効く）。非 git repo は BFS で `IgnoredDirectories` を当てる。
+    nonisolated private static func scan(root: URL) -> [Entry] {
         let rootPath = root.standardizedFileURL.path
-        if !includeIgnored, let viaGit = scanViaGit(root: root, rootPath: rootPath) {
+        if let viaGit = scanViaGit(root: root, rootPath: rootPath) {
             return viaGit
         }
-        return scanViaBFS(root: root, includeIgnored: includeIgnored, rootPath: rootPath)
+        return scanViaBFS(root: root, rootPath: rootPath)
     }
 
     /// Git repo では `git ls-files -co --exclude-standard -z` でファイル一覧を取得し、
@@ -184,17 +175,13 @@ final class FileIndex: ObservableObject {
         return entries
     }
 
-    /// 従来の BFS スキャン（非 git repo / `includeIgnored=true` 用）。
-    /// 各レベルのディレクトリ群を `git check-ignore` に一括投入する。
-    nonisolated private static func scanViaBFS(root: URL, includeIgnored: Bool, rootPath: String) -> [Entry] {
+    /// 非 git repo / git ls-files 失敗時の BFS スキャン。
+    /// [[IgnoredDirectories]] で事前定義した dir 名を捨てた上で、
+    /// 残ったディレクトリ群を `git check-ignore` に一括投入する。
+    nonisolated private static func scanViaBFS(root: URL, rootPath: String) -> [Entry] {
         let fm = FileManager.default
         let resourceKeys: [URLResourceKey] = [.isDirectoryKey, .isSymbolicLinkKey]
         let resourceKeySet = Set(resourceKeys)
-
-        // .git は何が起きても降下しない（巨大かつ検索結果にも出すべきでない）。
-        // それ以外の典型的な巨大物 (node_modules 等) は includeIgnored=false の高速ショートカット。
-        let alwaysSkipDirNames: Set<String> = [".git"]
-        let cheapSkipDirNames: Set<String> = ["node_modules", "DerivedData", ".build"]
 
         var result: [Entry] = []
         var queue: [URL] = [root]
@@ -218,9 +205,7 @@ final class FileIndex: ObservableObject {
                     if values?.isSymbolicLink == true { continue }
                     let isDir = values?.isDirectory ?? false
                     if isDir {
-                        let name = url.lastPathComponent
-                        if alwaysSkipDirNames.contains(name) { continue }
-                        if !includeIgnored, cheapSkipDirNames.contains(name) { continue }
+                        if IgnoredDirectories.nameSet.contains(url.lastPathComponent) { continue }
                         dirsForCheck.append(url)
                     } else {
                         filesToAdd.append(url)
@@ -228,13 +213,10 @@ final class FileIndex: ObservableObject {
                 }
             }
 
-            // includeIgnored=true のときは check-ignore を呼ばず全降下。
-            let ignored: Set<FilePathKey> = includeIgnored
-                ? []
-                : GitIgnoreChecker.check(in: root, paths: dirsForCheck)
+            let ignored = GitIgnoreChecker.check(in: root, paths: dirsForCheck)
 
             for url in dirsForCheck {
-                if !includeIgnored, ignored.contains(FilePathKey(url)) { continue }
+                if ignored.contains(FilePathKey(url)) { continue }
                 appendEntry(&result, url: url, isDir: true, rootPath: rootPath)
                 queue.append(url)
                 if result.count > 50000 { break outer }
