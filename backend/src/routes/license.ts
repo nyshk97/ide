@@ -7,7 +7,7 @@ import {
   lookupLicense,
   verifyAndRefresh,
 } from "../lib/license-ops";
-import { buildLicenseKeyEmail } from "../lib/fulfillment";
+import { buildLicenseResendEmail } from "../lib/email-templates";
 import { sendEmail } from "../lib/resend";
 import {
   checkBindingLimit,
@@ -197,7 +197,7 @@ licenseRoute.post("/resend", async (c) => {
 
   for (const license of licenses) {
     try {
-      await sendEmail(env.RESEND_API_KEY, env.RESEND_ENABLED === "true", buildLicenseKeyEmail(license));
+      await sendEmail(env.RESEND_API_KEY, env.RESEND_ENABLED === "true", buildLicenseResendEmail(license));
     } catch (err) {
       console.error("resend failed for license", license.id, err);
     }

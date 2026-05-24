@@ -9,7 +9,8 @@
 import type { Bindings, License } from "../types";
 import { generateLicenseKey } from "./keygen";
 import { retrieveCheckoutSession, type StripeCheckoutSession } from "./stripe";
-import { sendEmail, type ResendEmail } from "./resend";
+import { sendEmail } from "./resend";
+import { buildLicenseKeyEmail } from "./email-templates";
 
 export type FulfillRejection =
   | "not_paid"
@@ -237,49 +238,6 @@ async function upsertLicense(
   if (!license) throw new Error("license insert failed and SELECT returned nothing");
   // created 判定: insert 直後の SELECT で id 一致なら自分が作った
   return { license, created: license.id === id };
-}
-
-export function buildLicenseKeyEmail(license: License): ResendEmail {
-  const subject = "PolePole ライセンスキーのお届け";
-  const html = `
-<!DOCTYPE html>
-<html lang="ja">
-<body style="font-family: -apple-system, BlinkMacSystemFont, sans-serif; line-height: 1.6; color: #1a1a1a; max-width: 560px; margin: 0 auto; padding: 32px 24px;">
-  <h1 style="font-size: 20px;">PolePole をご購入いただきありがとうございます</h1>
-  <p>ライセンスキーをお届けします。アプリの <strong>Settings → ライセンス</strong> タブで、購入時のメールアドレスとキーを入力してアクティベートしてください。</p>
-  <div style="background: #f5f5f7; padding: 16px; border-radius: 8px; margin: 24px 0;">
-    <div style="font-size: 12px; color: #666; margin-bottom: 4px;">メールアドレス</div>
-    <div style="font-family: ui-monospace, SFMono-Regular, monospace; font-size: 14px;">${license.email}</div>
-    <div style="font-size: 12px; color: #666; margin: 12px 0 4px;">ライセンスキー</div>
-    <div style="font-family: ui-monospace, SFMono-Regular, monospace; font-size: 14px;">${license.id}</div>
-  </div>
-  <p style="font-size: 13px; color: #666;">
-    ・1 ライセンスにつき 3 台までアクティベートできます<br>
-    ・全メジャーバージョン無料アップデート (Lifetime License)<br>
-    ・お問い合わせは <a href="mailto:support@polepole.dev">support@polepole.dev</a> まで
-  </p>
-  <p style="font-size: 13px; color: #666;">— PolePole / <a href="https://polepole.dev">polepole.dev</a></p>
-</body>
-</html>`;
-  const text = `PolePole をご購入いただきありがとうございます。
-
-ライセンスキーをお届けします。アプリの Settings → ライセンスタブで、購入時のメールアドレスとキーを入力してアクティベートしてください。
-
-  メールアドレス: ${license.email}
-  ライセンスキー: ${license.id}
-
-・1 ライセンスにつき 3 台までアクティベートできます
-・全メジャーバージョン無料アップデート (Lifetime License)
-・お問い合わせは support@polepole.dev まで
-
-— PolePole / https://polepole.dev`;
-  return {
-    from: "PolePole <support@polepole.dev>",
-    to: license.email,
-    subject,
-    html,
-    text,
-  };
 }
 
 // refund.created / charge.refunded を受けて license.status を 'refunded' に。

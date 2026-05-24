@@ -306,12 +306,12 @@ Phase 3 終了後の review で High 2 件 + Medium 2 件の指摘を受けた�
 - [x] `ErrorBus.shared` で「ネットワークエラー時に再検証失敗、grace 残り N 日」を toast 表示。grace 14 日以下で warning、4 日以下で error、それ以上は info
 
 ### Phase 8: メールテンプレ + 利用規約整備 [AI🤖 + 人間👨‍💻]
-- [ ] [AI🤖] Resend 用のメールテンプレ (HTML / プレーンテキスト両方)
-  - [ ] キー発行メール (購入直後)
-  - [ ] キー再送メール
-  - [ ] (将来用) サ終時 universal token 配信メール ひな型
-- [ ] [人間👨‍💻] 利用規約 / プライバシーポリシー / 特商法表記の確定版を Phase 4 の `/legal/*` ページに流し込む
-- [ ] [人間👨‍💻] 弁護士チェックを依頼するかの判断 (Stage1 は個人事業、雛形ベースでも可)
+- [x] [AI🤖] Resend 用のメールテンプレ (HTML / プレーンテキスト両方) — `backend/src/lib/email-templates.ts` に集約
+  - [x] キー発行メール (購入直後) — `buildLicenseKeyEmail` / 件名: 「【PolePole】ご購入ありがとうございます — ライセンスキーをお届けします」
+  - [x] キー再送メール — `buildLicenseResendEmail` / 件名: 「【PolePole】ライセンスキーの再送」、身に覚えがない場合の defense-in-depth 注意文を追加
+  - [x] (将来用) サ終時 universal token 配信メール ひな型 — `buildUniversalTokenEmail(args)` / 引数で `shutdownDate` / `licenseKey` / `universalToken` を受ける。送信スクリプトは将来用意 (本 Phase ではテンプレのみ)
+- [ ] [人間👨‍💻] 利用規約 / プライバシーポリシー / 特商法表記の確定版を Phase 4 の `/legal/*` ページに流し込む — **launch 前**
+- [ ] [人間👨‍💻] 弁護士チェックを依頼するかの判断 (Stage1 は個人事業、雛形ベースでも可) — **launch 前**
 
 ### Phase 9前の準備 [人間👨‍💻]
 - [ ] Stripe を Live mode に切り替え、Payment Link を本番 ID で再発行
@@ -335,6 +335,15 @@ Phase 3 終了後の review で High 2 件 + Medium 2 件の指摘を受けた�
 ## ログ
 
 ### 試したこと・わかったこと
+- **2026-05-24 Phase 8 (AI 担当分) 完了**: Resend 用メールテンプレ 3 種を集約
+  - 新規: `backend/src/lib/email-templates.ts`
+    - `buildLicenseKeyEmail(license)` — 件名「【PolePole】ご購入ありがとうございます — ライセンスキーをお届けします」。fulfillment.ts から呼ばれる
+    - `buildLicenseResendEmail(license)` — 件名「【PolePole】ライセンスキーの再送」。「身に覚えがない場合は破棄してください」の defense-in-depth コピー入り。license.ts /resend から呼ばれる
+    - `buildUniversalTokenEmail({email, licenseKey, universalToken, shutdownDate})` — サ終時メールのひな型。送信スクリプトは将来用意
+  - 既存 `buildLicenseKeyEmail` を fulfillment.ts から削除し email-templates に移行。license.ts /resend は新 `buildLicenseResendEmail` に切替 (購入直後と再送で件名・本文が分かれた)
+  - 新規テスト 12 件 (`test/email-templates.test.ts`): subject 文言・key/email 表示・defense-in-depth 文言・universal token の placeholder 注入を担保。合計 35 tests pass
+  - 動作確認: `pnpm typecheck` ok / `pnpm test` (35 tests pass) / `wrangler dev --local` で `/v1/license/resend` を叩くと noop モード (RESEND placeholder) で `[resend disabled] would send to=test@example.com subject="【PolePole】ライセンスキーの再送"` のログが出て新テンプレ経由を確認
+  - **未着手 (人間タスク)**: 法的ページ確定版差し替え / 弁護士チェック判断 (launch 前)
 - **2026-05-24 Phase 4 完了**: LP + 法的ページ + Workers Assets 配線
   - 新規: `backend/public/` 配下に `index.html` (LP) / `styles.css` (ダーク/ライト自動切替の Apple-like CSS) / `legal/{terms,privacy,tokushoho}.html` (Phase 8 で確定版に差し替え予定の draft 表記入り)
   - `wrangler.toml`: dev + production の両方に `[assets] directory = "./public"` `not_found_handling = "404-page"` を追加

@@ -1686,3 +1686,44 @@ http://localhost:8787/legal/tokushoho
 
 各ページ冒頭に「⚠️ 本ページはドラフトです。launch 前に確定版に差し替えます (Phase 8)。」の draft-notice が表示されること。terms は第 7 条「サービス終了時の救済」で 90 日前 universal token 配布を明記、privacy は Stripe / Resend / Cloudflare の第三者提供を明記。
 
+## 37. メールテンプレ (Phase 8)
+
+### 37-A. 単体テスト (自動)
+
+```bash
+cd backend
+pnpm test test/email-templates.test.ts 2>&1 | tail
+```
+
+期待: `email-templates.test.ts (12 tests)` が全 pass。
+
+- `buildLicenseKeyEmail`: from=`PolePole <support@polepole.dev>` / 件名に「ご購入ありがとうございます」「ライセンスキー」 / HTML+text に key と email が表示 / Lifetime License + サポート連絡先入り
+- `buildLicenseResendEmail`: 件名に「再送」 / 「お心当たり / 破棄してください」の defense-in-depth 文言 / HTML+text に key と email
+- `buildUniversalTokenEmail`: 件名に「サービス終了」「トークン」 / 引数の `licenseKey` / `universalToken` / `shutdownDate` がすべて HTML+text に注入 / 取り込み手順 (Settings → ライセンス)
+
+### 37-B. /v1/license/resend 経由で新テンプレが選ばれる (半自動)
+
+```bash
+cd backend && pnpm dev >/tmp/wrangler-phase8.log 2>&1 &
+sleep 4
+
+# seed: テスト license が無ければ入れる
+pnpm exec wrangler d1 execute polepole-licenses --local --persist-to .wrangler/state \
+  --command "INSERT OR IGNORE INTO license (id, email, stripe_session_id, stripe_payment_intent_id, amount, currency, status, created_at, updated_at, email_sent_at) VALUES ('polepole-TEST-ABCD-EFGH-JKMN', 'test@example.com', 'cs_test_seed', 'pi_test_seed', 11800, 'jpy', 'active', $(date +%s), $(date +%s), $(date +%s));"
+
+# resend を叩く
+curl -sS -X POST http://localhost:8787/v1/license/resend \
+  -H "Content-Type: application/json" \
+  -d '{"email":"test@example.com"}'
+
+# 新テンプレが noop モードで発火するか確認
+grep "resend disabled" /tmp/wrangler-phase8.log | tail -3
+pkill -f "wrangler" || true
+```
+
+期待:
+- HTTP レスポンス: `{"status":"ok"}`
+- ログに `[resend disabled] would send to=test@example.com subject="【PolePole】ライセンスキーの再送"` (購入直後の subject ではなく再送 subject が選ばれていることを確認)
+
+
+
