@@ -31,6 +31,7 @@ PolePole の更新履歴。形式は [Keep a Changelog](https://keepachangelog.c
 
 ## [Unreleased]
 
+## [1.1.0] - 2026-05-24
 ### ✨ Added
 - ja: ライセンス購入フローを追加。14 日無料トライアル → Stripe で決済 → メールで届くライセンスキーでアクティベーション
 - en: Added license purchase flow: 14-day free trial → Stripe checkout → activate with the license key delivered by email
