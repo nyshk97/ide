@@ -118,10 +118,17 @@ struct FilePreviewView: View {
                 Button(action: onClose) {
                     Image(systemName: "folder")
                         .foregroundStyle(treeHovered ? Color.primary : Color.secondary)
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 2)
+                        .background(
+                            RoundedRectangle(cornerRadius: 5)
+                                .fill(treeHovered ? Color.primary.opacity(0.08) : Color.clear)
+                        )
+                        .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
                 .keyboardShortcut(.escape, modifiers: [])
-                .help("Back to tree (Esc)")
+                .help("Back to file tree (Esc)")
                 .onHover { treeHovered = $0 }
 
                 Text("/")

@@ -20,6 +20,9 @@ struct FileTreeView: View {
     /// 「.gitignored を隠す」トグルボタンのホバー状態。
     @State private var hideIgnoredHovered: Bool = false
 
+    /// 「最後に見たファイルを開く」ボタンのホバー状態。
+    @State private var previewToggleHovered: Bool = false
+
     /// ツリーがキーボードフォーカスを持っているか。`ProjectsModel.fileTreeFocused` に同期し、
     /// Cmd+R での再スキャン可否判定に使う（フォーカスが端末側にあるときは誤発火させない）。
     @FocusState private var treeFocused: Bool
@@ -90,9 +93,17 @@ struct FileTreeView: View {
             } label: {
                 Image(systemName: "doc.text")
                     .foregroundStyle(preview.canRestorePreview ? Color.secondary : Color(nsColor: .tertiaryLabelColor))
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 2)
+                    .background(
+                        RoundedRectangle(cornerRadius: 5)
+                            .fill(previewToggleHovered && preview.canRestorePreview ? Color.primary.opacity(0.08) : Color.clear)
+                    )
+                    .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
             .disabled(!preview.canRestorePreview)
+            .onHover { previewToggleHovered = $0 }
             .help("Show last viewed file (Cmd+J)")
 
             Text(model.project.displayName)
