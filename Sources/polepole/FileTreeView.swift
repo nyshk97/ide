@@ -14,6 +14,12 @@ struct FileTreeView: View {
     /// マウスオーバー中のノード。背景色強調に使う。
     @State private var hoveredNodeID: FileNode.ID?
 
+    /// リロードボタンのホバー状態。Git の DiffBadgeButton と同じ背景エフェクト用。
+    @State private var reloadHovered: Bool = false
+
+    /// 「.gitignored を隠す」トグルボタンのホバー状態。
+    @State private var hideIgnoredHovered: Bool = false
+
     /// ツリーがキーボードフォーカスを持っているか。`ProjectsModel.fileTreeFocused` に同期し、
     /// Cmd+R での再スキャン可否判定に使う（フォーカスが端末側にあるときは誤発火させない）。
     @FocusState private var treeFocused: Bool
@@ -99,17 +105,33 @@ struct FileTreeView: View {
             } label: {
                 Image(systemName: model.hideIgnored ? "eye.slash" : "eye")
                     .foregroundStyle(model.hideIgnored ? .orange : .secondary)
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 2)
+                    .background(
+                        RoundedRectangle(cornerRadius: 5)
+                            .fill(hideIgnoredHovered ? Color.primary.opacity(0.08) : Color.clear)
+                    )
+                    .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
+            .onHover { hideIgnoredHovered = $0 }
             .help(model.hideIgnored ? "Show .gitignored items" : "Hide .gitignored items")
             Button {
                 model.reload()
             } label: {
                 Image(systemName: "arrow.clockwise")
                     .foregroundStyle(.secondary)
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 2)
+                    .background(
+                        RoundedRectangle(cornerRadius: 5)
+                            .fill(reloadHovered ? Color.primary.opacity(0.08) : Color.clear)
+                    )
+                    .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
-            .help("Rescan (Cmd+R when tree focused)")
+            .onHover { reloadHovered = $0 }
+            .help("Reload (Cmd+R when tree focused)")
         }
         .padding(.horizontal, 10)
         .frame(height: 30)
