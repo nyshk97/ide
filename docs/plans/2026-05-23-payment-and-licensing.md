@@ -175,16 +175,16 @@ INSERT INTO device (...) SELECT ?, ?, ?, ?, ?, ?, ? WHERE (SELECT COUNT(*) FROM 
 ## 実装計画
 
 ### 事前準備 [人間👨‍💻]
-- [ ] Stripe アカウント作成 + 個人事業の本人確認完了 (国内で売る場合は特商法住所の確認)
-- [ ] Stripe Test mode の API key を控える (Workers の env で使う)
-- [ ] Cloudflare アカウント作成 (既存があれば流用)
-- [ ] `polepole.dev` の DNS を Cloudflare に向ける (取得済み前提)
-- [ ] Resend アカウント作成 + `polepole.dev` のドメイン認証 (SPF/DKIM レコードを Cloudflare DNS に追加)
-- [ ] 特定商取引法表記の文面準備 (個人事業者氏名 / 住所 / 連絡先)
-- [ ] 利用規約 / プライバシーポリシーのドラフト作成 (サ終時の universal token 配布条項を含む)
-- [ ] EdDSA 鍵ペアの生成 (Sparkle のアプリ署名用とは別鍵)
-  - **秘密鍵**: Cloudflare Workers の env (`LICENSE_SIGNING_PRIVATE_KEY`) に登録。サ終時の universal token 署名用のバックアップとして Dropbox dotfiles にも 1 部保管 (Sparkle 鍵と同運用)
-  - **公開鍵**: アプリにバンドル (`Resources/license-pubkey.pem`)。git にコミット (公開してよい)
+- [x] Stripe アカウント (Sandbox) 作成 — 既存 `d0ne1s` 配下に `PolePole Stage1` Sandbox を切って利用中。**本番モード切替時に個人事業の本人確認 + 特商法住所登録が別途必要**
+- [x] Stripe Test mode の API key を控える — `backend/.dev.vars` に投入済 (Phase 1)
+- [x] Cloudflare アカウント作成 — 既存利用、`wrangler dev --local` で backend が稼働中
+- [ ] `polepole.dev` の DNS を Cloudflare に向ける (取得済み前提) — **本番デプロイ前 (Phase 9 前準備)**
+- [x] Resend アカウント作成 — API key 投入は完了 (Phase 3、`.dev.vars` 経由)。**ドメイン認証 (SPF/DKIM レコードを Cloudflare DNS に追加) は本番化時に別途**
+- [x] 特定商取引法表記の文面準備 (draft) — Phase 4 でひな型 (`backend/public/legal/tokushoho.html`) を draft 作成。**個人事業者名 / 住所 / 連絡先は launch 前に確定値で差し替え (Phase 8)**
+- [x] 利用規約 / プライバシーポリシーのドラフト作成 (サ終時の universal token 配布条項を含む) — Phase 4 で draft 作成 (`terms.html` 第 7 条で 90 日前 universal token 配布、`privacy.html` で第三者提供を明記)。**確定版差し替えは Phase 8**
+- [x] EdDSA 鍵ペアの生成 (Sparkle のアプリ署名用とは別鍵) — Sandbox 用は Phase 1 で生成済
+  - [x] **秘密鍵 (Sandbox)**: `backend/.dev.vars` に投入済。**本番運用用の鍵ペアは Phase 9 直前に人間が手動再生成し AI セッションに流さない** ([教訓](#教訓-ai-セッションでの-secret-取扱) 参照)。本番秘密鍵は `wrangler secret put LICENSE_SIGNING_PRIVATE_KEY --env production` で投入、サ終時 universal token 用に Dropbox dotfiles にバックアップ
+  - [x] **公開鍵**: アプリにバンドル済 (`Resources/License/license-pubkey.pem`、Phase 1 で配置・git コミット済)
 
 ### Phase 1: Cloudflare 基盤の構築 [AI🤖]
 - [x] ~~`polepole-backend/` リポジトリを新規作成 (PolePole 本体とは別 repo にする。OSS にしない前提)~~ → **monorepo に変更**。`backend/` ディレクトリとして本 repo に含める。理由はログ参照
@@ -262,8 +262,8 @@ Phase 3 終了後の review で High 2 件 + Medium 2 件の指摘を受けた�
 - [x] ~~Cloudflare Pages へデプロイ~~ → **方針変更**: Workers Assets (`[assets] directory = "./public"`) で 1 Worker から LP + 法的ページ + /thanks + API を全て配信。デプロイは `pnpm deploy --env production` 1 本。`polepole.dev` の DNS 割り当ては事前準備の人間タスク
 
 ### Phase 5前の準備 [人間👨‍💻]
-- [ ] Stripe Payment Link を Test mode で作成 (¥11,800 / 円建て / success_url を `https://polepole.dev/thanks?session_id={CHECKOUT_SESSION_ID}` に設定)
-- [ ] Stripe Test mode で test card で購入 → webhook が発火するか確認 → メールが届くか確認 → /thanks ページが正しく表示されるか確認
+- [x] Stripe Payment Link を Test mode で作成 (¥11,800 / 円建て / success_url を `https://polepole.dev/thanks?session_id={CHECKOUT_SESSION_ID}` に設定) — `backend/scripts/setup-stripe-products.sh` で Product / Price / Payment Link を作成済、`EXPECTED_PRICE_ID` / `EXPECTED_PAYMENT_LINK_ID` を `.dev.vars` に投入済 (Phase 2)
+- [ ] Stripe Test mode で test card で購入 → webhook が発火するか確認 → メールが届くか確認 → /thanks ページが正しく表示されるか確認 — **Phase 9 の E2E で実施予定**。本 plan の Phase 5 / 6 ではアプリ側ロジックを curl + 手動 seed で代替して通している
 
 ### Phase 5: アプリ側 - トライアル管理 [AI🤖]
 - [x] `LicenseState` enum を定義 (`.trial(daysLeft: Int)` / `.activated(token: ActivationToken)` / `.trialExpired` / `.deactivated`)
