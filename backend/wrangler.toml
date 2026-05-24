@@ -47,6 +47,14 @@ simple = { limit = 3, period = 60 }
 [env.production]
 name = "polepole-backend"
 
+# polepole.dev (apex) を 1 Worker で受ける構成。LP / 法的ページ / /stripe-webhook /
+# /thanks / /v1/license/* / /healthz をすべてここで処理する。subdomain `api.polepole.dev`
+# は不要 (Workers Assets 統合)。Cloudflare DNS 側で polepole.dev を Cloudflare proxy
+# (orange cloud) にしてある前提で、wrangler が route を当てに行く。
+routes = [
+  { pattern = "polepole.dev/*", zone_name = "polepole.dev" },
+]
+
 [env.production.vars]
 EXPECTED_AMOUNT = "11800"
 EXPECTED_CURRENCY = "jpy"
@@ -59,8 +67,8 @@ not_found_handling = "404-page"
 [[env.production.d1_databases]]
 binding = "DB"
 database_name = "polepole-licenses-prod"
-# `wrangler d1 create polepole-licenses-prod` 実行後、出力された UUID で差し替える
-database_id = "00000000-0000-0000-0000-000000000000"
+# 2026-05-24: `wrangler d1 create polepole-licenses-prod` (APAC region) で発行
+database_id = "291d3fd4-3a52-4fc3-a60d-edff2d94473a"
 migrations_dir = "migrations"
 
 [[env.production.ratelimits]]

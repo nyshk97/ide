@@ -28,12 +28,16 @@ pnpm typecheck            # tsc --noEmit
 
 ## デプロイ (本番)
 
-事前準備:
-1. `wrangler d1 create polepole-licenses` で本番 D1 を作成し、`wrangler.toml` の `database_id` を差し替え
-2. `pnpm wrangler secret put LICENSE_SIGNING_PRIVATE_KEY < $DOTFILES_DIR/secrets/polepole/license-signing-private.pem`
-3. `pnpm wrangler secret put STRIPE_SECRET_KEY` / `STRIPE_WEBHOOK_SECRET` / `RESEND_API_KEY`
-4. `pnpm db:migrate:remote`
-5. `pnpm deploy`
+詳細手順は [DEPLOY.md](./DEPLOY.md) を参照 (Phase 9 C の人間タスクをチェックリスト化)。
+
+クイックリファレンス:
+
+```bash
+pnpm exec wrangler deploy --env production --dry-run   # binding 確認
+pnpm exec wrangler deploy --env production             # 実デプロイ
+```
+
+ただし事前に本番 EdDSA 鍵ペア再生成 / Stripe Live 切替 / Resend ドメイン認証 / 6 種の secret 投入 / DNS 設定が必要 — DEPLOY.md の順序通りに進めること。
 
 ## エンドポイント
 

@@ -74,7 +74,9 @@ struct LicenseClient: Sendable {
         #if DEBUG
         return URL(string: "http://127.0.0.1:8787")!
         #else
-        return URL(string: "https://api.polepole.dev")!
+        // Workers Assets 統合 (Phase 4) で polepole.dev/v1/license/* を 1 Worker で配信。
+        // 別 subdomain (api.polepole.dev) は使わない。
+        return URL(string: "https://polepole.dev")!
         #endif
     }
 

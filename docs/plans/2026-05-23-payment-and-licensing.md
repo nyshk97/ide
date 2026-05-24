@@ -314,9 +314,15 @@ Phase 3 終了後の review で High 2 件 + Medium 2 件の指摘を受けた�
 - [ ] [人間👨‍💻] 弁護士チェックを依頼するかの判断 (Stage1 は個人事業、雛形ベースでも可) — **launch 前**
 
 ### Phase 9前の準備 [人間👨‍💻]
-- [ ] Stripe を Live mode に切り替え、Payment Link を本番 ID で再発行
-- [ ] Workers / Resend / DNS 周りを Live 用に切り替え
-- [ ] サ終時用に EdDSA 秘密鍵を Dropbox dotfiles 配下に保管 (Sparkle 鍵と同じ運用)
+本番デプロイの詳細手順とチェックリストは [`backend/DEPLOY.md`](../../backend/DEPLOY.md) に集約。以下はサマリ。
+
+- [x] **本番 D1 作成** — `polepole-licenses-prod` (APAC), `database_id = 291d3fd4-3a52-4fc3-a60d-edff2d94473a`、`migrations apply --remote --env production` で 0001 + 0002 適用済
+- [x] **wrangler.toml** に `[env.production].routes = [{pattern = "polepole.dev/*", zone_name = "polepole.dev"}]` 追加
+- [x] **アプリ LicenseClient の Release baseURL** を `https://polepole.dev` に統合 (subdomain `api.polepole.dev` は廃止、Workers Assets 統合に合わせる)
+- [x] **dry-run** で D1 / Rate Limiter / vars binding が production env から見えることを確認
+- [ ] Stripe を Live mode に切り替え、Payment Link を本番 ID で再発行 — DEPLOY.md §2
+- [ ] Workers / Resend / DNS 周りを Live 用に切り替え — DEPLOY.md §2.3 / §3 / §4
+- [ ] サ終時用に EdDSA 秘密鍵を Dropbox dotfiles 配下に保管 — DEPLOY.md §1
 
 ### Phase 9: E2E テスト + 本番デプロイ [AI🤖 + 人間👨‍💻]
 - [x] [AI🤖] **A-1 アプリ起動 E2E**: D1 seed → `/v1/license/activate` → token.json → アプリ起動 → `[license] state = activated (expires in 29 days)` を確認 + screenshot で Paywall 非表示の通常 3 カラム表示
@@ -342,6 +348,13 @@ Phase 3 終了後の review で High 2 件 + Medium 2 件の指摘を受けた�
 ## ログ
 
 ### 試したこと・わかったこと
+- **2026-05-24 Phase 9 C (本番デプロイ AI 担当分) 完了**:
+  - 本番 D1 作成: `wrangler d1 create polepole-licenses-prod` (APAC、UUID `291d3fd4-3a52-4fc3-a60d-edff2d94473a`)
+  - **罠**: `wrangler d1 migrations apply polepole-licenses-prod --remote` は top-level の `[[d1_databases]]` から名前を引きに行くので、production env でしか定義していない DB に対しては `--env production` を明示する必要があった (`Couldn't find a D1 DB with the name ... in your wrangler.toml` エラー)
+  - `wrangler.toml` の `[env.production]` に `routes = [{pattern = "polepole.dev/*", zone_name = "polepole.dev"}]` を追加
+  - アプリ側 `LicenseClient.defaultBaseURL` の Release ビルドを `https://api.polepole.dev` → `https://polepole.dev` に変更 (Workers Assets 統合の Phase 4 方針に合わせる)
+  - `wrangler deploy --env production --dry-run`: D1 binding (`polepole-licenses-prod`) / Rate Limiter / vars (EXPECTED_AMOUNT/CURRENCY/RESEND_ENABLED) を本番 binding として認識。public/ から 6 ファイル読み込み (LP + styles + legal 3)。secrets (Stripe / Resend / EdDSA 鍵 / Price ID / Payment Link ID) はまだ未投入で人間タスクとして残る
+  - `backend/DEPLOY.md` を新規作成して、本番デプロイ完了までの人間タスク (1 EdDSA 鍵再生成 / 2 Stripe Live / 3 Resend ドメイン認証 / 4 DNS / 5 deploy / 6 smoke / 7 アプリ Release / 8 本番購入確認) をチェックリスト化
 - **2026-05-24 Phase 9 B (webhook + refund E2E) 完了**: Stripe CLI + 実 test card で一気通貫を通した
   - `stripe listen --api-key <PolePole Sandbox key> --forward-to localhost:8787/stripe-webhook` をバックグラウンド起動。`stripe config` のデフォルトキー (`acct_1TKCLs...`) は別アカウントなので `--api-key` で PolePole Stage1 Sandbox を明示する必要があった
   - **罠**: Payment Link の `after_completion.redirect.url` が `https://polepole.dev/thanks?session_id={CHECKOUT_SESSION_ID}` (本番 DNS 未設定) だったため、ローカル検証中だけ `stripe payment_links update` で `http://localhost:8787/thanks?session_id={CHECKOUT_SESSION_ID}` に書き換えた。検証完了後に本番 URL に戻す手順を VERIFY に明記
