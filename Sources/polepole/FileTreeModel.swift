@@ -13,6 +13,7 @@ final class FileTreeModel: ObservableObject {
     @Published private(set) var root: FileNode
 
     /// 展開状態（プロジェクト内のパス集合）。再起動でリセット（要件通り）。
+    /// reload() を跨いでも保持し、消えたディレクトリだけ落とす。
     @Published var expanded: Set<FilePathKey> = []
 
     /// `.gitignore` 対象を完全に隠すかどうか。デフォルトは false（薄表示で見せる）。
@@ -34,13 +35,32 @@ final class FileTreeModel: ObservableObject {
         reload()
     }
 
-    /// ルート + 直下子のみを scan する。展開状態はリセット。
+    /// ルートを scan し直し、リロード前に展開していたディレクトリは引き続き展開する。
+    /// 既に存在しないディレクトリは expanded から落とす。
     func reload() {
+        let previouslyExpanded = expanded
         scannedDirs.removeAll()
         let children = Self.scanChildren(of: project.path)
         applyIgnored(in: children, parentDir: project.path)
         root.children = children
         scannedDirs.insert(FilePathKey(project.path))
+
+        var stillExpanded: Set<FilePathKey> = []
+        var queue: [FileNode] = children
+        while !queue.isEmpty {
+            let node = queue.removeFirst()
+            guard node.isDirectory, !node.isSymlink else { continue }
+            let key = FilePathKey(node.url)
+            guard previouslyExpanded.contains(key) else { continue }
+            let grandchildren = Self.scanChildren(of: node.url)
+            applyIgnored(in: grandchildren, parentDir: node.url)
+            node.children = grandchildren
+            scannedDirs.insert(key)
+            stillExpanded.insert(key)
+            queue.append(contentsOf: grandchildren)
+        }
+        expanded = stillExpanded
+
         gitStatus.scheduleRefresh()
         objectWillChange.send()
     }
