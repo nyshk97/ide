@@ -301,8 +301,21 @@ footer.site-footer .copy {
   margin: 0 0 32px;
 }
 .legal h2 {
-  font-size: 20px;
+  font-size: 24px;
+  margin: 64px 0 16px;
+  padding-top: 32px;
+  border-top: 1px solid var(--border);
+  text-align: left;
+}
+.legal h2:first-of-type {
+  margin-top: 24px;
+  padding-top: 0;
+  border-top: none;
+}
+.legal h3 {
+  font-size: 16px;
   margin: 32px 0 8px;
+  font-weight: 600;
   text-align: left;
 }
 .legal p, .legal li {

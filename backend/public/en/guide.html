@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="robots" content="noindex,follow">
+  <title>Guide — PolePole</title>
+  <meta name="description" content="PolePole guide. How to launch on first install, how Ghostty config is applied, and more — things to know when you start using PolePole.">
+  <link rel="canonical" href="https://polepole.dev/en/guide">
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <header class="site-header">
+    <div class="container">
+      <a href="/en/" class="logo">PolePole</a>
+      <nav class="site-nav">
+        <a href="/en/changelog">Changelog</a>
+        <span class="lang-switch">
+          <a href="/guide" class="lang-link">JA</a>
+          <span class="lang-divider">·</span>
+          <span class="lang-current">EN</span>
+        </span>
+      </nav>
+    </div>
+  </header>
+
+  <main class="legal">
+    <h1>Guide</h1>
+
+    <h2 id="first-launch">PolePole won't launch after installing</h2>
+    <p>On first launch, macOS Gatekeeper shows a confirmation dialog for apps obtained from the Internet. What you should do depends on which dialog appears.</p>
+
+    <h3>"PolePole.app is an application downloaded from the Internet. Are you sure you want to open it?"</h3>
+    <p>Just click <strong>Open</strong>. This is the normal flow and no System Settings changes are needed. You can launch normally from then on.</p>
+
+    <h3>"PolePole cannot be opened because the developer cannot be verified."</h3>
+    <p>Occasionally this stricter dialog appears. Allow it as follows:</p>
+    <ol>
+      <li>Click <strong>Cancel</strong> in the dialog (do not move it to Trash).</li>
+      <li>Open System Settings → Privacy &amp; Security.</li>
+      <li>Scroll down and you'll see <em>"'PolePole' was blocked because it is not from an identified developer."</em> Click <strong>Open Anyway</strong> next to it and authenticate with Touch ID or your password.</li>
+      <li>Launch PolePole again from Finder and click <strong>Open</strong> in the dialog that appears.</li>
+    </ol>
+    <p>You can launch normally by double-click from then on.</p>
+
+    <h2 id="activation">How do I apply a purchased license to the app?</h2>
+    <p>After purchase, the order completion page and the confirmation email contain your <strong>email address</strong> and <strong>license key</strong>. Use them to activate as follows:</p>
+    <ol>
+      <li>Launch PolePole.</li>
+      <li>Open <strong>PolePole → Settings…</strong> from the menu bar (or <kbd>⌘</kbd> + <kbd>,</kbd>).</li>
+      <li>Select the <strong>License</strong> tab at the top.</li>
+      <li>Enter the <strong>email address</strong> and <strong>license key</strong> from your purchase, then click <strong>Activate</strong>.</li>
+    </ol>
+    <p>Once activated, the trial limitation is removed and you can use PolePole under the Lifetime License.</p>
+
+    <h3>Up to 3 devices per license</h3>
+    <p>One license can activate up to 3 devices. If you try to activate a 4th device while all 3 slots are taken, you'll see a screen to choose which existing device to deactivate.</p>
+
+    <h3>If you didn't receive or lost your license key</h3>
+    <p>Send us your purchase email address via the <a href="/en/contact">contact form</a> and we'll resend it.</p>
+
+    <h2 id="updates">How do I update PolePole to the latest version?</h2>
+    <p>When a new version is released, PolePole automatically notifies you and updates itself via Sparkle. To check manually:</p>
+
+    <h3>Check from inside the app</h3>
+    <p>Choose <strong>PolePole → Check for Updates…</strong> from the menu bar. If an update is available, it'll download and apply after a restart.</p>
+
+    <h3>If installed via Homebrew</h3>
+    <p>The in-app <strong>Check for Updates…</strong> still works for Homebrew installs (Sparkle is bundled with the app). You can also run <code>brew upgrade --cask polepole</code>.</p>
+    <p>All major version updates are free (Lifetime License).</p>
+
+    <h2 id="ghostty-config">Are my Ghostty settings (font, theme, keybindings) applied?</h2>
+    <p>Yes. PolePole's built-in terminal is powered by libghostty and reads your existing <code>~/.config/ghostty/config</code> as-is.</p>
+    <ul>
+      <li><strong>If the config file exists</strong>: your font, theme, keybindings, etc. are applied.</li>
+      <li><strong>If the config file does not exist</strong>: the defaults bundled with PolePole are used.</li>
+    </ul>
+    <p>After changing the config, open a new terminal tab or restart PolePole to reflect the changes.</p>
+    <p>Note: a few keybindings essential to PolePole (project switching, full-text search, etc.) are handled by the app first, so they win even if you bind the same keys in Ghostty config.</p>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container">
+      <div>
+        <a href="/en/legal/terms">Terms of Service</a>
+        <a href="/en/legal/privacy">Privacy Policy</a>
+        <a href="/en/contact">Contact</a>
+        <a href="/en/guide">Guide</a>
+        <a href="/en/changelog">Changelog</a>
+      </div>
+      <div class="lang-switch">
+        <a href="/guide" class="lang-link">JA</a>
+        <span class="lang-divider">·</span>
+        <span class="lang-current">EN</span>
+      </div>
+      <div class="copy">© 2026 PolePole</div>
+    </div>
+  </footer>
+</body>
+</html>

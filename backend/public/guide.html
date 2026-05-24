@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>ガイド — PolePole</title>
+  <meta name="description" content="PolePole のガイド。初回起動できないときの対処、Ghostty 設定の反映方法など、使い始めに知っておきたいこと。">
+  <link rel="canonical" href="https://polepole.dev/guide">
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <header class="site-header">
+    <div class="container">
+      <a href="/" class="logo">PolePole</a>
+      <nav class="site-nav">
+        <a href="/#features">特徴</a>
+        <a href="/#pricing">価格</a>
+        <a href="/#download">ダウンロード</a>
+        <a href="/changelog">更新情報</a>
+        <span class="lang-switch">
+          <span class="lang-current">JA</span>
+          <span class="lang-divider">·</span>
+          <a href="/en/guide" class="lang-link">EN</a>
+        </span>
+      </nav>
+    </div>
+  </header>
+
+  <main class="legal">
+    <h1>ガイド</h1>
+
+    <h2 id="first-launch">インストール直後、PolePole を起動できません</h2>
+    <p>macOS の Gatekeeper が、インターネット経由で入手したアプリの初回起動時に確認ダイアログを出します。表示されるダイアログによって対応が変わります。</p>
+
+    <h3>「インターネットからダウンロードされたアプリケーションです。開いてもよろしいですか？」と出る場合</h3>
+    <p>そのまま <strong>「開く」</strong> を押してください。これが通常のフローで、システム設定の変更は不要です。次回以降は通常通り起動できます。</p>
+
+    <h3>「"PolePole" は、開発元を検証できないため開けません。」と出る場合</h3>
+    <p>稀にこちらの強めのダイアログが出ることがあります。次の手順で許可してください。</p>
+    <ol>
+      <li>表示されたダイアログでは <strong>「キャンセル」</strong> を押します（ゴミ箱には入れないでください）。</li>
+      <li>システム設定 → プライバシーとセキュリティ を開きます。</li>
+      <li>下の方にスクロールすると <em>「"PolePole" は開発元を確認できないため、使用がブロックされました。」</em> と表示されています。横の <strong>「このまま開く」</strong> ボタンを押し、Touch ID またはパスワードで承認します。</li>
+      <li>もう一度 Finder から PolePole を起動し、出てきたダイアログで <strong>「開く」</strong> を押します。</li>
+    </ol>
+    <p>以降は通常通りダブルクリックで起動できます。</p>
+
+    <h2 id="activation">購入したライセンスをアプリに適用したい</h2>
+    <p>ご購入後、購入完了ページと確認メールに「メールアドレス」と「ライセンスキー」が表示されます。次の手順でアクティベートしてください。</p>
+    <ol>
+      <li>PolePole を起動します。</li>
+      <li>メニューバーの <strong>PolePole → 設定…</strong>（または <kbd>⌘</kbd> + <kbd>,</kbd>）を開きます。</li>
+      <li>上部のタブから <strong>License</strong> を選択します。</li>
+      <li>購入時に届いた <strong>メールアドレス</strong> と <strong>ライセンスキー</strong> を入力し、<strong>アクティベート</strong> をクリックします。</li>
+    </ol>
+    <p>アクティベートに成功すると、トライアル期限の制限が解除され、Lifetime License として利用できます。</p>
+
+    <h3>1 ライセンスで最大 3 台までアクティベート</h3>
+    <p>同じライセンスキーで最大 3 台までアクティベートできます。すでに 3 台使っている状態で 4 台目をアクティベートしようとすると、既存のどの端末を解除するか選ぶ画面が表示されます。</p>
+
+    <h3>ライセンスキーが届かない・紛失した場合</h3>
+    <p>購入時のメールアドレスを添えて <a href="/contact">お問い合わせフォーム</a> からご連絡ください。再送いたします。</p>
+
+    <h2 id="updates">PolePole を最新バージョンにアップデートしたい</h2>
+    <p>新しいバージョンがリリースされると、PolePole が自動的に通知し更新します（Sparkle 経由）。手動で確認したいときは次の方法で。</p>
+
+    <h3>アプリ内から手動で確認する</h3>
+    <p>メニューバーの <strong>PolePole → Check for Updates…</strong> を選択します。最新版があればダウンロード → 再起動で適用されます。</p>
+
+    <h3>Homebrew からインストールした場合</h3>
+    <p>Homebrew でインストールした場合も、上記のアプリ内 <strong>Check for Updates…</strong> がそのまま使えます（Sparkle がアプリに同梱されています）。<code>brew upgrade --cask polepole</code> で更新することもできます。</p>
+    <p>全メジャーバージョン無料アップデート（Lifetime License）の対象です。</p>
+
+    <h2 id="ghostty-config">普段使っている Ghostty の設定 (フォント・テーマ・キーバインド) は反映されますか？</h2>
+    <p>はい。PolePole の内蔵ターミナルは libghostty 製で、すでにお使いの <code>~/.config/ghostty/config</code> をそのまま読み込みます。</p>
+    <ul>
+      <li><strong>設定ファイルがある場合</strong>: そのフォント・テーマ・キーバインド等が反映されます。</li>
+      <li><strong>設定ファイルが無い場合</strong>: PolePole に同梱されたデフォルト設定が使用されます。</li>
+    </ul>
+    <p>設定を変更したあとは、新しいターミナルタブを開くか PolePole を再起動すると反映されます。</p>
+    <p>なお、PolePole で必要な一部のキーバインド（プロジェクト切替・全文検索など）は PolePole 側で優先的に処理されるため、Ghostty 設定で同じキーを割り当てていてもアプリ側の挙動が勝ちます。</p>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container">
+      <div>
+        <a href="/legal/terms.html">利用規約</a>
+        <a href="/legal/privacy.html">プライバシーポリシー</a>
+        <a href="/legal/tokushoho.html">特定商取引法に基づく表記</a>
+        <a href="/contact">お問い合わせ</a>
+        <a href="/guide">ガイド</a>
+        <a href="/changelog">更新情報</a>
+      </div>
+      <div class="lang-switch">
+        <span class="lang-current">JA</span>
+        <span class="lang-divider">·</span>
+        <a href="/en/guide" class="lang-link">EN</a>
+      </div>
+      <div class="copy">© 2026 PolePole</div>
+    </div>
+  </footer>
+</body>
+</html>

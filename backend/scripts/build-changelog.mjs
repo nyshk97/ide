@@ -81,6 +81,7 @@ const T = {
       privacy: "プライバシーポリシー",
       tokushoho: "特定商取引法に基づく表記",
       contact: "お問い合わせ",
+      guide: "ガイド",
     },
     emptyNotice: "このリリースの日本語ノートはまだ準備中です。",
   },
@@ -98,6 +99,7 @@ const T = {
       privacy: "Privacy",
       tokushoho: null,
       contact: "Contact",
+      guide: "Guide",
     },
     emptyNotice: "English notes for this release are not yet available.",
   },
@@ -171,10 +173,12 @@ function renderPage(releases, lang) {
     ? `<a href="/legal/terms">${t.footer.terms}</a>
         <a href="/legal/privacy">${t.footer.privacy}</a>
         <a href="/legal/tokushoho">${t.footer.tokushoho}</a>
-        <a href="/contact">${t.footer.contact}</a>`
+        <a href="/contact">${t.footer.contact}</a>
+        <a href="/guide">${t.footer.guide}</a>`
     : `<a href="/en/legal/terms">${t.footer.terms}</a>
         <a href="/en/legal/privacy">${t.footer.privacy}</a>
-        <a href="/en/contact">${t.footer.contact}</a>`;
+        <a href="/en/contact">${t.footer.contact}</a>
+        <a href="/en/guide">${t.footer.guide}</a>`;
 
   return `<!DOCTYPE html>
 <html lang="${lang}">
