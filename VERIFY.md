@@ -1861,5 +1861,84 @@ test -f "$HOME/Library/Application Support/polepole-dev/token.json" \
 - `token.json` が消えている (verify reject 経路で `ActivationTokenStore.clear()` が呼ばれた)
 - Keychain `activation-token` も消えている
 
+### 38-E. Stripe webhook E2E (Stripe CLI + 実 test card 購入、半自動)
+
+```bash
+# 1) Sandbox API key で stripe listen を起動 (バックグラウンド)
+SK=$(grep "^STRIPE_SECRET_KEY=" backend/.dev.vars | sed 's/STRIPE_SECRET_KEY="\(.*\)"/\1/')
+stripe listen --api-key "$SK" --forward-to localhost:8787/stripe-webhook >/tmp/stripe-listen.log 2>&1 &
+sleep 4
+WHSEC=$(grep -o "whsec_[A-Za-z0-9]*" /tmp/stripe-listen.log | head -1)
+
+# 2) .dev.vars の STRIPE_WEBHOOK_SECRET を WHSEC で上書きして backend 再起動
+python3 -c "
+import re, pathlib
+p = pathlib.Path('backend/.dev.vars')
+p.write_text(re.sub(r'^STRIPE_WEBHOOK_SECRET=.*\$', 'STRIPE_WEBHOOK_SECRET=\"$WHSEC\"', p.read_text(), count=1, flags=re.M))
+"
+pkill -f "wrangler" || true; sleep 1
+(cd backend && pnpm dev >/tmp/wrangler-phaseB.log 2>&1 &)
+sleep 5
+
+# 3) Payment Link URL を取得 + success_url を localhost に一時切替
+LINK_ID=$(grep "^EXPECTED_PAYMENT_LINK_ID=" backend/.dev.vars | sed 's/EXPECTED_PAYMENT_LINK_ID="\(.*\)"/\1/')
+stripe payment_links update "$LINK_ID" --api-key "$SK" \
+  -d "after_completion[type]=redirect" \
+  -d "after_completion[redirect][url]=http://localhost:8787/thanks?session_id={CHECKOUT_SESSION_ID}"
+stripe payment_links retrieve "$LINK_ID" --api-key "$SK" | grep "buy.stripe.com"
+```
+
+4) **人間タスク**: 上記で出る `https://buy.stripe.com/test_...` を Safari / Chrome / 任意のブラウザで開いて、test card で購入する:
+   - メールアドレス: 任意 (例 `phase9-webhook@example.com`)
+   - カード番号: `4242 4242 4242 4242`
+   - 有効期限: `12 / 30` (任意の将来日)
+   - CVC: `123`
+   - 名義: 任意 (例 `Test User`)
+   - 国: 日本のまま
+   - **AI からの自動入力 + submit は Stripe Agent Disclosure が起動して進めない** ので、必ず人間が押す
+
+```bash
+# 5) /thanks redirect が表示されたら、AI 側で検証
+echo "----- stripe listen -----"; grep "checkout.session.completed" /tmp/stripe-listen.log | tail -1
+echo "----- backend (購入直後メール) -----"; grep "resend disabled" /tmp/wrangler-phaseB.log | tail -1
+echo "----- D1 license -----"
+(cd backend && pnpm exec wrangler d1 execute polepole-licenses --local --persist-to .wrangler/state \
+  --command "SELECT id, email, status, email_sent_at FROM license ORDER BY created_at DESC LIMIT 1;")
+
+# 6) 検証完了後、Payment Link の success_url を本番ドメインに戻す
+stripe payment_links update "$LINK_ID" --api-key "$SK" \
+  -d "after_completion[type]=redirect" \
+  -d "after_completion[redirect][url]=https://polepole.dev/thanks?session_id={CHECKOUT_SESSION_ID}"
+```
+
+期待:
+- stripe listen ログに `checkout.session.completed [evt_...]`
+- backend ログに `[resend disabled] would send to=<email> subject="【PolePole】ご購入ありがとうございます — ライセンスキーをお届けします"`
+- /thanks ページに「PolePole をご購入いただきありがとうございます」見出し + メアド + ライセンスキー
+- D1 に新規 license 行 (status=active, email_sent_at がタイムスタンプ入り)
+
+### 38-F. Stripe refund 連動 (CLI から refund 実行、自動)
+
+38-E の続きで実行。
+
+```bash
+SK=$(grep "^STRIPE_SECRET_KEY=" backend/.dev.vars | sed 's/STRIPE_SECRET_KEY="\(.*\)"/\1/')
+# 38-E で作った license の payment_intent を取得
+PI_ID=$(cd backend && pnpm exec wrangler d1 execute polepole-licenses --local --persist-to .wrangler/state \
+  --command "SELECT stripe_payment_intent_id FROM license ORDER BY created_at DESC LIMIT 1;" --json \
+  | python3 -c 'import json,sys; r=json.load(sys.stdin)[0]["results"][0]; print(r["stripe_payment_intent_id"])')
+
+# CLI から refund 実行 → webhook 経由で markRefunded が走る
+stripe refunds create --api-key "$SK" -d "payment_intent=$PI_ID"
+
+sleep 3
+echo "----- stripe listen -----"; grep "charge.refunded\|refund.created" /tmp/stripe-listen.log | tail -2
+echo "----- D1 license status -----"
+(cd backend && pnpm exec wrangler d1 execute polepole-licenses --local --persist-to .wrangler/state \
+  --command "SELECT id, status FROM license ORDER BY created_at DESC LIMIT 1;")
+```
+
+期待: stripe listen に `refund.created` + `charge.refunded` が来る、D1 license.status が `refunded` に変わる。続いて 38-D 手順 (activate → FAKE_NOW=issued_at+8d で起動 → verify reject) と同じ流れで、アプリ側が refund を検知して token を clear することを確認する。
+
 
 

@@ -323,9 +323,14 @@ Phase 3 終了後の review で High 2 件 + Medium 2 件の指摘を受けた�
 - [x] [AI🤖] **A-2 オフライン耐性**: A-1 続きで backend 停止 → `POLEPOLE_TEST_LICENSE_FAKE_NOW=issued_at+8d` で起動 → verify 失敗で grace 残り 22 日 toast (info 色) → 続いて `=issued_at+31d` で起動 → `[license] token expired ... -> deactivated` + Paywall「ライセンスが無効化されました」
 - [x] [AI🤖] **A-3 device_limit**: D1 で device を全消し → curl で 3 台 activate → 4 台目 (実 device hash) で `HTTP 409 {"error":"device_limit","existing_devices":[…3件…]}` を確認
 - [x] [AI🤖] **A-4 refund 連動**: clean state → activate → token.json → D1 で `license.status='refunded'` に UPDATE → `POLEPOLE_TEST_LICENSE_FAKE_NOW=issued_at+8d` で起動 → verify 経路で server から `licenseRefunded` を受領 → `[license] verify rejected, clearing token` → token.json と Keychain から token が消され `[license] state = trial(14 days left)` でトライアル経路に戻る
-- [ ] [AI🤖] **Stripe Test mode の webhook E2E** (`stripe trigger` 経由) — Phase 9 後半 (B) に分割。`stripe trigger` は line_items を上書きできず `validateSession` で reject されるため、`stripe listen --forward-to localhost:8787/stripe-webhook` + 実 test card で UI 経由購入で確認する
-- [ ] [人間👨‍💻] 本番 Stripe で実カードで自己購入してフロー全体を確認 (¥11,800 自分払い) — **launch 前**
-- [ ] [人間👨‍💻] サポートメール受信確認 (`support@polepole.dev`) — **launch 前**
+- [x] [AI🤖 + 人間👨‍💻] **B-1〜B-5 Stripe Test mode の webhook + refund E2E**
+  - B-1: `stripe listen --api-key <PolePole Sandbox key> --forward-to localhost:8787/stripe-webhook` を起動、出力された `whsec_` を `.dev.vars` に同期、backend を再起動
+  - B-2: `stripe payment_links retrieve` で URL `https://buy.stripe.com/test_...` を取得、success_url を一時的に `http://localhost:8787/thanks?session_id={CHECKOUT_SESSION_ID}` に切替 (検証完了後に `https://polepole.dev/thanks?...` に戻した)
+  - B-3: agent-browser で UI 自動操作を試みたが **Stripe Agentic Commerce Protocol の Agent Disclosure** が起動して Agent Identity Token を要求し、AI 単独では支払いが完了できなかった。ユーザーが手動でブラウザ (任意) で test card 4242 で購入 → `/thanks` redirect でキー `polepole-GAGR-7RWE-MMQP-JETF` 表示まで確認
+  - B-4: `stripe listen` に `checkout.session.completed` 受信 / backend webhook 200 OK / Resend noop ログに件名「【PolePole】ご購入ありがとうございます — ライセンスキーをお届けします」(購入直後テンプレ Phase 8) / D1 に `polepole-GAGR-7RWE-MMQP-JETF` 行が `status=active`, `email_sent_at` 入りで作成
+  - B-5: 実 device で activate → token.json に書く → `stripe refunds create -d payment_intent=pi_...` で refund → webhook `charge.refunded` / `refund.created` → backend が `markRefunded` で D1 を `status=refunded` に更新 → アプリを `FAKE_NOW=issued_at+8d` で起動 → `[license] state = activated (expires in 22 days)` の直後に `verify rejected, clearing token` → `state = trial(14 days left)` でトライアル経路復帰 + `token.json` 削除を確認
+- [ ] [人間👨‍💻] 本番 Stripe で実カードで自己購入してフロー全体を確認 (¥11,800 自分払い) — **launch 前 (本番デプロイ後)**
+- [ ] [人間👨‍💻] サポートメール受信確認 (`support@polepole.dev`) — **launch 前 (Resend ドメイン認証後)**
 
 ### 動作確認 [人間👨‍💻]
 - [ ] 新規 macOS ユーザーアカウントで PolePole.app を起動 → トライアル開始 → 14 日後ロックを `POLEPOLE_TEST_LICENSE_FAKE_NOW` で確認
@@ -337,6 +342,15 @@ Phase 3 終了後の review で High 2 件 + Medium 2 件の指摘を受けた�
 ## ログ
 
 ### 試したこと・わかったこと
+- **2026-05-24 Phase 9 B (webhook + refund E2E) 完了**: Stripe CLI + 実 test card で一気通貫を通した
+  - `stripe listen --api-key <PolePole Sandbox key> --forward-to localhost:8787/stripe-webhook` をバックグラウンド起動。`stripe config` のデフォルトキー (`acct_1TKCLs...`) は別アカウントなので `--api-key` で PolePole Stage1 Sandbox を明示する必要があった
+  - **罠**: Payment Link の `after_completion.redirect.url` が `https://polepole.dev/thanks?session_id={CHECKOUT_SESSION_ID}` (本番 DNS 未設定) だったため、ローカル検証中だけ `stripe payment_links update` で `http://localhost:8787/thanks?session_id={CHECKOUT_SESSION_ID}` に書き換えた。検証完了後に本番 URL に戻す手順を VERIFY に明記
+  - **AI 自動化の限界**: agent-browser で test card 自動入力 + submit を試みたが、Stripe Sandbox Checkout が **Agentic Commerce Protocol の Agent Disclosure** を発動して Agent Identity Token (Verifiable Credential) を要求 → AI 単独では先に進めず。最終的にユーザーが手動でブラウザ (任意) から購入。本番 Live mode では人間が購入するので Agent Disclosure は発動しない想定
+  - **検証結果**:
+    - webhook: `checkout.session.completed` 受信 + 200 OK / `charge.refunded` で markRefunded 動作
+    - 購入直後メール: noop モードで件名「【PolePole】ご購入ありがとうございます — ライセンスキーをお届けします」(Phase 8 テンプレ)
+    - D1: license 新規作成 (key `polepole-GAGR-7RWE-MMQP-JETF`, status=active, email_sent_at 入り) / refund 後は status=refunded
+    - アプリ: refund 検知で verify reject → `state = trial(14 days left)` でトライアル経路、token.json 削除
 - **2026-05-24 Phase 9 (AI 担当分 = A-1〜A-4) 完了**: ローカル D1 + curl seed で E2E を 1 通し確認
   - A-1: clean state → backend pnpm dev → D1 seed → `/v1/license/activate` で実 `IOPlatformExpertDevice` device hash で activate → token.json に token を書く → アプリ起動 → ログに `state = activated (expires in 29 days)` + Paywall 非表示
   - A-2: backend を kill → `POLEPOLE_TEST_LICENSE_FAKE_NOW=issued_at+8d` で起動 → ContentView.onAppear から verifyIfNeeded が走り connection refused → ErrorBus に info toast「ライセンスの再検証に失敗しました。あと 22 日でロックされます」が右下に出る (screenshot 取得済)。続いて `issued_at+31d` で起動 → `state.deactivated` + Paywall「ライセンスが無効化されました / 30 日以上オンライン検証ができなかったため、ロックされました」表示
