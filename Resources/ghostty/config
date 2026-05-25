@@ -6,7 +6,13 @@
 # ユーザーが部分的に override しても妙な見た目にならないよう、最小限に絞る。
 # cursor-color / selection-* など theme と紐づく色は書かない（theme 側の値を尊重する）。
 
-theme = "GitHub Dark"
+theme = "Apple System Colors"
+
+# PolePole はダーク前提の IDE なので window chrome もダーク固定。
+window-theme = dark
+
+# shell タブを閉じるたびに確認ダイアログを出さない（IDE 体験として自然）。
+confirm-close-surface = false
 
 # bundle 同梱の JetBrains Mono を最優先で参照、無ければ macOS 標準にフォールバック。
 # 日本語グリフは JetBrains Mono / SF Mono / Menlo が持たないので Hiragino で補完。
