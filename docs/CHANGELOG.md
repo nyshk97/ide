@@ -31,6 +31,8 @@ PolePole の更新履歴。形式は [Keep a Changelog](https://keepachangelog.c
 
 ## [Unreleased]
 ### 🐛 Fixed
+- ja: プレビューに表示中の Markdown / コードで、文字列を選択して Cmd+C を押してもコピーされない問題を修正しました (端末側の Cmd+C バインドが先取りしていたのを、フォーカス中のペインだけが握るように変更)
+- en: Fixed an issue where Cmd+C did not copy selected text in the Markdown / code preview (the terminal's Cmd+C binding was intercepting the shortcut; now only the focused pane consumes it)
 - ja: 閲覧中の Markdown / コードファイルがディスク上で更新されたとき、プレビューが先頭にスクロールバックしないようにしました (同じファイルの再描画はスクロール位置を保持、別ファイルに切り替えたときだけ先頭に戻ります)
 - en: When the Markdown or code file you are previewing is updated on disk, the preview no longer jumps back to the top — the scroll position is preserved on same-file refreshes (it still resets when you open a different file)
 
