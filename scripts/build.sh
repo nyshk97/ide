@@ -1,6 +1,10 @@
 #!/usr/bin/env bash
 # Release 版 PolePole.app をアーカイブ → Developer ID 署名で書き出し → notarize → staple →
-# build/polepole.zip に出力する。brew cask 配布用。
+# build/polepole.dmg に出力する。LP の直リンクと brew cask 配布の両方で使う。
+#
+# DMG 化のフロー: notarized + stapled .app を create-dmg で dmg に詰め、dmg 自体も
+# --codesign / --notarize で codesign + notarize + staple する。.app と dmg の両方に
+# ticket が乗るため、ユーザーは初回起動でもオフラインで Gatekeeper を通せる。
 #
 # 前提（一度だけ手作業で用意する）:
 #   1. キーチェーンに "Developer ID Application: ... (VYDUR99LAM)" 証明書がある
@@ -9,6 +13,7 @@
 #        xcrun notarytool store-credentials "ide-notary" \
 #          --apple-id <Apple ID> --team-id VYDUR99LAM --password <App用パスワード>
 #      （ide → polepole にリネームしたが、keychain profile 名は流用するため "ide-notary" のまま）
+#   3. create-dmg (Brewfile 経由でインストール済み)
 # NOTARY_PROFILE 環境変数で profile 名を上書きできる。
 set -euo pipefail
 
@@ -53,20 +58,45 @@ echo "==> Verifying signature..."
 codesign --verify --strict --deep "$APP"
 codesign -dv "$APP" 2>&1 | grep -E 'Authority|TeamIdentifier|flags'
 
-echo "==> Notarizing (profile: $NOTARY_PROFILE)..."
+echo "==> Notarizing app (profile: $NOTARY_PROFILE)..."
 NOTARIZE_ZIP="/tmp/polepole-notarize.zip"
 rm -f "$NOTARIZE_ZIP"
 ditto -c -k --keepParent "$APP" "$NOTARIZE_ZIP"
 xcrun notarytool submit "$NOTARIZE_ZIP" --keychain-profile "$NOTARY_PROFILE" --wait
 
-echo "==> Stapling..."
+echo "==> Stapling app..."
 xcrun stapler staple "$APP"
 xcrun stapler validate "$APP"
 
-echo "==> Packaging (ditto preserves framework symlinks; plain zip flattens them and breaks codesign)..."
+echo "==> Packaging into DMG..."
 mkdir -p "$OUTPUT_DIR"
-rm -f "$OUTPUT_DIR/polepole.zip"
-ditto -c -k --sequesterRsrc --keepParent "$APP" "$OUTPUT_DIR/polepole.zip"
+DMG_PATH="$OUTPUT_DIR/polepole.dmg"
+rm -f "$DMG_PATH"
+DMG_SRC_DIR="/tmp/polepole-dmg-src"
+rm -rf "$DMG_SRC_DIR"
+mkdir -p "$DMG_SRC_DIR"
+# ditto は framework 内 symlink を保持する。cp -R や zip は flatten して codesign を壊す
+ditto "$APP" "$DMG_SRC_DIR/PolePole.app"
 
-echo "==> Done: $OUTPUT_DIR/polepole.zip"
-shasum -a 256 "$OUTPUT_DIR/polepole.zip"
+# Developer ID Application 証明書を Team ID で絞り込む（keychain に複数あっても誤爆しない）
+SIGNING_IDENTITY=$(security find-identity -v -p codesigning | awk -F'"' '/Developer ID Application.*VYDUR99LAM/ {print $2; exit}')
+if [ -z "$SIGNING_IDENTITY" ]; then
+  echo "ERROR: Developer ID Application (Team VYDUR99LAM) 証明書がキーチェーンに見つかりません"
+  exit 1
+fi
+
+# --codesign + --notarize で dmg の codesign → notarytool submit --wait → staple を自動実行
+create-dmg \
+  --volname "PolePole" \
+  --window-size 600 400 \
+  --icon-size 100 \
+  --icon "PolePole.app" 150 200 \
+  --app-drop-link 450 200 \
+  --hide-extension "PolePole.app" \
+  --codesign "$SIGNING_IDENTITY" \
+  --notarize "$NOTARY_PROFILE" \
+  "$DMG_PATH" \
+  "$DMG_SRC_DIR/"
+
+echo "==> Done: $DMG_PATH"
+shasum -a 256 "$DMG_PATH"

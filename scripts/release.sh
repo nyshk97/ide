@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# build.sh で作った zip を配信 repo (nyshk97/polepole-releases) の GitHub Release に上げ、
+# build.sh で作った dmg を配信 repo (nyshk97/polepole-releases) の GitHub Release に上げ、
 # appcast.xml を生成する。Sparkle は `latest/download/appcast.xml` を見て更新する。
 #
 # 注: 本体 repo の名前は歴史的事情で `nyshk97/ide` のまま（リネームしない方針）。
@@ -10,7 +10,7 @@
 #   例: scripts/release.sh 1.0.0
 #
 # 注: このスクリプトは内部で build.sh を再実行する（fresh build を強制）。
-#     事前に build.sh 単体を叩く必要は無く、叩くと archive→notarize→zip を 2 回
+#     事前に build.sh 単体を叩く必要は無く、叩くと archive→notarize→dmg を 2 回
 #     走らせて 10〜15 分無駄になる。release 作業は release.sh 1 発で十分。
 #
 # 前提:
@@ -23,7 +23,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
-ZIP_PATH="$PROJECT_ROOT/build/polepole.zip"
+DMG_PATH="$PROJECT_ROOT/build/polepole.dmg"
 APPCAST_PATH="$PROJECT_ROOT/build/appcast.xml"
 RELEASES_REPO="nyshk97/polepole-releases"
 FEED_URL="https://github.com/${RELEASES_REPO}/releases/latest/download/appcast.xml"
@@ -154,7 +154,7 @@ desc_path.write_text("\n".join(html))
 print(f"  Wrote {desc_path}")
 PY
 
-echo "==> Running fresh build (always rebuild to avoid uploading stale zip)..."
+echo "==> Running fresh build (always rebuild to avoid uploading stale dmg)..."
 "$SCRIPT_DIR/build.sh"
 
 echo "==> Pushing main to origin (so the tag references the released commit)..."
@@ -169,8 +169,8 @@ if [ ! -x "$SIGN_UPDATE" ]; then
   exit 1
 fi
 
-echo "==> Signing zip with EdDSA..."
-SIG_OUTPUT=$("$SIGN_UPDATE" "$ZIP_PATH")
+echo "==> Signing dmg with EdDSA..."
+SIG_OUTPUT=$("$SIGN_UPDATE" "$DMG_PATH")
 echo "$SIG_OUTPUT"
 ED_SIG=$(echo "$SIG_OUTPUT" | sed -nE 's/.*sparkle:edSignature="([^"]+)".*/\1/p')
 LENGTH=$(echo "$SIG_OUTPUT" | sed -nE 's/.*length="([^"]+)".*/\1/p')
@@ -182,7 +182,7 @@ fi
 # sparkle:version は CFBundleVersion / sparkle:shortVersionString は
 # CFBundleShortVersionString を入れる（Sparkle は前者で比較する）。
 # project.yml の MARKETING_VERSION と CURRENT_PROJECT_VERSION (= $(MARKETING_VERSION))
-# を bump したかをここで sanity check する。zip 内ではなく export 済み .app から読む。
+# を bump したかをここで sanity check する。dmg 内ではなく export 済み .app から読む。
 BUILT_APP="/tmp/polepole-export/PolePole.app"
 BUNDLE_VERSION=$(plutil -extract CFBundleVersion raw "${BUILT_APP}/Contents/Info.plist")
 SHORT_VERSION=$(plutil -extract CFBundleShortVersionString raw "${BUILT_APP}/Contents/Info.plist")
@@ -200,7 +200,7 @@ fi
 echo "==> Generating appcast.xml..."
 # pubDate は RFC 822。LC_ALL=C で曜日 / 月名を英語に固定する（caller の LANG が ja_JP 等だと「木」「5月」になり Sparkle がパースできない）
 PUB_DATE=$(LC_ALL=C date -u "+%a, %d %b %Y %H:%M:%S +0000")
-DOWNLOAD_URL="https://github.com/${RELEASES_REPO}/releases/download/${TAG}/polepole.zip"
+DOWNLOAD_URL="https://github.com/${RELEASES_REPO}/releases/download/${TAG}/polepole.dmg"
 MIN_OS=$(awk -F'"' '/macOS:/ {print $2; exit}' "$PROJECT_ROOT/project.yml")
 MIN_OS="${MIN_OS:-14.0}"
 
@@ -239,7 +239,7 @@ ${DESC_BODY}
         url=\"${DOWNLOAD_URL}\"
         sparkle:edSignature=\"${ED_SIG}\"
         length=\"${LENGTH}\"
-        type=\"application/octet-stream\" />
+        type=\"application/x-apple-diskimage\" />
     </item>"
 
 # python3 で </channel> の直前に挿入する。シェル変数経由でクオートが二重に
@@ -265,15 +265,15 @@ echo "    Generated $APPCAST_PATH"
 #   URL を揃えていたが、polepole.rb の url は polepole-releases を直接指すので
 #   本体 repo への重複 release は不要 (本体 repo の release 履歴 v0.0.x〜v1.0.14 は
 #   旧 ide 配布の凍結履歴として残す)。
-echo "==> Creating release on ${RELEASES_REPO} (Sparkle feed + cask zip)..."
+echo "==> Creating release on ${RELEASES_REPO} (Sparkle feed + dmg)..."
 gh release create "$TAG" \
-  "$ZIP_PATH" \
+  "$DMG_PATH" \
   "$APPCAST_PATH" \
   --repo "${RELEASES_REPO}" \
   --title "$TAG" \
   --notes-file "$RELEASE_NOTES_MD"
 
-SHA256=$(shasum -a 256 "$ZIP_PATH" | awk '{print $1}')
+SHA256=$(shasum -a 256 "$DMG_PATH" | awk '{print $1}')
 echo ""
 echo "==> Release created: $TAG"
 echo "==> Feed URL:        ${FEED_URL}"
@@ -284,3 +284,4 @@ echo ""
 echo "Homebrew cask 更新時（nyshk97/homebrew-tap/Casks/polepole.rb）:"
 echo "  version \"$VERSION\""
 echo "  sha256 \"$SHA256\""
+echo "  # url の末尾は .dmg（1.1.5 で .zip → .dmg に切り替えた。初回の切替時は cask 側の url も書き換える）"
