@@ -30,6 +30,8 @@ PolePole の更新履歴。形式は [Keep a Changelog](https://keepachangelog.c
 「内部リファクタ」「ドキュメント追加」「CI 調整」などユーザー目視で気づかない変更は **書かない**。
 
 ## [Unreleased]
+
+## [1.2.0] - 2026-05-25
 ### 📝 Changed
 - ja: ファイルツリーとプレビューを別ペインに分け、ファイルを開いてもツリーが消えなくなりました (3 列レイアウト → ファイル未オープン時は 3 列のまま、開いたときだけプレビュー列が現れる 4 列レイアウトに変更)
 - en: File tree and preview are now in separate panes — opening a file no longer hides the tree (the layout becomes 4 columns only while a preview is open; otherwise it stays 3 columns as before)
