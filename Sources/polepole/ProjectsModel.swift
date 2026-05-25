@@ -111,7 +111,12 @@ final class ProjectsModel: ObservableObject {
 
     /// activeProject 切替に追従して新 active の preview.$currentURL を購読し直す。
     /// 古い購読は `activePreviewCancellable` の差し替えで自動 cancel される。
-    /// 購読張り替え直後の初期値も `activePreviewVisible` に書き込む（sink だけだと漏れる）。
+    /// 購読張り替え直後の初期値も `activePreviewVisible` / `fileTree.selectedURL` に書き込む
+    /// （sink だけだと初期値が漏れる）。
+    ///
+    /// `fileTree.selectedURL` への同期は preview navigation（← / →、markdown リンク、
+    /// Cmd+P、Cmd+Shift+F 等）すべての経路をここで一元的に拾うため。close（url == nil）の
+    /// ときは `selectedURL` を維持する（FileTreeModel.selectedURL の「閉じても残す」仕様）。
     private func rewireActivePreviewSubscription(to project: Project?) {
         guard let project else {
             activePreviewCancellable = nil
@@ -119,12 +124,19 @@ final class ProjectsModel: ObservableObject {
             return
         }
         let preview = preview(for: project)
+        let tree = fileTree(for: project)
         // 初期値を即反映
         activePreviewVisible = (preview.currentURL != nil)
+        if let url = preview.currentURL {
+            tree.selectedURL = url
+        }
         // 以降の変化を購読
         activePreviewCancellable = preview.$currentURL
             .sink { [weak self] url in
                 self?.activePreviewVisible = (url != nil)
+                if let url {
+                    tree.selectedURL = url
+                }
             }
     }
 
@@ -297,13 +309,6 @@ final class ProjectsModel: ObservableObject {
         let model = FilePreviewModel()
         previews[project.id] = model
         return model
-    }
-
-    /// アクティブプロジェクトの中央ペインを ツリー ↔ プレビュー でトグル。
-    /// Cmd+J（MRUKeyMonitor）と toolbar アイコンが共通で呼ぶ。
-    func togglePreview() {
-        guard let active = activeProject else { return }
-        preview(for: active).toggle()
     }
 
     /// アクティブプロジェクトのファイルプレビュー状態（無ければ nil）。

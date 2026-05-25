@@ -1021,6 +1021,10 @@ rm -rf "$HOME/Library/Application Support/polepole-dev"; mv "$BACKUP_DIR/polepol
 
 ### 27. プレビュー履歴ナビ（手動）
 
+履歴モデル: **時系列ログ**。`open()`（ツリー click / markdown リンク / Cmd+P / Cmd+Shift+F / ← / → ボタンで開いた場合を除く各種経路）の呼び出しだけが履歴に積まれる。← / → は履歴を変えず index を動かすだけ。連続同一ファイルだけ重複を回避する。**forward 履歴は truncate されない**。
+
+#### 27.1 基本操作
+
 実機で確認:
 - ツリー → ファイル A をクリック → プレビュー A を表示、ツールバーの ← → は両方 disable
 - ファイル B をクリック → プレビュー B、← が enable、→ は disable
@@ -1028,41 +1032,35 @@ rm -rf "$HOME/Library/Application Support/polepole-dev"; mv "$BACKUP_DIR/polepol
 - → をクリック → B に進む
 - 同じファイルを連続でクリックしても履歴は重複しない（A → A → B → A の操作で履歴は A → B → A の 3 件）
 
-### 27.5 ツリー ↔ プレビュー トグル（Cmd+J / 自動）
+#### 27.2 forward 履歴の保持（時系列ログ）
 
-```bash
-mkdir -p "$HOME/Library/Application Support/polepole-dev"
-cat > "$HOME/Library/Application Support/polepole-dev/projects.json" <<'JSON'
-{"projects":[{"displayName":"ide","id":"11111111-1111-1111-1111-111111111111","isPinned":true,"lastOpenedAt":"2026-05-09T01:00:00Z","path":"/Users/d0ne1s/ide"}],"schemaVersion":1}
-JSON
-APP=/tmp/polepole-build/Build/Products/Debug/ide.app
-pkill -x "PolePole Dev" 2>/dev/null; sleep 0.4
-POLEPOLE_TEST_AUTO_ACTIVATE_INDEX=0 POLEPOLE_TEST_AUTO_PREVIEW="CLAUDE.md" "$APP/Contents/MacOS/PolePole Dev" >/dev/null 2>&1 &
-sleep 3
+過去に ← で戻った状態から別ファイルを開いても forward が消えないこと:
 
-# 起動直後: プレビュー表示中
-./scripts/polepole-screenshot.sh /tmp/v-toggle-1.png
+1. ファイル A をクリック → preview A
+2. close（フォルダアイコンか Esc）
+3. ファイル B をクリック → preview B
+4. ← → preview A
+5. close
+6. ファイル C をクリック → preview C
+7. ← → **preview B**（旧実装ではここで preview A に飛んでいた）
+8. ← → preview A
+9. → → preview B → → → preview C
 
-# Cmd+J でツリーへ
-osascript -e 'tell application "System Events" to tell process "ide" to keystroke "j" using {command down}'
-sleep 0.4
-./scripts/polepole-screenshot.sh /tmp/v-toggle-2.png
+履歴は `[A, B, C]`、現在 index は 0 → 1 → 2 と移動する。`B` が `C` を開いた瞬間に消えないのが時系列ログのキモ。
 
-# Cmd+J で再度プレビューへ（最後に見たファイル = CLAUDE.md）
-osascript -e 'tell application "System Events" to tell process "ide" to keystroke "j" using {command down}'
-sleep 0.4
-./scripts/polepole-screenshot.sh /tmp/v-toggle-3.png
+#### 27.3 ツリーのハイライトが追従する
 
-pkill -x "PolePole Dev" 2>/dev/null
-rm -f "$HOME/Library/Application Support/polepole-dev/projects.json"*
-```
+preview の現在ファイルがツリー上で薄く強調されることを以下の経路で確認:
 
-期待:
-- `v-toggle-1`: プレビュー（パンくず `📁 / CLAUDE.md`）
-- `v-toggle-2`: ツリー表示。ヘッダ左の `doc.text` アイコンが secondary 色（履歴あり = enabled）
-- `v-toggle-3`: 再びプレビュー、CLAUDE.md が復元
+- 通常のツリー click 後
+- ← / → ボタンで navigation した後
+- markdown 内のローカルリンクで遷移した後
+- Cmd+P (recents) で開いた後
+- Cmd+Shift+F（全文検索）の hit jump 後
 
-履歴ゼロ状態（一度もファイルを開いていない）では `doc.text` アイコンが tertiary 色 + disabled。Cmd+J を押しても無反応。
+close（プレビューペインを折り畳む）してもハイライトは消えない（直前に見ていたファイルを示すため残す）。
+
+**注意**: 未展開ディレクトリ配下のファイルを開いた場合、ツリーに行自体が無いためハイライトは見えない（selection は設定されているが render されない）。親ディレクトリを手で展開すると該当行が highlighted な状態で出てくる。自動 reveal は未実装（別 issue）。
 
 ### 28. Cmd+P クイック検索（自動）
 

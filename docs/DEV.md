@@ -229,7 +229,7 @@ open -n "/tmp/polepole-build/Build/Products/Debug/PolePole Dev.app" \
 詳細は [ARCHITECTURE.md](./ARCHITECTURE.md#キー入力の優先順位)。
 
 要点だけ:
-- **NSEvent.addLocalMonitorForEvents（MRUKeyMonitor）が最優先**。Ctrl+M / Cmd+P / Cmd+Shift+F / Cmd+J / (ツリーにフォーカス時) Cmd+R は vim/claude の中でも握る
+- **NSEvent.addLocalMonitorForEvents（MRUKeyMonitor）が最優先**。Ctrl+M / Cmd+P / Cmd+Shift+F / (ツリーにフォーカス時) Cmd+R は vim/claude の中でも握る
 - `Ctrl+M` は `keyCode == 46` で判定（macOS が Ctrl+letter を CR にマップする問題回避）
 - 検索バー / オーバーレイ表示中に Return / Esc / ↑↓ を横取りする箇所は、**IME 変換中（field editor が marked text を持つ）なら横取りせずイベントを素通り**させる。さもないと日本語変換の確定（Return）・キャンセル（Esc）・候補移動（↑↓）が IME に届かない。判定は `NSApp.keyWindow?.firstResponder as? NSTextInputClient` → `hasMarkedText()`（`MRUKeyMonitor.isComposingInTextField()`）
 

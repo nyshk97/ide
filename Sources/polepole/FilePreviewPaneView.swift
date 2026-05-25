@@ -57,8 +57,7 @@ private struct PreviewFocusHost: NSViewRepresentable {
         let view = FilePreviewView(
             preview: preview,
             url: url,
-            projectRoot: projectRoot,
-            onClose: { [weak preview] in preview?.close() }
+            projectRoot: projectRoot
         )
         let host = PreviewFocusHostingView(rootView: view)
         host.onClose = { [weak preview] in preview?.close() }
@@ -69,8 +68,7 @@ private struct PreviewFocusHost: NSViewRepresentable {
         nsView.rootView = FilePreviewView(
             preview: preview,
             url: url,
-            projectRoot: projectRoot,
-            onClose: { [weak preview] in preview?.close() }
+            projectRoot: projectRoot
         )
         nsView.onClose = { [weak preview] in preview?.close() }
     }

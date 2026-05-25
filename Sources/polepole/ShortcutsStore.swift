@@ -6,24 +6,21 @@ import Foundation
 enum ShortcutAction: String, CaseIterable, Codable {
     case mruOverlay
     case diffOverlay
-    case togglePreview
     case toggleSidebar
 
     var label: String {
         switch self {
         case .mruOverlay:    return "MRU project switcher"
         case .diffOverlay:   return "Diff overlay"
-        case .togglePreview: return "Show/Hide Preview"
         case .toggleSidebar: return "Show/Hide Project Sidebar"
         }
     }
 
-    /// 初期値。Ctrl+M / Cmd+D / Cmd+J / Cmd+S。
+    /// 初期値。Ctrl+M / Cmd+D / Cmd+S。
     /// PolePole は編集機能を持たないので Cmd+S (save) が空いている。
     static let defaults: [ShortcutAction: KeyCombo] = [
         .mruOverlay:    KeyCombo(keyCode: 46, modifiers: NSEvent.ModifierFlags.control.rawValue, keyLabel: "M"),
         .diffOverlay:   KeyCombo(keyCode: 2,  modifiers: NSEvent.ModifierFlags.command.rawValue, keyLabel: "D"),
-        .togglePreview: KeyCombo(keyCode: 38, modifiers: NSEvent.ModifierFlags.command.rawValue, keyLabel: "J"),
         .toggleSidebar: KeyCombo(keyCode: 1,  modifiers: NSEvent.ModifierFlags.command.rawValue, keyLabel: "S"),
     ]
 }

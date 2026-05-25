@@ -30,6 +30,21 @@ PolePole の更新履歴。形式は [Keep a Changelog](https://keepachangelog.c
 「内部リファクタ」「ドキュメント追加」「CI 調整」などユーザー目視で気づかない変更は **書かない**。
 
 ## [Unreleased]
+### 📝 Changed
+- ja: プレビューの ← / → 履歴を時系列ログ方式に変更しました (過去に ← で戻った状態から別ファイルを開いても、forward 履歴が消えなくなります)
+- en: Preview ← / → history is now chronological — opening a new file after going back no longer truncates the forward entries
+- ja: プレビューツールバーの ← / → ボタンをファイル名の左側に移動しました (ファイル名の長さによってボタン位置がブレなくなります)
+- en: Moved the ← / → buttons in the preview toolbar to the left of the file name so their position no longer shifts with file-name length
+
+### 🐛 Fixed
+- ja: プレビューで ← / → や markdown 内リンク、Cmd+P、Cmd+Shift+F で別ファイルに移ったとき、ファイルツリー側のハイライトが追従するようにしました
+- en: File tree highlight now follows the current preview file when navigating via ← / →, markdown links, Cmd+P, or Cmd+Shift+F
+
+### 🗑️ Removed
+- ja: ツリー ↔ プレビューのトグルボタン (ツリー上部の doc.text アイコン) と Cmd+J ショートカットを削除しました (4 カラムレイアウトでツリーとプレビューが同時に見えるようになったため不要になりました)
+- en: Removed the tree ↔ preview toggle button (doc.text icon above the tree) and the Cmd+J shortcut — both are no longer needed now that the tree and preview are visible at the same time in the 4-column layout
+- ja: プレビューツールバー先頭の「閉じる」アイコン (📁) を削除しました (閉じるには Esc / Cmd+W、または divider を端まで drag してください)
+- en: Removed the "close" icon (📁) at the start of the preview toolbar — close via Esc / Cmd+W or by dragging the divider to the edge instead
 
 ## [1.2.0] - 2026-05-25
 ### 📝 Changed

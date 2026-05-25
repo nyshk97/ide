@@ -9,7 +9,6 @@ struct FilePreviewView: View {
     let url: URL
     /// プロジェクトルート。Markdown 内のローカルリンクをこの配下に制限する。
     let projectRoot: URL
-    let onClose: () -> Void
 
     /// 5MB 超を「読み込む」ボタンで明示確認するための state。url が変わるたびリセット。
     @State private var forceLoadLarge = false
@@ -23,8 +22,6 @@ struct FilePreviewView: View {
     /// `updateNSView` が再読込しないので、`.id()` に噛ませて作り直しを強制する。
     @State private var reloadGen = 0
 
-    /// 「ツリー」パンくずリンクのホバー状態。clickable であることを示すため underline に使う。
-    @State private var treeHovered = false
     /// ファイル名パンくずのホバー状態。クリックで相対パスをコピーできることを示す。
     @State private var nameHovered = false
     /// 「Open in Editor」ボタンのホバー状態。
@@ -113,42 +110,7 @@ struct FilePreviewView: View {
 
     private var toolbar: some View {
         HStack(spacing: 8) {
-            // パンくず: 📁 / filename
-            HStack(spacing: 4) {
-                Button(action: onClose) {
-                    Image(systemName: "folder")
-                        .foregroundStyle(treeHovered ? Color.primary : Color.secondary)
-                        .padding(.horizontal, 6)
-                        .padding(.vertical, 2)
-                        .background(
-                            RoundedRectangle(cornerRadius: 5)
-                                .fill(treeHovered ? Color.primary.opacity(0.08) : Color.clear)
-                        )
-                        .contentShape(Rectangle())
-                }
-                .buttonStyle(.plain)
-                // Esc は `PreviewFocusHostingView.cancelOperation(_:)` でフォーカスゲート付きで
-                // 捕捉する。SwiftUI .keyboardShortcut(.escape) はフォーカス判定を保証せず、
-                // 端末にフォーカスがあっても発火するため削除した。
-                .help("Back to file tree (Esc)")
-                .onHover { treeHovered = $0 }
-
-                Text("/")
-                    .foregroundStyle(.tertiary)
-
-                Button(action: copyRelativePath) {
-                    Text(url.lastPathComponent)
-                        .font(.system(size: 12, weight: .semibold))
-                        .lineLimit(1)
-                        .truncationMode(.middle)
-                        .underline(nameHovered)
-                }
-                .buttonStyle(.plain)
-                .help("Click to copy relative path")
-                .onHover { nameHovered = $0 }
-            }
-
-            // 履歴ナビ
+            // 履歴ナビ。ファイル名の長さで位置がブレないよう、パンくずより左に固定。
             Button { preview.goBack() } label: {
                 Image(systemName: "arrow.left")
             }
@@ -162,6 +124,18 @@ struct FilePreviewView: View {
             .buttonStyle(.plain)
             .disabled(!preview.canGoForward)
             .help("Next file")
+
+            // ファイル名（click で相対パスをコピー）
+            Button(action: copyRelativePath) {
+                Text(url.lastPathComponent)
+                    .font(.system(size: 12, weight: .semibold))
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+                    .underline(nameHovered)
+            }
+            .buttonStyle(.plain)
+            .help("Click to copy relative path")
+            .onHover { nameHovered = $0 }
 
             Spacer()
 

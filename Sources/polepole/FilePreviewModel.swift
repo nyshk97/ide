@@ -8,20 +8,20 @@ final class FilePreviewModel: ObservableObject {
     /// プレビュー中のファイル URL。nil ならツリー表示。
     @Published var currentURL: URL?
 
-    /// 履歴ナビ用（step9）。とりあえず保持だけ、UI は次 step。
+    /// 履歴ナビ用。時系列ログ方式: `open()` のたびに必ず末尾に append し、
+    /// `goBack` / `goForward` で過去に戻った状態から新しいファイルを開いても
+    /// forward 履歴は truncate しない。文字通り「開いた順」のログ。
+    /// URL の == は表記揺れで一致しないことがあるので重複判定は `FilePathKey` で行う。
     @Published private(set) var history: [URL] = []
     @Published private(set) var historyIndex: Int = -1
 
-    /// プレビュー対象を切替（履歴に push）。URL の == は表記揺れで一致しないことがあるので
-    /// 重複判定は `FilePathKey` で行う。
+    /// プレビュー対象を切替（履歴に push）。
+    /// - 現在表示中のファイルと同じなら no-op
+    /// - 直前のエントリと同じパスなら積まない（連続クリックの自明な重複だけ防ぐ）
+    /// - それ以外は無条件で末尾に append し、idx を末尾に揃える
     func open(_ url: URL) {
         let key = FilePathKey(url)
         if let currentURL, FilePathKey(currentURL) == key { return }
-        // 履歴の途中まで進んでいた場合、それ以降を破棄してから push
-        if historyIndex >= 0 && historyIndex < history.count - 1 {
-            history.removeSubrange((historyIndex + 1)..<history.count)
-        }
-        // 同じパスを連続で開くのは重複させない
         if let last = history.last, FilePathKey(last) == key {
             // 直前と同じなら積まない
         } else {
@@ -130,20 +130,6 @@ final class FilePreviewModel: ObservableObject {
         currentURL = history[historyIndex]
     }
 
-    /// プレビュー中なら閉じる。ツリー表示中で履歴があれば、最後に見たファイルを再表示。
-    /// Cmd+J / トグルボタン両方が呼ぶ。
-    func toggle() {
-        if currentURL != nil {
-            currentURL = nil
-        } else if historyIndex >= 0 && historyIndex < history.count {
-            currentURL = history[historyIndex]
-        }
-    }
-
-    /// ツリー表示中で「最後に見たファイル」へ戻れるか。トグルボタンの enable 判定に使う。
-    var canRestorePreview: Bool {
-        currentURL == nil && historyIndex >= 0 && historyIndex < history.count
-    }
 }
 
 /// プレビューするファイル種別の判定結果。

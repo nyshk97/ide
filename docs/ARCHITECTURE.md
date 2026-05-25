@@ -109,7 +109,7 @@ WorkspaceModel(project: ide)
 
 - `FilePreviewModel`: `currentURL` + 履歴ナビ（戻る/進む）
 - `FilePreviewClassifier`: URL → `FilePreviewKind`（code / markdown / image / pdf / binary / tooLarge / external / error）。NUL 検査でバイナリ判定、5MB 超は確認、50MB 超は外部誘導
-- `FilePreviewView`: 種別ごとに表示を切替。コードは `PreviewWebView`、画像は `NSImage`、PDF は PDFKit、Markdown は WKWebView でレンダリング。ヘッダーはパンくず形式で `Cmd+J` でツリーとトグル。`.task(id: url)` で初回 classify したあと `FileChangeWatcher` を for-await して、ディスク上の更新を自動リロード（画像/PDF は同 URL だと `updateNSView` が再読込しないので `.id(reloadGen)` で作り直しを強制）
+- `FilePreviewView`: 種別ごとに表示を切替。コードは `PreviewWebView`、画像は `NSImage`、PDF は PDFKit、Markdown は WKWebView でレンダリング。ヘッダーは ← / → 履歴ナビ + パンくず形式。`.task(id: url)` で初回 classify したあと `FileChangeWatcher` を for-await して、ディスク上の更新を自動リロード（画像/PDF は同 URL だと `updateNSView` が再読込しないので `.id(reloadGen)` で作り直しを強制）
 - `FileChangeWatcher`: 単一ファイルを kqueue（`DispatchSourceFileSystemObject`）で監視し、変更を `AsyncStream<Void>` で流す。エディタのアトミック保存（temp→mv で inode 差し替え）は delete/rename を検知してパスを開き直して継続。連続書き込みは ~120ms デバウンス
 - `PreviewWebView`: WKWebView + highlight.js のラッパ。アプリ起動時に空 surface を pre-warm して初回プレビューの遅延を吸収。Markdown プレビュー内のリンクは `WKScriptMessageHandler`（weak ラッパで参照リーク回避）で横取りし、外部 URL はクリップボードコピー、内部ファイルは `FilePreviewModel` で開く。Markdown 中の `file://` 画像は `loadFileURL(_:allowingReadAccessTo:)` の読み取り権限（viewer.html のあるバンドル配下のみ）外で表示できないので、viewer.js が `<img src>` を `ideres://` に書き換え、`WKURLSchemeHandler`（`LocalResourceSchemeHandler`）が `allowedRoot` 配下チェック付きでディスクから読んで返す
 
@@ -128,7 +128,7 @@ WorkspaceModel(project: ide)
 ### MRUKeyMonitor
 
 - `NSEvent.addLocalMonitorForEvents` でアプリ全体のキー入力を**最優先**で握る
-- `Ctrl+M` / `Cmd+P` / `Cmd+Shift+F` / `Cmd+J` / overlay 表示中の `Esc` `↑` `↓`
+- `Ctrl+M` / `Cmd+P` / `Cmd+Shift+F` / overlay 表示中の `Esc` `↑` `↓`
 - `Cmd+R` は `ProjectsModel.fileTreeFocused`（`FileTreeView` の `@FocusState` を同期）が `true` のときだけ握ってツリー再スキャン。フォーカスが端末側にあるときは素通し
 - Ghostty NSView の `performKeyEquivalent` より先に呼ばれるので、vim/claude 等の TUI 内でも PolePole が捕捉できる（要件 3）
 - `Ctrl+M` の判定は `keyCode == 46`（macOS が `Ctrl+letter` を CR にマップする問題回避）
@@ -144,7 +144,7 @@ WorkspaceModel(project: ide)
 
 ```
 NSEvent.addLocalMonitorForEvents (MRUKeyMonitor)
-  → Ctrl+M / Cmd+P / Cmd+Shift+F / Cmd+J / (ツリーにフォーカス時) Cmd+R / overlay 中の Esc/↑/↓ を握って終了
+  → Ctrl+M / Cmd+P / Cmd+Shift+F / (ツリーにフォーカス時) Cmd+R / overlay 中の Esc/↑/↓ を握って終了
   ↓
 SwiftUI の View 階層
   → SwiftUI Button の keyboardShortcut（プレビューの「← ツリーに戻る」「Cursor で開く」 等）

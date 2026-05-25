@@ -70,7 +70,8 @@ private struct FileTreeWrapper: View {
 
     var body: some View {
         FileTreeView(model: fileTree, preview: preview, onSelectFile: { url in
-            fileTree.selectedURL = url
+            // selectedURL は ProjectsModel.rewireActivePreviewSubscription の sink で
+            // preview.currentURL の変化に追従して自動同期されるので、ここでは触らない。
             preview.open(url)
         })
         .frame(maxWidth: .infinity, maxHeight: .infinity)
