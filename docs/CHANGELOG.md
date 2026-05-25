@@ -30,6 +30,8 @@ PolePole の更新履歴。形式は [Keep a Changelog](https://keepachangelog.c
 「内部リファクタ」「ドキュメント追加」「CI 調整」などユーザー目視で気づかない変更は **書かない**。
 
 ## [Unreleased]
+
+## [1.3.1] - 2026-05-25
 ### 📝 Changed
 - ja: ターミナルのデフォルトテーマを GitHub Dark から Apple System Colors に変更しました (デフォルト状態で本文の文字が明るく見えるようになります)
 - en: Changed the default terminal theme from GitHub Dark to Apple System Colors so the default body text is brighter
