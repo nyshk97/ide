@@ -129,7 +129,12 @@ def inline(text):
     text = re.sub(r"\[([^\]]+)\]\(([^)\s]+)\)", r'<a href="\2">\1</a>', text)
     return text
 
-html = ['<style>body{font:-apple-system-body;color:#1d1d1f;line-height:1.5}h3{font-size:14px;margin:16px 0 6px}ul{margin:0;padding-left:20px}li{margin:3px 0}code{background:#f5f5f7;padding:1px 5px;border-radius:3px;font-size:90%}</style>']
+# Sparkle の Update Notes は WKWebView (light/dark 自動切替なし) で描画される。
+# `color-scheme: light dark` を宣言すると WebView が現在の OS テーマに従って
+# default の text/background 色を切り替えてくれる。固定色 (#1d1d1f 等) を当てると
+# ダーク背景に黒文字で本文が読めなくなる事故が起きるので、配色はシステムに任せる。
+# code 背景も rgba グレーにして light/dark 両対応。
+html = ['<style>:root{color-scheme:light dark}body{font:-apple-system-body;line-height:1.5}h3{font-size:14px;margin:16px 0 6px}ul{margin:0;padding-left:20px}li{margin:3px 0}code{background:rgba(127,127,127,0.18);padding:1px 5px;border-radius:3px;font-size:90%}</style>']
 in_ul = False
 for line in body.split("\n"):
     line = line.rstrip()
