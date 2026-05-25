@@ -69,8 +69,12 @@ enum MRUKeyMonitor {
             return true
         }
 
-        // diff overlay 表示中の Esc: 閉じる。
+        // diff overlay 表示中の Esc / Cmd+W: 閉じる。
         if model.diffOverlayVisible, event.keyCode == 53 {  // 53 = Esc
+            model.closeDiffOverlay()
+            return true
+        }
+        if model.diffOverlayVisible, mods == .command, event.keyCode == 13 {  // 13 = W
             model.closeDiffOverlay()
             return true
         }

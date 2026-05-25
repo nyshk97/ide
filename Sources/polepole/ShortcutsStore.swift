@@ -218,7 +218,7 @@ enum FixedShortcuts {
         Entry(keyCode: 35, modifiers: .command,                 label: "Cmd+P (Quick Search)"),
         Entry(keyCode: 3,  modifiers: [.command, .shift],       label: "Cmd+Shift+F (Full Search)"),
         Entry(keyCode: 17, modifiers: .command,                 label: "Cmd+T (New Terminal Tab)"),
-        Entry(keyCode: 13, modifiers: .command,                 label: "Cmd+W (Close Tab)"),
+        Entry(keyCode: 13, modifiers: .command,                 label: "Cmd+W (Close Tab / Close Diff)"),
         Entry(keyCode: 3,  modifiers: .command,                 label: "Cmd+F (In-file Search)"),
         Entry(keyCode: 15, modifiers: .command,                 label: "Cmd+R (Rescan / Diff Reload)"),
         Entry(keyCode: 8,  modifiers: .command,                 label: "Cmd+C (Copy Path in Overlay)"),
