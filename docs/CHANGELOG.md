@@ -30,6 +30,17 @@ PolePole の更新履歴。形式は [Keep a Changelog](https://keepachangelog.c
 「内部リファクタ」「ドキュメント追加」「CI 調整」などユーザー目視で気づかない変更は **書かない**。
 
 ## [Unreleased]
+### 📝 Changed
+- ja: ファイルツリーとプレビューを別ペインに分け、ファイルを開いてもツリーが消えなくなりました (3 列レイアウト → ファイル未オープン時は 3 列のまま、開いたときだけプレビュー列が現れる 4 列レイアウトに変更)
+- en: File tree and preview are now in separate panes — opening a file no longer hides the tree (the layout becomes 4 columns only while a preview is open; otherwise it stays 3 columns as before)
+- ja: プレビューの表示状態はプロジェクトごとに独立して保持されるようになりました (プロジェクト A でプレビューを開いて B に切り替えても B のプレビュー状態がそのまま)
+- en: Preview open/closed state is now tracked per project (switching from A to B keeps B's own preview state instead of inheriting A's)
+- ja: プレビューを Esc / Cmd+W で閉じる挙動を、プレビューにフォーカスがあるときだけに限定しました (端末側にフォーカスがあるときの Cmd+W は今まで通り端末タブの close になります)
+- en: Esc / Cmd+W now only closes the preview when the preview itself has focus — when the terminal has focus, Cmd+W still closes the terminal tab as before
+
+### ✨ Added
+- ja: 左の **プロジェクト一覧サイドバー** を折りたたんで画面を広く使えるようになりました (デフォルト Cmd+S でトグル、折りたたみ中は左端の細いハンドルをクリックでも展開できます。Cmd+, の設定画面でショートカットを変更可能)
+- en: Added a way to collapse the **project sidebar** to reclaim screen width (toggle with Cmd+S by default; when collapsed, click the thin handle on the left edge to expand. The shortcut is rebindable in Settings, Cmd+,)
 
 ## [1.1.5] - 2026-05-25
 ### 📝 Changed

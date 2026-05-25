@@ -79,9 +79,16 @@ enum MRUKeyMonitor {
             return true
         }
 
-        // 中央ペインを ツリー ↔ プレビュー でトグル（default: Cmd+J）。
+        // 中央ペインのプレビューを Show/Hide（default: Cmd+J）。
+        // 4 カラム化以降はツリーは常駐、プレビューだけが開閉する。
         if shortcuts.matches(event, .togglePreview) {
             model.togglePreview()
+            return true
+        }
+
+        // プロジェクト一覧サイドバーを Show/Hide（default: Cmd+Shift+S）。グローバル状態。
+        if shortcuts.matches(event, .toggleSidebar) {
+            model.sidebarCollapsed.toggle()
             return true
         }
 

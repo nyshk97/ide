@@ -127,7 +127,9 @@ struct FilePreviewView: View {
                         .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
-                .keyboardShortcut(.escape, modifiers: [])
+                // Esc は `PreviewFocusHostingView.cancelOperation(_:)` でフォーカスゲート付きで
+                // 捕捉する。SwiftUI .keyboardShortcut(.escape) はフォーカス判定を保証せず、
+                // 端末にフォーカスがあっても発火するため削除した。
                 .help("Back to file tree (Esc)")
                 .onHover { treeHovered = $0 }
 

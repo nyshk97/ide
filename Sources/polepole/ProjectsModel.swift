@@ -1,3 +1,4 @@
+import Combine
 import SwiftUI
 
 /// プロジェクト一覧と active project を保持する singleton。
@@ -40,6 +41,24 @@ final class ProjectsModel: ObservableObject {
     /// `FileTreeView` が @FocusState を同期する。`MRUKeyMonitor` の Cmd+R 判定に使う。
     @Published var fileTreeFocused: Bool = false
 
+    /// アクティブプロジェクトのプレビューペインを開いているか（4 カラムレイアウトでの
+    /// プレビューペイン collapse 判定に使う）。`RootLayoutView` がこれを観察して
+    /// NSSplitViewItem.isCollapsed に反映する。
+    ///
+    /// `activeProject` 切替時に新 active の `preview.$currentURL` を購読し直す。
+    /// 古い購読は `activePreviewCancellable` の差し替えで自動 cancel される。
+    @Published private(set) var activePreviewVisible: Bool = false
+    private var activePreviewCancellable: AnyCancellable?
+    private var activeProjectCancellable: AnyCancellable?
+
+    /// 左サイドバー（プロジェクト一覧）を折りたたんでいるか。グローバル状態。
+    /// UserDefaults に永続化する。`RootLayoutView` がこれを観察して collapse する。
+    @Published var sidebarCollapsed: Bool = false {
+        didSet {
+            UserDefaults.standard.set(sidebarCollapsed, forKey: "polepole.sidebarCollapsed")
+        }
+    }
+
     /// Cmd+P クイック検索のオーバーレイ状態。
     @Published var quickSearchVisible: Bool = false
     @Published var quickSearchQuery: String = ""
@@ -72,12 +91,41 @@ final class ProjectsModel: ObservableObject {
     private init(store: ProjectsStore = .shared) {
         self.store = store
         load()
+        // サイドバー折畳状態を UserDefaults から復元
+        self.sidebarCollapsed = UserDefaults.standard.bool(forKey: "polepole.sidebarCollapsed")
+        // activeProject 切替に追従して active な FilePreviewModel.currentURL を購読し直す。
+        // 購読張り替え直後の初期値も同期するので、新 active が currentURL を既に持っていれば
+        // activePreviewVisible は即 true になる。
+        activeProjectCancellable = $activeProject
+            .sink { [weak self] project in
+                self?.rewireActivePreviewSubscription(to: project)
+            }
         // 未読フラグ → アクティブ化の順。こうしておくと AUTO_ACTIVATE と UNREAD_INDICES を
         // 同じプロジェクトに向けたとき「アクティブ化でそのプロジェクトの表示タブの未読が消える」
         // 挙動も検証できる。
         applyTestUnreadIndices()
         applyTestAutoActivate()
         applyTestAutoPreview()
+        applyTestSidebarCollapsed()
+    }
+
+    /// activeProject 切替に追従して新 active の preview.$currentURL を購読し直す。
+    /// 古い購読は `activePreviewCancellable` の差し替えで自動 cancel される。
+    /// 購読張り替え直後の初期値も `activePreviewVisible` に書き込む（sink だけだと漏れる）。
+    private func rewireActivePreviewSubscription(to project: Project?) {
+        guard let project else {
+            activePreviewCancellable = nil
+            activePreviewVisible = false
+            return
+        }
+        let preview = preview(for: project)
+        // 初期値を即反映
+        activePreviewVisible = (preview.currentURL != nil)
+        // 以降の変化を購読
+        activePreviewCancellable = preview.$currentURL
+            .sink { [weak self] url in
+                self?.activePreviewVisible = (url != nil)
+            }
     }
 
     private func load() {
@@ -146,6 +194,15 @@ final class ProjectsModel: ObservableObject {
             // ErrorBus は MainActor、init からの呼び出しは MainActor 隔離なので OK
             ErrorBus.shared.notify(toast, kind: .error)
         }
+    }
+
+    /// `POLEPOLE_TEST_SIDEBAR_COLLAPSED=1` が立っていたら起動時にサイドバー折畳状態に。
+    /// VERIFY 用デバッグ機能。
+    private func applyTestSidebarCollapsed() {
+        guard let v = ProcessInfo.processInfo.environment["POLEPOLE_TEST_SIDEBAR_COLLAPSED"],
+              v == "1" || v.lowercased() == "true" else { return }
+        sidebarCollapsed = true
+        Logger.shared.debug("[projects] test-sidebar-collapsed")
     }
 
     /// `POLEPOLE_TEST_UNREAD_INDICES=0,2` のように指定すると、allOrdered の該当インデックスの

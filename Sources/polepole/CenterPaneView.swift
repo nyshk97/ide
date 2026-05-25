@@ -1,8 +1,9 @@
 import SwiftUI
 
-/// 中央ペイン（ファイルツリー / プレビューを切り替える領域）。
-/// 上部に共通ツールバー（diff バッジボタン）を持ち、その下にツリー or プレビューを置く。
-struct CenterPaneView: View {
+/// 中央のファイルツリーペイン（4 カラムの 2 列目）。
+/// 上部に diff バッジボタンの薄いバー、その下にファイルツリーを置く。
+/// プレビューは独立した `FilePreviewPaneView` に分離済み（同じ画面で切り替わらない）。
+struct FileTreePaneView: View {
     @ObservedObject var projects: ProjectsModel = .shared
 
     var body: some View {
@@ -16,7 +17,10 @@ struct CenterPaneView: View {
                 if projects.allOrdered.isEmpty {
                     emptyState
                 } else if let active = projects.activeProject {
-                    placeholder(for: active)
+                    FileTreeWrapper(
+                        fileTree: projects.fileTree(for: active),
+                        preview: projects.preview(for: active)
+                    )
                 } else {
                     Text("Select a project from the left")
                         .foregroundStyle(.tertiary)
@@ -27,9 +31,6 @@ struct CenterPaneView: View {
         .background(Color(nsColor: .windowBackgroundColor))
     }
 
-    /// 中央ペインの共通上部バー。プレビュー時もツリー時も常に出す。
-    /// 既存の `FilePreviewView.toolbar`（[←][→][🌲]）はプレビュー時にしか出ないので、
-    /// それと別の薄いバーをここで持つ（プレビュー時は 2 段になる）。
     @ViewBuilder
     private var centerTopBar: some View {
         if let active = projects.activeProject {
@@ -59,39 +60,19 @@ struct CenterPaneView: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
-
-    @ViewBuilder
-    private func placeholder(for project: Project) -> some View {
-        ProjectCenterContent(
-            preview: projects.preview(for: project),
-            fileTree: projects.fileTree(for: project)
-        )
-    }
 }
 
-/// `FilePreviewModel.currentURL` を観察してツリー / プレビューを切り替える。
-/// CenterPaneView 直下に書くと preview を観察できず切替が走らないため
-/// 専用の子 view にしている。
-///
-/// HSplitView は内部 view を if/else で差し替えると user drag した divider 位置を
-/// 失うため、両方を ZStack で常駐させて opacity で切替（右ペインの workspace 切替と同じ手法）。
-private struct ProjectCenterContent: View {
-    @ObservedObject var preview: FilePreviewModel
+/// FileTreeView を active project に応じて差し替えるラッパ。
+/// FileTreeView は project ごとに 1 インスタンスなので、active 切替時に reset される。
+private struct FileTreeWrapper: View {
     @ObservedObject var fileTree: FileTreeModel
+    @ObservedObject var preview: FilePreviewModel
 
     var body: some View {
-        ZStack {
-            FileTreeView(model: fileTree, preview: preview, onSelectFile: { url in
-                fileTree.selectedURL = url
-                preview.open(url)
-            })
-            .opacity(preview.currentURL == nil ? 1 : 0)
-            .allowsHitTesting(preview.currentURL == nil)
-
-            if let url = preview.currentURL {
-                FilePreviewView(preview: preview, url: url, projectRoot: fileTree.project.path, onClose: { preview.close() })
-            }
-        }
+        FileTreeView(model: fileTree, preview: preview, onSelectFile: { url in
+            fileTree.selectedURL = url
+            preview.open(url)
+        })
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 }
@@ -100,7 +81,7 @@ private struct ProjectCenterContent: View {
 ///
 /// - 差分なし（`gitStatus.statuses.count == 0`): アイコン薄め + "0" の Capsule（グレー背景 + secondary 文字）
 /// - 差分あり（`> 0`): アイコン通常色 + 件数 Capsule（accent 背景 + 白文字）
-private struct DiffBadgeButton: View {
+struct DiffBadgeButton: View {
     @ObservedObject var gitStatus: GitStatusModel
     let onClick: () -> Void
 
@@ -137,4 +118,3 @@ private struct DiffBadgeButton: View {
         .help(count > 0 ? "Open Diff (\(count) files · Cmd+D)" : "No changes (Cmd+D to check)")
     }
 }
-
