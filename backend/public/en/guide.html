@@ -74,6 +74,41 @@
     </ul>
     <p>After changing the config, open a new terminal tab or restart PolePole to reflect the changes.</p>
     <p>Note: a few keybindings essential to PolePole (project switching, full-text search, etc.) are handled by the app first, so they win even if you bind the same keys in Ghostty config.</p>
+
+    <h2 id="ai-tools">Are Claude / Codex bundled with PolePole?</h2>
+    <p>No. PolePole does not bundle <strong>Claude Code (Anthropic)</strong> or <strong>Codex CLI (OpenAI)</strong>. You launch them from the terminal as usual.</p>
+    <p>Install each AI tool separately, following their official docs. Once installed, run <code>claude</code> or <code>codex</code> in PolePole's terminal to start them.</p>
+    <p>PolePole automatically detects which AI tool is running by process name and shows an icon on the tab and a completion notification when the AI's turn ends.</p>
+
+    <h2 id="ai-notifications">No notification (sound or badge) when Claude / Codex finishes its turn</h2>
+    <p>PolePole detects when Claude or Codex finishes thinking and is waiting for your input, and notifies you with a sound plus a red unread badge on the sidebar / tab. If it's not working as expected, check the following in order.</p>
+
+    <h3>Sound plays but no badge appears</h3>
+    <p>This is by design. <strong>If the AI finishes in the tab you're currently viewing, no badge is shown</strong> (you're assumed to have noticed already). Badges appear when the AI completes in a tab or project you're not currently viewing.</p>
+
+    <h3>Neither sound nor badge appears</h3>
+    <ol>
+      <li><strong>macOS sound settings</strong>: In System Settings → Sound, confirm that "Play user interface sound effects" is on, and that Focus mode (Do Not Disturb / Work) is off.</li>
+      <li><strong>Claude / Codex version</strong>: Completion detection relies on the progress sequence (OSC 9;4) emitted by the AI tool. Older versions may not emit this — update to the latest version.</li>
+      <li><strong>How Claude / Codex was installed</strong>: PolePole identifies the AI by process name. If you installed it via <code>npm install -g</code>, the actual process may be <code>node</code> and PolePole may fail to identify it. Run <code>file $(which claude)</code> in your terminal — if it does not report <code>Mach-O ... executable</code> (a native binary), switch to a native distribution (official native build, Homebrew, etc.) and the notification should start working. The same applies to <code>codex</code>.</li>
+    </ol>
+
+    <h3>If none of the above resolves it</h3>
+    <p>Please <a href="/en/contact">contact us</a> and attach the log file (see "Where logs and data are stored" below).</p>
+
+    <h2 id="data-location">Where logs and data are stored</h2>
+    <p>PolePole stores local data in the following locations. Attaching the log file when contacting support helps us help you faster.</p>
+    <ul>
+      <li><strong>Logs</strong>: <code>~/Library/Logs/polepole/polepole-YYYY-MM-DD.log</code> (rotated daily, up to 7 days retained)</li>
+      <li><strong>Pinned project list</strong>: <code>~/Library/Application Support/polepole/projects.json</code></li>
+      <li><strong>Shortcut settings</strong>: <code>~/Library/Application Support/polepole/shortcuts.json</code></li>
+      <li><strong>License &amp; trial info</strong>: macOS Keychain (and <code>~/Library/Application Support/polepole/token.json</code> / <code>trial.json</code>)</li>
+      <li><strong>Clipboard preview cache</strong>: <code>~/Library/Caches/polepole/clipboard/</code></li>
+    </ul>
+    <p>All of these are stored locally only and never sent to external servers. See our <a href="/en/legal/privacy">Privacy Policy</a> for details.</p>
+
+    <h3>Removing all data on uninstall</h3>
+    <p>After removing the app (<code>brew uninstall --cask polepole</code> or moving to Trash from Finder), manually delete the directories listed above. License info stored in the Keychain can be removed from the Keychain Access app by searching for <code>polepole</code>.</p>
   </main>
 
   <footer class="site-footer">

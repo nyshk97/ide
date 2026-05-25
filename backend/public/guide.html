@@ -76,6 +76,41 @@
     </ul>
     <p>設定を変更したあとは、新しいターミナルタブを開くか PolePole を再起動すると反映されます。</p>
     <p>なお、PolePole で必要な一部のキーバインド（プロジェクト切替・全文検索など）は PolePole 側で優先的に処理されるため、Ghostty 設定で同じキーを割り当てていてもアプリ側の挙動が勝ちます。</p>
+
+    <h2 id="ai-tools">Claude / Codex は PolePole に含まれていますか？</h2>
+    <p>いいえ。PolePole は <strong>Claude Code (Anthropic)</strong> や <strong>Codex CLI (OpenAI)</strong> といった AI ツールを内包しません。ターミナルから普段通り起動して使う設計です。</p>
+    <p>各 AI ツールはそれぞれの公式ドキュメントに従って別途インストールしてください。インストール後、PolePole のターミナルで <code>claude</code> や <code>codex</code> と入力すると起動します。</p>
+    <p>PolePole は実行中のプロセス名を見て AI ツールを自動識別し、タブにアイコンを表示したりターン完了の通知を出したりします。</p>
+
+    <h2 id="ai-notifications">AI（Claude / Codex）のターン完了通知が出ない・鳴らない</h2>
+    <p>PolePole は、Claude や Codex が「考えるのを終えてユーザー入力待ち」になったタイミングを検出して、通知音とサイドバー／タブの赤い未読バッジで知らせます。期待通り動かないときは下記を順に確認してください。</p>
+
+    <h3>音は鳴っているがバッジが出ない</h3>
+    <p>仕様です。<strong>あなたが今見ているタブで AI が完了した場合はバッジを出しません</strong>（既に気付いている前提のため）。別タブ・別プロジェクトで AI を動かし、見ていない側にいるときにバッジが点灯します。</p>
+
+    <h3>音もバッジも出ない</h3>
+    <ol>
+      <li><strong>macOS のサウンド設定</strong>: システム設定 → サウンド で「ユーザーインターフェイスのサウンドエフェクトを再生」がオン、かつ集中モード（おやすみ／仕事）が解除されていることを確認してください。</li>
+      <li><strong>Claude / Codex のバージョン</strong>: ターン完了の検知には、AI ツールが出力する進捗シーケンス（OSC 9;4）が必要です。古いバージョンだと出力しないことがあるので、最新版にアップデートしてください。</li>
+      <li><strong>Claude / Codex のインストール形態</strong>: PolePole は実行中のプロセス名で AI を識別します。<code>npm install -g</code> 経由でインストールした場合、実体が <code>node</code> プロセスとして動くため PolePole 側で識別できないことがあります。ターミナルで <code>file $(which claude)</code> を実行し、結果が <code>Mach-O ... executable</code>（ネイティブバイナリ）と出るインストール方法（公式のネイティブ配布版や Homebrew 経由など）に切り替えるとほぼ解決します。<code>codex</code> についても同様です。</li>
+    </ol>
+
+    <h3>それでも解決しないとき</h3>
+    <p>下記「ログ・データの保存場所」のログファイルを添えて <a href="/contact">お問い合わせ</a> からご連絡ください。</p>
+
+    <h2 id="data-location">ログ・データの保存場所</h2>
+    <p>PolePole は以下の場所にローカルのデータを保存します。サポートに問い合わせる際にログを添付していただけると解決が早くなります。</p>
+    <ul>
+      <li><strong>ログ</strong>: <code>~/Library/Logs/polepole/polepole-YYYY-MM-DD.log</code>（日次でローテーション、最大 7 日分保持）</li>
+      <li><strong>ピン留めしたプロジェクト一覧</strong>: <code>~/Library/Application Support/polepole/projects.json</code></li>
+      <li><strong>ショートカット設定</strong>: <code>~/Library/Application Support/polepole/shortcuts.json</code></li>
+      <li><strong>ライセンス・トライアル情報</strong>: macOS Keychain（および <code>~/Library/Application Support/polepole/token.json</code> / <code>trial.json</code>）</li>
+      <li><strong>クリップボードプレビューキャッシュ</strong>: <code>~/Library/Caches/polepole/clipboard/</code></li>
+    </ul>
+    <p>これらはすべてローカルにのみ保存され、外部サーバには送信されません。詳細は <a href="/legal/privacy.html">プライバシーポリシー</a> をご確認ください。</p>
+
+    <h3>アンインストール時にデータを完全に消したい</h3>
+    <p>アプリ本体を削除（<code>brew uninstall --cask polepole</code> または Finder からゴミ箱）したあと、上記のディレクトリを手動で削除してください。Keychain に保存されたライセンス情報は「キーチェーンアクセス」アプリで <code>polepole</code> を検索して削除できます。</p>
   </main>
 
   <footer class="site-footer">
