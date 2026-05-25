@@ -30,6 +30,8 @@ PolePole の更新履歴。形式は [Keep a Changelog](https://keepachangelog.c
 「内部リファクタ」「ドキュメント追加」「CI 調整」などユーザー目視で気づかない変更は **書かない**。
 
 ## [Unreleased]
+
+## [1.3.0] - 2026-05-25
 ### 📝 Changed
 - ja: プレビューの ← / → 履歴を時系列ログ方式に変更しました (過去に ← で戻った状態から別ファイルを開いても、forward 履歴が消えなくなります)
 - en: Preview ← / → history is now chronological — opening a new file after going back no longer truncates the forward entries
