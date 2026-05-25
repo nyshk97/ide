@@ -30,6 +30,9 @@ PolePole の更新履歴。形式は [Keep a Changelog](https://keepachangelog.c
 「内部リファクタ」「ドキュメント追加」「CI 調整」などユーザー目視で気づかない変更は **書かない**。
 
 ## [Unreleased]
+### 🐛 Fixed
+- ja: 閲覧中の Markdown / コードファイルがディスク上で更新されたとき、プレビューが先頭にスクロールバックしないようにしました (同じファイルの再描画はスクロール位置を保持、別ファイルに切り替えたときだけ先頭に戻ります)
+- en: When the Markdown or code file you are previewing is updated on disk, the preview no longer jumps back to the top — the scroll position is preserved on same-file refreshes (it still resets when you open a different file)
 
 ## [1.1.2] - 2026-05-24
 ### ✨ Added

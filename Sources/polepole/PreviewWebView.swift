@@ -17,6 +17,9 @@ struct PreviewPayload: Equatable {
     /// これより外の file:// リンクはプレビューに渡さず、コピー + トーストにする
     /// （untrusted Markdown からプロジェクト外を覗かれないように）。nil なら制限しない。
     var allowedRoot: URL? = nil
+    /// このプレビューの元ファイル。前回と一致すれば「同じファイルの再描画」とみなして
+    /// スクロール位置を保持する（ファイル更新の auto-reload で先頭に戻さない）。
+    var sourcePath: URL? = nil
 }
 
 /// WKWebView を 1 つだけ生成し、初回 viewer.html ロード後は
@@ -114,12 +117,17 @@ final class PreviewWebController: NSObject, ObservableObject {
     }
 
     private func applyNow(_ payload: PreviewPayload) {
+        let preserveScroll: Bool = {
+            guard let prev = lastApplied?.sourcePath, let cur = payload.sourcePath else { return false }
+            return FilePathKey(prev) == FilePathKey(cur)
+        }()
         lastApplied = payload
         var dict: [String: Any] = [
             "kind": payload.kind.rawValue,
             "text": payload.text,
             "lang": payload.lang,
             "theme": "auto",
+            "preserveScroll": preserveScroll,
         ]
         if let base = payload.baseURL {
             // 末尾スラッシュが無いと <base> が「ファイル」扱いになるので必ず付与

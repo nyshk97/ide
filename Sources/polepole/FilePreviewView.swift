@@ -202,7 +202,8 @@ struct FilePreviewView: View {
                     text: text,
                     lang: "",
                     baseURL: url.deletingLastPathComponent(),
-                    allowedRoot: projectRoot
+                    allowedRoot: projectRoot,
+                    sourcePath: url
                 ))
             case .image:
                 ImagePreview(url: url)
@@ -240,7 +241,13 @@ struct FilePreviewView: View {
 
     private func codePayload(data: Data) -> PreviewPayload {
         let text = String(data: data, encoding: .utf8) ?? "(decode failed)"
-        return PreviewPayload(kind: .code, text: text, lang: PreviewLanguage.guess(from: url), allowedRoot: projectRoot)
+        return PreviewPayload(
+            kind: .code,
+            text: text,
+            lang: PreviewLanguage.guess(from: url),
+            allowedRoot: projectRoot,
+            sourcePath: url
+        )
     }
 
     private func externalPrompt(message: String) -> some View {

@@ -78,7 +78,6 @@
     const digits = Math.max(2, String(lineCount).length);
     root.innerHTML =
       '<pre class="hljs" style="--ln-digits:' + digits + '"><code>' + wrapped + "</code></pre>";
-    window.scrollTo(0, 0);
   }
 
   function renderMarkdown(text) {
@@ -121,7 +120,6 @@
         }
       });
     }
-    window.scrollTo(0, 0);
   }
 
   function renderError(message) {
@@ -276,6 +274,12 @@
     // 旧コンテンツの <mark> は innerHTML 差し替えで消えるので unwrap は不要。
     const prevFindQuery = findState ? findState.query : null;
     findState = null;
+    // ファイル更新の auto-reload では同じファイルが再描画されるので、スクロール位置を保持する。
+    // 別ファイル切替えなら Swift 側が preserveScroll=false で来るので 0,0 に戻る。
+    const preserveScroll = !!payload.preserveScroll;
+    const savedScroll = preserveScroll
+      ? { x: window.scrollX || window.pageXOffset || 0, y: window.scrollY || window.pageYOffset || 0 }
+      : null;
     if (payload.theme) setTheme(payload.theme);
     setBaseHref(payload.kind === "markdown" ? payload.baseHref || "" : "");
     switch (payload.kind) {
@@ -290,6 +294,11 @@
         break;
       default:
         renderError("unknown kind: " + payload.kind);
+    }
+    if (savedScroll) {
+      window.scrollTo(savedScroll.x, savedScroll.y);
+    } else {
+      window.scrollTo(0, 0);
     }
     if (prevFindQuery) runFind(prevFindQuery);
   }
