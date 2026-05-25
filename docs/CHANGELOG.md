@@ -30,6 +30,9 @@ PolePole の更新履歴。形式は [Keep a Changelog](https://keepachangelog.c
 「内部リファクタ」「ドキュメント追加」「CI 調整」などユーザー目視で気づかない変更は **書かない**。
 
 ## [Unreleased]
+### 📝 Changed
+- ja: アプリの配布形式を .zip から .dmg に変更しました (ダウンロードしてダブルクリックすると Finder にウィンドウが開き、Applications フォルダにドラッグしてインストールできる macOS 標準の画面になります)
+- en: The app is now distributed as .dmg instead of .zip — double-click to mount and drag PolePole.app to your Applications folder, the standard macOS install flow
 
 ## [1.1.4] - 2026-05-25
 ### 📝 Changed
