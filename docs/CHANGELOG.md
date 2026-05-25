@@ -30,6 +30,8 @@ PolePole の更新履歴。形式は [Keep a Changelog](https://keepachangelog.c
 「内部リファクタ」「ドキュメント追加」「CI 調整」などユーザー目視で気づかない変更は **書かない**。
 
 ## [Unreleased]
+
+## [1.1.4] - 2026-05-25
 ### 📝 Changed
 - ja: アプリと公式サイトをダークモード固定の表示に変更しました (OS のライトモード設定に追従しなくなります)
 - en: The app and the official site now always render in dark mode and no longer follow the system light mode setting
