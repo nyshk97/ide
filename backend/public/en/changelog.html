@@ -40,6 +40,57 @@
       <div class="cl-timeline">
       <article class="cl-release">
         <header class="cl-release-header">
+          <span class="cl-version">v1.1.4</span>
+          <time class="cl-date">2026-05-25</time>
+        </header>
+        <div class="cl-category">
+          <h3 class="cl-cat-title">📝 Changed</h3>
+          <ul>
+            <li>The app and the official site now always render in dark mode and no longer follow the system light mode setting</li>
+          </ul>
+        </div>
+      </article>
+      <article class="cl-release">
+        <header class="cl-release-header">
+          <span class="cl-version">v1.1.3</span>
+          <time class="cl-date">2026-05-25</time>
+        </header>
+        <div class="cl-category">
+          <h3 class="cl-cat-title">🐛 Fixed</h3>
+          <ul>
+            <li>Fixed an issue where Cmd+C did not copy selected text in the Markdown / code preview (the terminal's Cmd+C binding was intercepting the shortcut; now only the focused pane consumes it)</li>
+            <li>When the Markdown or code file you are previewing is updated on disk, the preview no longer jumps back to the top — the scroll position is preserved on same-file refreshes (it still resets when you open a different file)</li>
+          </ul>
+        </div>
+      </article>
+      <article class="cl-release">
+        <header class="cl-release-header">
+          <span class="cl-version">v1.1.2</span>
+          <time class="cl-date">2026-05-24</time>
+        </header>
+        <div class="cl-category">
+          <h3 class="cl-cat-title">✨ Added</h3>
+          <ul>
+            <li>Added a new <a href="https://polepole.dev/guide">/guide</a> page on the official site, covering first launch, license activation, updates, and Ghostty configuration</li>
+          </ul>
+        </div>
+        <div class="cl-category">
+          <h3 class="cl-cat-title">📝 Changed</h3>
+          <ul>
+            <li>Cmd+P (file search) and Cmd+Shift+F (full-text search) now always exclude common build/vendor/cache directories (<code>node_modules</code>, <code>target</code>, <code>__pycache__</code>, <code>dist</code>, <code>vendor</code>, <code>.next</code>, etc.) even when the project has no <code>.gitignore</code></li>
+            <li>The reload button, preview ↔ tree toggle, and the hide-ignored toggle in the file tree now share the same hover background as the Git button, making them feel more clearly clickable</li>
+            <li>The file tree now keeps each directory's expand state across reloads</li>
+          </ul>
+        </div>
+        <div class="cl-category">
+          <h3 class="cl-cat-title">🗑️ Removed</h3>
+          <ul>
+            <li>Removed the &quot;include ignored&quot; toggle button from the Cmd+P overlay (it now always excludes ignored entries)</li>
+          </ul>
+        </div>
+      </article>
+      <article class="cl-release">
+        <header class="cl-release-header">
           <span class="cl-version">v1.1.1</span>
           <time class="cl-date">2026-05-24</time>
         </header>
