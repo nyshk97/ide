@@ -216,14 +216,14 @@ final class GhosttyTerminalNSView: NSView {
 
     // MARK: - キー入力（PoC は最小限。IME・修飾キー特殊処理なし）
 
-    /// Cmd+V や Cmd+C などのメニューショートカットは AppKit が menu chain で先に消費する。
-    /// Ghostty 側のキーバインドにマッチする場合はこちらで捕捉して surface に流す。
+    /// performKeyEquivalent は responder chain ではなく view 階層を深さ優先で走る。
+    /// このため自分が first responder でなくても呼ばれてしまい、Ghostty が Cmd+C/V 等の
+    /// 自前バインドを握ると、プレビュー（WKWebView）の copy: が AppKit Edit メニュー
+    /// 経由で発火するのを阻害する。Cmd+T/Cmd+W のようにフォーカスに依らず active pane に
+    /// 効かせたいショートカットだけ先に処理し、それ以外は first responder のときだけ握る。
     override func performKeyEquivalent(with event: NSEvent) -> Bool {
         // モーダル overlay（Cmd+P 検索 / Cmd+Shift+F 全文検索 / diff / MRU）表示中は
-        // Ghostty で Cmd+V や Cmd+A 等を握らない。performKeyEquivalent は responder chain
-        // ではなく view 階層を深さ優先で走るため、ここで握ると overlay の TextField が
-        // first responder でもターミナル側に paste が流れてしまう。false を返して
-        // AppKit 標準の Edit メニュー → 検索窓の field editor に paste: を届ける。
+        // Ghostty では何も握らない。overlay の TextField に paste 等を確実に届けるため。
         let model = ProjectsModel.shared
         if model.quickSearchVisible || model.fullSearchVisible
             || model.diffOverlayVisible || model.mruOverlay != nil {
@@ -244,8 +244,8 @@ final class GhosttyTerminalNSView: NSView {
             return false
         }
 
-        // PolePole 側のショートカットを Ghostty より先に捕まえる。
-        // 操作対象は WorkspaceModel.activePane（フォーカス中のペイン）。
+        // PolePole 側のショートカットは active pane に対して効かせるので
+        // first responder に依らず先に処理する。
         if mods == .command {
             switch chars {
             case "t":
@@ -258,6 +258,11 @@ final class GhosttyTerminalNSView: NSView {
                 break
             }
         }
+
+        // 以降は Ghostty 固有のキーバインド（Cmd+C で copy_to_clipboard 等）。
+        // 自分が first responder でないとき＝端末以外（プレビューの WKWebView 等）が
+        // フォーカスを持っているときは握らない。
+        guard window?.firstResponder === self else { return false }
 
         guard let s = surface else { return false }
 
