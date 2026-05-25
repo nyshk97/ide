@@ -11,6 +11,11 @@ import Security
 /// - `trial-install-date`: トライアル開始日（ISO8601）
 /// - `activation-token`: アクティベーション署名トークン（Phase 6 で本格運用）
 /// - `last-observed-now`: 時計巻き戻し対策の monotonic clock（Phase 6）
+///
+/// Debug ビルドは ad-hoc 署名（`Sign to Run Locally`）でビルドのたびに cdhash が
+/// 変わるため、Keychain ACL の trusted application list がマッチせずに毎回
+/// パスワード prompt が出る。dev 体験を保つため、Debug では Application Support
+/// 配下の JSON ファイルにフォールバックする（polepole-dev は元から開発専用領域）。
 enum KeychainHelper {
     enum KeychainError: Error {
         case unexpectedStatus(OSStatus)
@@ -25,6 +30,34 @@ enum KeychainHelper {
 
     /// 値を保存する。既存があれば update、無ければ add。
     static func set(_ value: String, account: String) throws {
+        #if DEBUG
+        try DebugStore.set(value, account: account)
+        #else
+        try keychainSet(value, account: account)
+        #endif
+    }
+
+    /// 値を読む。存在しなければ nil（エラーではない）。
+    static func get(account: String) throws -> String? {
+        #if DEBUG
+        return try DebugStore.get(account: account)
+        #else
+        return try keychainGet(account: account)
+        #endif
+    }
+
+    /// 削除する。存在しなくても成功扱い。
+    static func delete(account: String) throws {
+        #if DEBUG
+        try DebugStore.delete(account: account)
+        #else
+        try keychainDelete(account: account)
+        #endif
+    }
+
+    // MARK: - Release: 本物の Keychain
+
+    private static func keychainSet(_ value: String, account: String) throws {
         guard let data = value.data(using: .utf8) else {
             throw KeychainError.dataEncodingFailed
         }
@@ -51,8 +84,7 @@ enum KeychainHelper {
         }
     }
 
-    /// 値を読む。存在しなければ nil（エラーではない）。
-    static func get(account: String) throws -> String? {
+    private static func keychainGet(account: String) throws -> String? {
         let query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: service,
@@ -74,8 +106,7 @@ enum KeychainHelper {
         return str
     }
 
-    /// 削除する。存在しなくても成功扱い。
-    static func delete(account: String) throws {
+    private static func keychainDelete(account: String) throws {
         let query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: service,
@@ -86,4 +117,51 @@ enum KeychainHelper {
             throw KeychainError.unexpectedStatus(status)
         }
     }
+
+    // MARK: - Debug: JSON ファイル
+
+    #if DEBUG
+    private enum DebugStore {
+        private static let lock = NSLock()
+
+        private static var fileURL: URL {
+            AppPaths.applicationSupportDirectory.appendingPathComponent("keychain-debug.json")
+        }
+
+        private static func load() -> [String: String] {
+            guard let data = try? Data(contentsOf: fileURL),
+                  let dict = try? JSONDecoder().decode([String: String].self, from: data)
+            else {
+                return [:]
+            }
+            return dict
+        }
+
+        private static func save(_ dict: [String: String]) throws {
+            let dir = AppPaths.applicationSupportDirectory
+            try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+            let data = try JSONEncoder().encode(dict)
+            try data.write(to: fileURL, options: .atomic)
+        }
+
+        static func set(_ value: String, account: String) throws {
+            lock.lock(); defer { lock.unlock() }
+            var d = load()
+            d[account] = value
+            try save(d)
+        }
+
+        static func get(account: String) throws -> String? {
+            lock.lock(); defer { lock.unlock() }
+            return load()[account]
+        }
+
+        static func delete(account: String) throws {
+            lock.lock(); defer { lock.unlock() }
+            var d = load()
+            d.removeValue(forKey: account)
+            try save(d)
+        }
+    }
+    #endif
 }
