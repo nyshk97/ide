@@ -30,6 +30,8 @@ PolePole の更新履歴。形式は [Keep a Changelog](https://keepachangelog.c
 「内部リファクタ」「ドキュメント追加」「CI 調整」などユーザー目視で気づかない変更は **書かない**。
 
 ## [Unreleased]
+
+## [1.1.3] - 2026-05-25
 ### 🐛 Fixed
 - ja: プレビューに表示中の Markdown / コードで、文字列を選択して Cmd+C を押してもコピーされない問題を修正しました (端末側の Cmd+C バインドが先取りしていたのを、フォーカス中のペインだけが握るように変更)
 - en: Fixed an issue where Cmd+C did not copy selected text in the Markdown / code preview (the terminal's Cmd+C binding was intercepting the shortcut; now only the focused pane consumes it)
