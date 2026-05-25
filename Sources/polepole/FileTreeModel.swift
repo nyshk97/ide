@@ -75,6 +75,11 @@ final class FileTreeModel: ObservableObject {
         }
     }
 
+    /// 展開中の全ディレクトリを閉じる（VSCode の Collapse Folders 相当）。
+    func collapseAll() {
+        expanded.removeAll()
+    }
+
     func isExpanded(_ url: URL) -> Bool {
         expanded.contains(FilePathKey(url))
     }

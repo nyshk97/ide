@@ -20,6 +20,9 @@ struct FileTreeView: View {
     /// 「.gitignored を隠す」トグルボタンのホバー状態。
     @State private var hideIgnoredHovered: Bool = false
 
+    /// 「全て折りたたむ」ボタンのホバー状態。
+    @State private var collapseAllHovered: Bool = false
+
     /// ツリーがキーボードフォーカスを持っているか。`ProjectsModel.fileTreeFocused` に同期し、
     /// Cmd+R での再スキャン可否判定に使う（フォーカスが端末側にあるときは誤発火させない）。
     @FocusState private var treeFocused: Bool
@@ -120,6 +123,22 @@ struct FileTreeView: View {
             .buttonStyle(.plain)
             .onHover { reloadHovered = $0 }
             .help("Reload (Cmd+R when tree focused)")
+            Button {
+                model.collapseAll()
+            } label: {
+                Image(systemName: "chevron.up.square")
+                    .foregroundStyle(.secondary)
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 2)
+                    .background(
+                        RoundedRectangle(cornerRadius: 5)
+                            .fill(collapseAllHovered ? Color.primary.opacity(0.08) : Color.clear)
+                    )
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .onHover { collapseAllHovered = $0 }
+            .help("Collapse all folders")
         }
         .padding(.horizontal, 10)
         .frame(height: 30)
