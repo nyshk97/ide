@@ -154,7 +154,12 @@ MRU の確定タイミング（修飾キーの release）は `ShortcutsStore.sho
 
 1. 直近 commit を表示して pause → AI/人間が `[Unreleased]` を埋める
 2. `[Unreleased]` → `[<version>] - <date>` にリネーム + commit
-3. 該当 section を抜き出して GitHub Release notes (md, ja/en 両方) と Sparkle appcast の `<description>` (HTML, ja のみ) を生成 → release / feed に注入
+3. 該当 section を抜き出して GitHub Release notes (md, ja/en 両方) と Sparkle appcast の `<description>` (HTML, ja のみ) を生成
+4. build → notarize → staple → zip
+5. `git push origin main`（**release.sh が内部で実施するので事前 push は不要**）
+6. EdDSA 署名 → appcast.xml 生成 → `nyshk97/polepole-releases` に GitHub Release 作成
+
+`[Unreleased]` を事前に埋めておけば、`echo "" | bash scripts/release.sh <version>` で pause を即抜けて非対話で回せる（CHANGELOG 編集は AI が事前に済ませる前提）。
 
 公式サイトの `/changelog` `/en/changelog` は `pnpm build:changelog` (= `node backend/scripts/build-changelog.mjs`) で再生成する。`wrangler deploy` の `predeploy` フックに入っているので、デプロイすれば自動で最新になる。
 
