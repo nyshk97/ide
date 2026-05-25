@@ -35,6 +35,7 @@ struct PolePoleApp: App {
         WindowGroup {
             ContentView()
                 .frame(minWidth: 1000, minHeight: 500)
+                .preferredColorScheme(.dark)
         }
         .commands {
             // ---- PolePole (app) メニュー ----
@@ -86,6 +87,7 @@ struct PolePoleApp: App {
                 LicenseSettingsView()
                     .tabItem { Label("License", systemImage: "checkmark.seal") }
             }
+            .preferredColorScheme(.dark)
         }
     }
 }
