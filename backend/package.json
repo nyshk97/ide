@@ -7,7 +7,7 @@
     "dev": "wrangler dev --local --persist-to .wrangler/state",
     "build:changelog": "node scripts/build-changelog.mjs",
     "predeploy": "pnpm build:changelog",
-    "deploy": "wrangler deploy",
+    "deploy": "wrangler deploy --env production",
     "test": "vitest run",
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit",
