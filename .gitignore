@@ -21,3 +21,6 @@ GhosttyKit.xcframework
 # 環境変数
 .env
 .env.local
+
+# Claude Code (ScheduleWakeup の排他制御 lock — session/プロセス固有)
+.claude/scheduled_tasks.lock
