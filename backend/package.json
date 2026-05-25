@@ -8,6 +8,7 @@
     "build:changelog": "node scripts/build-changelog.mjs",
     "predeploy": "pnpm build:changelog",
     "deploy": "wrangler deploy --env production",
+    "postdeploy": "git add public/changelog.html public/en/changelog.html && (git diff --staged --quiet || git commit -m 'chore(changelog): デプロイ後の HTML 再生成')",
     "test": "vitest run",
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit",
