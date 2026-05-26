@@ -31,6 +31,11 @@ PolePole の更新履歴。形式は [Keep a Changelog](https://keepachangelog.c
 
 ## [Unreleased]
 
+## [1.4.2] - 2026-05-26
+### 📝 Changed
+- ja: ファイル詳細画面で、ファイル名にホバーするとコピーアイコンが現れ、クリックすると相対パスがコピーされて 1 秒間チェックマークに変わるように変更 (以前は下線が引かれるだけで、結果のトーストも画面右下に出ていた)
+- en: In the file preview, hovering the filename now reveals a copy icon and clicking copies the relative path with a 1-second checkmark feedback right next to the button (previously it only underlined and showed a toast in the far corner)
+
 ## [1.4.1] - 2026-05-26
 ### ✨ Added
 - ja: シェルタブの並び替えをドラッグ&ドロップで行えるように
