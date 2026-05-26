@@ -22,8 +22,10 @@ struct FilePreviewView: View {
     /// `updateNSView` が再読込しないので、`.id()` に噛ませて作り直しを強制する。
     @State private var reloadGen = 0
 
-    /// ファイル名パンくずのホバー状態。クリックで相対パスをコピーできることを示す。
+    /// ファイル名パンくずのホバー状態。ホバー中はコピーアイコンを表示する。
     @State private var nameHovered = false
+    /// コピー直後のフィードバック。1 秒だけアイコンを ✓ に切り替える。
+    @State private var showCopied = false
     /// 「Open in Editor」ボタンのホバー状態。
     @State private var openInEditorHovered = false
 
@@ -125,13 +127,21 @@ struct FilePreviewView: View {
             .disabled(!preview.canGoForward)
             .help("Next file")
 
-            // ファイル名（click で相対パスをコピー）
+            // ファイル名（click で相対パスをコピー）。ホバー時のみコピーアイコンを表示し、
+            // 押下後 1 秒は ✓ に切り替えてフィードバックを近接表示する。
             Button(action: copyRelativePath) {
-                Text(url.lastPathComponent)
-                    .font(.system(size: 12, weight: .semibold))
-                    .lineLimit(1)
-                    .truncationMode(.middle)
-                    .underline(nameHovered)
+                HStack(spacing: 4) {
+                    Text(url.lastPathComponent)
+                        .font(.system(size: 12, weight: .semibold))
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+                    Image(systemName: showCopied ? "checkmark" : "doc.on.doc")
+                        .font(.system(size: 10))
+                        .foregroundStyle(showCopied ? Color.green : Color.secondary)
+                        .opacity(nameHovered || showCopied ? 1 : 0)
+                        .frame(width: 12)
+                }
+                .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
             .help("Click to copy relative path")
@@ -271,7 +281,10 @@ struct FilePreviewView: View {
         let pb = NSPasteboard.general
         pb.clearContents()
         pb.setString(rel, forType: .string)
-        ErrorBus.shared.notify("Copied relative path: \(rel)", kind: .info)
+        showCopied = true
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
+            showCopied = false
+        }
     }
 
     private func openInCursor(_ url: URL) {
