@@ -30,6 +30,17 @@ PolePole の更新履歴。形式は [Keep a Changelog](https://keepachangelog.c
 「内部リファクタ」「ドキュメント追加」「CI 調整」などユーザー目視で気づかない変更は **書かない**。
 
 ## [Unreleased]
+### ✨ Added
+- ja: ファイルツリーのツールバーに検索ボタンを追加。クリックでファイル名検索 (⌘P) / 全文検索 (⌘⇧F) を開けるように
+- en: Added search buttons to the file tree toolbar — click to open quick file search (⌘P) or full-text search (⌘⇧F)
+
+### 📝 Changed
+- ja: 検索オーバーレイ表示中、枠外をクリックするとオーバーレイを閉じるように
+- en: Clicking outside the search overlay now closes it
+
+### 🐛 Fixed
+- ja: ⌘P でクイック検索を開いたあと ⌘⇧F で全文検索に切り替えた際、Esc を 2 回押さないと閉じなかった問題を修正
+- en: Fixed an issue where Esc had to be pressed twice to close the full-text search after switching from quick search (⌘P → ⌘⇧F)
 
 ## [1.4.4] - 2026-05-26
 ### 📝 Changed

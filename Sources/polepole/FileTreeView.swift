@@ -23,6 +23,12 @@ struct FileTreeView: View {
     /// 「全て折りたたむ」ボタンのホバー状態。
     @State private var collapseAllHovered: Bool = false
 
+    /// クイック検索ボタンのホバー状態。
+    @State private var quickSearchHovered: Bool = false
+
+    /// 全文検索ボタンのホバー状態。
+    @State private var fullSearchHovered: Bool = false
+
     /// ツリーがキーボードフォーカスを持っているか。`ProjectsModel.fileTreeFocused` に同期し、
     /// Cmd+R での再スキャン可否判定に使う（フォーカスが端末側にあるときは誤発火させない）。
     @FocusState private var treeFocused: Bool
@@ -92,6 +98,38 @@ struct FileTreeView: View {
                 .font(.system(size: 12, weight: .semibold))
             Spacer(minLength: 0)
             Button {
+                ProjectsModel.shared.openQuickSearch()
+            } label: {
+                Image(systemName: "magnifyingglass")
+                    .foregroundStyle(.secondary)
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 2)
+                    .background(
+                        RoundedRectangle(cornerRadius: 5)
+                            .fill(quickSearchHovered ? Color.primary.opacity(0.08) : Color.clear)
+                    )
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .onHover { quickSearchHovered = $0 }
+            .help("Find File by Name (⌘P)")
+            Button {
+                ProjectsModel.shared.openFullSearch()
+            } label: {
+                Image(systemName: "text.magnifyingglass")
+                    .foregroundStyle(.secondary)
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 2)
+                    .background(
+                        RoundedRectangle(cornerRadius: 5)
+                            .fill(fullSearchHovered ? Color.primary.opacity(0.08) : Color.clear)
+                    )
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .onHover { fullSearchHovered = $0 }
+            .help("Search in Files (⌘⇧F)")
+            Button {
                 model.hideIgnored.toggle()
             } label: {
                 Image(systemName: model.hideIgnored ? "eye.slash" : "eye")
@@ -108,22 +146,6 @@ struct FileTreeView: View {
             .onHover { hideIgnoredHovered = $0 }
             .help(model.hideIgnored ? "Show .gitignored items" : "Hide .gitignored items")
             Button {
-                model.reload()
-            } label: {
-                Image(systemName: "arrow.clockwise")
-                    .foregroundStyle(.secondary)
-                    .padding(.horizontal, 6)
-                    .padding(.vertical, 2)
-                    .background(
-                        RoundedRectangle(cornerRadius: 5)
-                            .fill(reloadHovered ? Color.primary.opacity(0.08) : Color.clear)
-                    )
-                    .contentShape(Rectangle())
-            }
-            .buttonStyle(.plain)
-            .onHover { reloadHovered = $0 }
-            .help("Reload (Cmd+R when tree focused)")
-            Button {
                 model.collapseAll()
             } label: {
                 Image(systemName: "chevron.up.square")
@@ -139,6 +161,22 @@ struct FileTreeView: View {
             .buttonStyle(.plain)
             .onHover { collapseAllHovered = $0 }
             .help("Collapse all folders")
+            Button {
+                model.reload()
+            } label: {
+                Image(systemName: "arrow.clockwise")
+                    .foregroundStyle(.secondary)
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 2)
+                    .background(
+                        RoundedRectangle(cornerRadius: 5)
+                            .fill(reloadHovered ? Color.primary.opacity(0.08) : Color.clear)
+                    )
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .onHover { reloadHovered = $0 }
+            .help("Reload (Cmd+R when tree focused)")
         }
         .padding(.horizontal, 10)
         .frame(height: 30)

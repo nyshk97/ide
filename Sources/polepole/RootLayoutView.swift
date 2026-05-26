@@ -65,45 +65,58 @@ struct RootLayoutView: View {
                 MRUOverlayView(state: state)
                     .transition(.opacity.combined(with: .scale(scale: 0.95)))
             } else if projects.quickSearchVisible, let active = projects.activeProject {
-                QuickSearchView(
-                    index: projects.fileIndex(for: active),
-                    query: Binding(
-                        get: { projects.quickSearchQuery },
-                        set: { projects.quickSearchQuery = $0 }
-                    ),
-                    selection: Binding(
-                        get: { projects.quickSearchSelection },
-                        set: { projects.quickSearchSelection = $0 }
-                    ),
-                    onSelect: { projects.quickSearchSelect($0) },
-                    onCancel: { projects.closeQuickSearch() }
-                )
-                .padding(.top, 80)
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+                ZStack {
+                    // 枠外クリックで閉じる用の透明レイヤー。Color.clear は hit-test されないので
+                    // ほぼ透明な opacity を載せた Color にする。子の検索 view へのタップは
+                    // SwiftUI のヒットテストで子が先に消費するためここには届かない。
+                    Color.black.opacity(0.001)
+                        .contentShape(Rectangle())
+                        .onTapGesture { projects.closeQuickSearch() }
+                    QuickSearchView(
+                        index: projects.fileIndex(for: active),
+                        query: Binding(
+                            get: { projects.quickSearchQuery },
+                            set: { projects.quickSearchQuery = $0 }
+                        ),
+                        selection: Binding(
+                            get: { projects.quickSearchSelection },
+                            set: { projects.quickSearchSelection = $0 }
+                        ),
+                        onSelect: { projects.quickSearchSelect($0) },
+                        onCancel: { projects.closeQuickSearch() }
+                    )
+                    .padding(.top, 80)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+                }
             } else if projects.fullSearchVisible {
-                FullSearchView(
-                    query: Binding(
-                        get: { projects.fullSearchQuery },
-                        set: { projects.fullSearchQuery = $0 }
-                    ),
-                    hits: Binding(
-                        get: { projects.fullSearchHits },
-                        set: { projects.fullSearchHits = $0 }
-                    ),
-                    selection: Binding(
-                        get: { projects.fullSearchSelection },
-                        set: { projects.fullSearchSelection = $0 }
-                    ),
-                    isSearching: Binding(
-                        get: { projects.fullSearchInProgress },
-                        set: { projects.fullSearchInProgress = $0 }
-                    ),
-                    onSubmit: { projects.runFullSearch() },
-                    onSelect: { projects.fullSearchSelect($0) },
-                    onCancel: { projects.closeFullSearch() }
-                )
-                .padding(.top, 80)
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+                ZStack {
+                    Color.black.opacity(0.001)
+                        .contentShape(Rectangle())
+                        .onTapGesture { projects.closeFullSearch() }
+                    FullSearchView(
+                        query: Binding(
+                            get: { projects.fullSearchQuery },
+                            set: { projects.fullSearchQuery = $0 }
+                        ),
+                        hits: Binding(
+                            get: { projects.fullSearchHits },
+                            set: { projects.fullSearchHits = $0 }
+                        ),
+                        selection: Binding(
+                            get: { projects.fullSearchSelection },
+                            set: { projects.fullSearchSelection = $0 }
+                        ),
+                        isSearching: Binding(
+                            get: { projects.fullSearchInProgress },
+                            set: { projects.fullSearchInProgress = $0 }
+                        ),
+                        onSubmit: { projects.runFullSearch() },
+                        onSelect: { projects.fullSearchSelect($0) },
+                        onCancel: { projects.closeFullSearch() }
+                    )
+                    .padding(.top, 80)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+                }
             } else if projects.diffOverlayVisible, let active = projects.activeProject {
                 DiffOverlayView(
                     viewModel: projects.diffViewModel,

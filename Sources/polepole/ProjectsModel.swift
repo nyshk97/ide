@@ -351,6 +351,7 @@ final class ProjectsModel: ObservableObject {
 
     func openQuickSearch() {
         guard activeProject != nil else { return }
+        fullSearchVisible = false
         quickSearchQuery = ""
         quickSearchSelection = 0
         quickSearchVisible = true
@@ -397,6 +398,7 @@ final class ProjectsModel: ObservableObject {
 
     func openFullSearch() {
         guard activeProject != nil else { return }
+        quickSearchVisible = false
         fullSearchHits = []
         fullSearchSelection = 0
         fullSearchInProgress = false
