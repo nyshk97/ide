@@ -30,6 +30,9 @@ PolePole の更新履歴。形式は [Keep a Changelog](https://keepachangelog.c
 「内部リファクタ」「ドキュメント追加」「CI 調整」などユーザー目視で気づかない変更は **書かない**。
 
 ## [Unreleased]
+### 🐛 Fixed
+- ja: npm 経由でインストールした Claude Code / Codex CLI が AI ターン完了通知 (音・赤いバッジ) を出さなかった問題を修正
+- en: Fixed AI turn-completion notifications (sound / red badge) not firing for Claude Code / Codex CLI installed via npm
 
 ## [1.3.1] - 2026-05-25
 ### 📝 Changed

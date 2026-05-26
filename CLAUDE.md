@@ -122,6 +122,38 @@ mv "$BACKUP_DIR/polepole-dev-backup" "$HOME/Library/Application Support/polepole
 
 ---
 
+## AI 完了通知の発火経路と落とし穴
+
+通知系の不具合（友達/他人の環境で「通知が出ない」）が来たときは、次の経路のどこで止まっているかを切り分ける:
+
+1. **Claude/Codex が `OSC 9;4` progress を吐く**（INDETERMINATE/SET → REMOVE）
+2. libghostty が `GHOSTTY_ACTION_PROGRESS_REPORT` を発火 (`GhosttyManager.swift:271-299`)
+3. `tab.foregroundProgram` が `.claude` または `.codex` であること（`ForegroundProcessInspector.classify()`）
+4. `aiTurnInProgress == true` での REMOVE 受信 → `playNotificationSound()` + `markUnreadIfBackgrounded()`
+5. アクティブタブで完了 → 赤丸は出さない（仕様）/ 非アクティブのみ赤丸点灯
+
+### 典型的に外れるポイント
+
+- **classify() が `.other("node")` を返す**: npm 経由でグローバルインストールした claude は `node /path/to/cli.js` として起動するため、p_comm が `node` になる。**fix**: `node`/`bun`/`deno`/`python` 等の汎用 interpreter のときは `procArgs(for:)`（`KERN_PROCARGS2`）で argv を取り、`@anthropic-ai/claude-code` 等の文字列で識別する（`ForegroundProcessInspector.swift` で実装済み）
+- **Claude/Codex が古くて OSC 9;4 を出していない**: 友達の AI ツールが古いだけ。最新版を入れてもらう
+- **アクティブタブで完了したから赤丸が出ない**: 仕様。サウンドだけ鳴る
+
+### 切り分けコマンド
+
+```bash
+# 友達のログから検知の経路を追う
+grep -E "\[fg\]|\[progress\]|\[unread\]" ~/Library/Logs/polepole/polepole-*.log | tail -50
+
+# fg=other(node) が出ていたら、友達の claude が npm wrapper の可能性
+file "$(which claude)" && head -1 "$(which claude)"
+```
+
+`[fg]` 行は Debug ビルドだけ出る (`#if DEBUG`、`GhosttyManager.swift:123-128`)。Release で困ったら Diagnostics 画面が欲しくなる（BACKLOG）。
+
+ユーザー向けの guide は `/guide#ai-notifications` (`backend/public/guide.html`) を参照させる。
+
+---
+
 ## ショートカット追加時の更新箇所
 
 ショートカットの実装場所は次の 2 種類で、追加する場所によって付随する更新が変わる。
