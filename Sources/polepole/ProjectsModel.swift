@@ -105,8 +105,22 @@ final class ProjectsModel: ObservableObject {
         // 挙動も検証できる。
         applyTestUnreadIndices()
         applyTestAutoActivate()
+        autoActivateLastOpenedProject()
         applyTestAutoPreview()
         applyTestSidebarCollapsed()
+    }
+
+    /// 起動時に `lastOpenedAt` が最新のプロジェクトを自動で active にする。
+    /// パスが消えていたら次に新しい有効なプロジェクトを順に試し、全部無効なら未選択のまま。
+    /// `POLEPOLE_TEST_AUTO_ACTIVATE_INDEX` で既に active が決まっている場合は何もしない。
+    private func autoActivateLastOpenedProject() {
+        guard activeProject == nil else { return }
+        let candidates = allOrdered.sorted { $0.lastOpenedAt > $1.lastOpenedAt }
+        for candidate in candidates where !candidate.isMissing {
+            setActive(candidate)
+            Logger.shared.debug("[projects] auto-activate-last-opened name=\(candidate.displayName)")
+            return
+        }
     }
 
     /// activeProject 切替に追従して新 active の preview.$currentURL を購読し直す。
@@ -531,10 +545,9 @@ final class ProjectsModel: ObservableObject {
 
     // MARK: - アクティブ切替
 
-    /// プロジェクトを active にする。永続状態（projects.json）は変えない
-    /// ＝ プロジェクト切替のたびに JSON を書く / backup を rotate するのをやめた。
-    /// `lastOpenedAt` は現状の仕様（再起動で active を復元しない・temporary は手動順・MRU は別管理）
-    /// ではほぼ使われないので、切替では更新しない。
+    /// プロジェクトを active にする。
+    /// 切り替えが発生したときだけ `lastOpenedAt` を更新して永続化する
+    /// （起動時の「最後に開いたプロジェクトを自動で開く」判定に使う）。
     func setActive(_ project: Project) {
         // パスが消えている / マウント未接続なら開かない（要件 2: クリックしても開けない）。
         // ここで弾くことで、存在しない cwd で shell を起動しに行く workspace(for:) を呼ばない。
@@ -543,15 +556,33 @@ final class ProjectsModel: ObservableObject {
             return
         }
         let didSwitch = activeProject?.id != project.id
-        activeProject = project
+
+        // pinned / temporary 配列内の lastOpenedAt を更新して、起動時の自動選択判定に反映させる。
+        // 切替時のみ更新（同じプロジェクトを setActive し直しても書き込まない）。
+        var resolved = project
+        if didSwitch {
+            let now = Date()
+            if let idx = pinned.firstIndex(where: { $0.id == project.id }) {
+                pinned[idx].lastOpenedAt = now
+                resolved = pinned[idx]
+            } else if let idx = temporary.firstIndex(where: { $0.id == project.id }) {
+                temporary[idx].lastOpenedAt = now
+                resolved = temporary[idx]
+            }
+        }
+
+        activeProject = resolved
         // 初回 active 時に workspace を作る（=shell 起動）。2 回目以降は既存を再利用。
-        let ws = workspace(for: project)
+        let ws = workspace(for: resolved)
         // プロジェクトを開いたら、いま表示されるタブ（active pane の active tab）の未読はクリア。
         // 他ペイン・他タブに未読が残っていればサイドバーのリングは残る（要件 5）。
         ws.activePane.activeTab?.hasUnreadNotification = false
         refreshUnreadProjects()
         // 実際にプロジェクトが切り替わった瞬間に MRU 確定（要件通り）。
-        if didSwitch { pushMRU(project.id) }
+        if didSwitch {
+            pushMRU(resolved.id)
+            persist()
+        }
     }
 
     // MARK: - MRU
