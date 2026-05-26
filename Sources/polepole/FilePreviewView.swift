@@ -28,6 +28,8 @@ struct FilePreviewView: View {
     @State private var showCopied = false
     /// 「Open in Editor」ボタンのホバー状態。
     @State private var openInEditorHovered = false
+    /// 閉じるボタンのホバー状態。
+    @State private var closeHovered = false
 
     /// ファイル内検索バー（Cmd+F）の入力欄フォーカス。
     @FocusState private var findFieldFocused: Bool
@@ -169,6 +171,23 @@ struct FilePreviewView: View {
             .keyboardShortcut("o", modifiers: [.command, .option])
             .help("Launch external editor (Cmd+Option+O)")
             .onHover { openInEditorHovered = $0 }
+
+            Button {
+                preview.close()
+            } label: {
+                Image(systemName: "xmark")
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundStyle(closeHovered ? Color.primary : Color.secondary)
+                    .frame(width: 22, height: 22)
+                    .background(
+                        RoundedRectangle(cornerRadius: 5)
+                            .fill(closeHovered ? Color.primary.opacity(0.08) : Color.clear)
+                    )
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .help("Close preview (Esc)")
+            .onHover { closeHovered = $0 }
         }
         .padding(.horizontal, 10)
         .frame(height: 30)
