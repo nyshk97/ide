@@ -24,3 +24,7 @@ run = """
 rm -rf /tmp/polepole-build
 rm -rf polepole.xcodeproj
 """
+
+[tasks.download-stats]
+description = "GitHub Releases から累積 download_count をバージョン別に表示"
+run = "./scripts/download-stats.sh"

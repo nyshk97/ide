@@ -36,15 +36,20 @@
   <string>Fonts</string>
   <!--
     Sparkle 2: 自前アップデート（"Check for Updates…"）。
-    - 配信は public な別 repo `nyshk97/polepole-releases` の `latest/download/appcast.xml` 経由。
+    - 配信本体は public な別 repo `nyshk97/polepole-releases` の release asset (zip/dmg + appcast.xml)。
       本体 repo (`nyshk97/ide`) は将来 private 化しても、配信側は public のまま機能する。
       （リポジトリ名は歴史的な事情で `nyshk97/ide` のまま、配信 feed だけ `polepole-releases`）
+    - SUFeedURL は Cloudflare Workers (`polepole.dev/appcast.xml`) 経由。Worker が GitHub から
+      appcast.xml を取得し、`<enclosure url>` を `polepole.dev/download/...` に書き換えて返す。
+      これにより update check / binary 取得が両方 Worker を通り、User-Agent (Sparkle/* vs
+      Homebrew/* vs Mozilla/*) で「新規インストール vs 自動更新」を区別できる。
+      Worker 障害時は更新チェックが落ちるが、署名検証で安全性は保たれる (zip 偽装は EdDSA で弾く)。
     - SUPublicEDKey は `generate_keys -p` の出力（Base64）。
       ペアの秘密鍵は macOS Keychain（`~/Library/CloudStorage/Dropbox/secrets/sparkle-ed25519-private.key` にバックアップ）。
     - 起動時の自動チェックは無効（要件: 手動メニュー実行のみ）。
   -->
   <key>SUFeedURL</key>
-  <string>https://github.com/nyshk97/polepole-releases/releases/latest/download/appcast.xml</string>
+  <string>https://polepole.dev/appcast.xml</string>
   <key>SUPublicEDKey</key>
   <string>VnvTM72yjjc1FY/nzLI5uT/3mSxkOdG7k4dJqAPgZo8=</string>
   <key>SUEnableAutomaticChecks</key>

@@ -251,3 +251,54 @@ agent-browser 等で test card を自動入力 + submit すると Stripe の **A
 ### E. Payment Link には locale 設定が存在しない
 
 Checkout Session には `locale` パラメータ (`auto` / `en` / `ja` ...) があるが、Payment Link は **常にブラウザ言語で auto 表示** される仕様で、Dashboard の編集画面にも per-link の言語設定項目が無い (確認: 2026-05-24 時点)。i18n 対応時に「Dashboard で locale を auto に設定する」タスクを積んでも N/A になる。Payment Link を使う限り、何もしなくても顧客のブラウザ言語で Checkout が表示される。
+
+---
+
+## ダウンロード計測の有効化 (2026-05-26 追加)
+
+新規インストール vs Sparkle 自動更新を区別するため、appcast.xml と binary download
+を `polepole.dev` 経由で配信する経路を追加した。実装は `backend/src/routes/downloads.ts`。
+
+### 反映手順
+
+```bash
+# 1) D1 migration 0003 を本番に適用
+cd backend
+pnpm exec wrangler d1 migrations apply polepole-licenses-prod --remote --env production
+
+# 2) Worker を deploy (LP のダウンロードボタンも /download/latest/polepole.dmg に変わる)
+pnpm exec wrangler deploy --env production
+
+# 3) 動作確認
+curl -s -A "polepole/1.4.2 Sparkle/2.9.1" -o /tmp/appcast.xml -w "%{http_code}\n" \
+  https://polepole.dev/appcast.xml
+grep "polepole.dev/download" /tmp/appcast.xml | head -2  # enclosure 書き換え確認
+
+curl -s -o /dev/null -A "Homebrew/4.5.0" \
+  -w "status=%{http_code} loc=%header{location}\n" \
+  https://polepole.dev/download/v1.4.2/polepole.dmg
+# → 302 で GitHub に飛ぶことを確認
+
+# 4) D1 に row が入っているか確認
+cd .. && ./scripts/download-stats.sh
+```
+
+### 別 repo: nyshk97/homebrew-tap の cask URL 変更 [人間タスク]
+
+`Casks/polepole.rb` の `url` を以下に変更してから次回 release を bump する:
+
+```ruby
+# 変更前
+url "https://github.com/nyshk97/polepole-releases/releases/download/#{version}/polepole.dmg"
+# 変更後
+url "https://polepole.dev/download/v#{version}/polepole.dmg"
+```
+
+これで `brew install --cask polepole` も Worker 経由になり、Homebrew/* UA で
+homebrew classification に分類される。
+
+### 既存インストールの扱い
+
+PolePole v1.4.2 以下のインストールは Info.plist 内の SUFeedURL が GitHub 直で焼き付いている
+ため、永遠に GitHub Releases を直接叩く。新しい SUFeedURL は v1.4.3 以降のビルド
+(Info.plist 反映済) からしか有効にならない。移行完了は数ヶ月単位で見る。
