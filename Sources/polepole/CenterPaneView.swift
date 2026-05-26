@@ -6,16 +6,23 @@ import SwiftUI
 struct FileTreePaneView: View {
     @ObservedObject var projects: ProjectsModel = .shared
 
+    /// `POLEPOLE_TEST_AUTO_EMPTY_HUB=1` で「プロジェクトが何件かあっても」EmptyHubView を出す。
+    /// VERIFY 用デバッグフラグ。実データ破壊を避けたスクリーンショット検証で使う。
+    private var forceEmptyHub: Bool {
+        let v = ProcessInfo.processInfo.environment["POLEPOLE_TEST_AUTO_EMPTY_HUB"] ?? ""
+        return v == "1" || v.lowercased() == "true"
+    }
+
     var body: some View {
         VStack(spacing: 0) {
-            if projects.activeProject != nil {
+            if projects.activeProject != nil && !forceEmptyHub {
                 centerTopBar
                 Divider()
             }
 
             Group {
-                if projects.allOrdered.isEmpty {
-                    emptyState
+                if projects.allOrdered.isEmpty || forceEmptyHub {
+                    EmptyHubView()
                 } else if let active = projects.activeProject {
                     FileTreeWrapper(
                         fileTree: projects.fileTree(for: active),
@@ -46,20 +53,6 @@ struct FileTreePaneView: View {
         }
     }
 
-    private var emptyState: some View {
-        VStack(spacing: 12) {
-            Image(systemName: "folder.badge.plus")
-                .font(.system(size: 40))
-                .foregroundStyle(.tertiary)
-            Text("Add a folder to get started")
-                .font(.title3)
-                .foregroundStyle(.secondary)
-            Text("Use the \"+\" button at the top of the left sidebar to choose a folder.")
-                .font(.callout)
-                .foregroundStyle(.tertiary)
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-    }
 }
 
 /// FileTreeView を active project に応じて差し替えるラッパ。

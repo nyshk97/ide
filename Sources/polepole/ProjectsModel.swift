@@ -714,10 +714,70 @@ final class ProjectsModel: ObservableObject {
 
     // MARK: - 検索
 
-    /// 同一の絶対パスを持つプロジェクトを返す（あれば）。
+    /// 同一プロジェクトを返す（あれば）。
+    /// symlink 経由のパスと実体パスを同一視するため、`PathNormalizer.canonicalKey` で比較する。
+    /// canonicalize できないパス（存在しない・空）が来た場合は標準化済み path での厳密一致にフォールバック。
     func project(at path: URL) -> Project? {
-        let target = path.standardizedFileURL.path
-        return allOrdered.first { $0.path.standardizedFileURL.path == target }
+        if let targetKey = PathNormalizer.canonicalKey(path) {
+            return allOrdered.first { existing in
+                PathNormalizer.canonicalKey(existing.path) == targetKey
+            }
+        }
+        let fallback = path.standardizedFileURL.path
+        return allOrdered.first { $0.path.standardizedFileURL.path == fallback }
+    }
+
+    // MARK: - 一括インポート
+
+    /// 複数の発見されたプロジェクトを一括で追加する。
+    /// `ImportSheet` / Settings の Import タブから呼ばれる唯一の入口で、
+    /// `pinned` / `temporary` への振り分け・dedup・persist・初回 active 化までここで完結させる。
+    ///
+    /// - dedup は `PathNormalizer.canonicalKey` ベース。既に登録済みの canonical key と被るものは黙ってスキップ。
+    /// - 保存パスは `payload.preferredPath` をそのまま使う（symlink 経由運用を尊重）。
+    /// - `payload.isPinned == true` は pinned 末尾、false は temporary 末尾に末尾追加。同 phase 内の順序は引数順を保つ。
+    /// - 既に何かの project が active なら active は変えない。`activeProject == nil` の場合のみ最初の追加分を active にする。
+    /// - 返り値は実際に追加された Project 配列（スキップ分を除く）。
+    @discardableResult
+    func importProjects(_ payloads: [ImportPayload]) -> [Project] {
+        guard !payloads.isEmpty else { return [] }
+
+        // 既存 + 同一バッチ内の重複も避けるための canonical key 集合
+        var seenKeys = Set<String>()
+        for existing in allOrdered {
+            if let key = PathNormalizer.canonicalKey(existing.path) {
+                seenKeys.insert(key)
+            }
+        }
+
+        var added: [Project] = []
+        for payload in payloads {
+            let url = URL(fileURLWithPath: payload.preferredPath)
+            let key = PathNormalizer.canonicalKey(payload.preferredPath) ?? url.standardizedFileURL.path
+            if seenKeys.contains(key) { continue }
+            seenKeys.insert(key)
+
+            let project = Project(
+                path: url,
+                displayName: payload.displayName,
+                isPinned: payload.isPinned
+            )
+            if payload.isPinned {
+                pinned.append(project)
+            } else {
+                temporary.append(project)
+            }
+            added.append(project)
+        }
+
+        guard !added.isEmpty else { return [] }
+        persist()
+        // 既に active なものがあればそれを尊重。何も active でなければ最初の追加分を active 化。
+        if activeProject == nil, let first = added.first {
+            setActive(first)
+        }
+        Logger.shared.info("[import] imported \(added.count) project(s) (skipped \(payloads.count - added.count))")
+        return added
     }
 
     // MARK: - 永続化

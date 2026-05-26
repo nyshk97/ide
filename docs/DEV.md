@@ -137,6 +137,8 @@ VERIFY 用に起動時の状態を仕込めるフラグ。**本番ユーザー�
 | `POLEPOLE_TEST_UNREAD_INDICES=0,2` | 起動時に N 番目（allOrdered = pinned + temporary）のプロジェクトの workspace を作り、下ペインのカレントタブに未読通知を立てる（サイドバーのリング表示の検証用）。`POLEPOLE_TEST_AUTO_ACTIVATE_INDEX` と同じインデックスを指すと「アクティブ化でその表示タブの未読が消える」挙動も確認できる |
 | `POLEPOLE_TEST_AUTO_OPEN_DIFF=1` | 起動時に active project の diff overlay (Cmd+D) を自動で開く。`git diff` の取得は非同期なので screenshot 前に sleep を入れる |
 | `POLEPOLE_TEST_SIDEBAR_COLLAPSED=1` | 起動時に左サイドバー（プロジェクト一覧）を折りたたみ状態にする。値は `1` または `true` を受ける。`Cmd+S` で同等のトグル（リバインド可能） |
+| `POLEPOLE_TEST_AUTO_EMPTY_HUB=1` | プロジェクトが何件かあっても中央ペインを EmptyHubView (`Get started` 画面) に差し替える。実 `projects.json` を空にする破壊的検証を避けたいときに使う。値は `1` または `true` |
+| `POLEPOLE_TEST_IMPORT_FIXTURE=<dir>` | Import 機能の全 source の参照先を fixture ディレクトリに差し替える。期待構造: `<dir>/conventional/`（`.git` 含むツリー）、`<dir>/cmux/session.json`、`<dir>/tmuxinator/*.yml`、`<dir>/vscode/storage.json`、`<dir>/cursor/storage.json`。各ファイル / ディレクトリは存在しなくて良い（無いものは静かにスキップ） |
 
 例:
 ```bash

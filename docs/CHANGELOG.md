@@ -30,6 +30,11 @@ PolePole の更新履歴。形式は [Keep a Changelog](https://keepachangelog.c
 「内部リファクタ」「ドキュメント追加」「CI 調整」などユーザー目視で気づかない変更は **書かない**。
 
 ## [Unreleased]
+### ✨ Added
+- ja: プロジェクトが 0 件のときの中央ペインを「Get started」ハブに刷新。フォルダ選択ボタンに加え、cmux / tmuxinator / VS Code・Cursor / ghq 配下から既存プロジェクトを発見してまとめて取り込めるインポート画面を追加 (cmux のピン留めと表示名は引き継ぎ)
+- en: Reworked the empty center pane into a "Get started" hub. In addition to picking a folder, you can bulk-import projects detected from cmux / tmuxinator / VS Code / Cursor / ghq (cmux pin state and titles carry over)
+- ja: 設定 → Import タブから、既にプロジェクトが登録されているユーザーも同じインポート機能を呼び出せるように
+- en: Added an "Import" tab to Settings so users with existing projects can run the same importer
 
 ## [1.3.2] - 2026-05-26
 ### 🐛 Fixed

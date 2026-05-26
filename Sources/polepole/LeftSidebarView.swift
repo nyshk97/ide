@@ -63,14 +63,10 @@ struct LeftSidebarView: View {
     @ViewBuilder
     private var list: some View {
         if projects.allOrdered.isEmpty {
-            VStack {
-                Spacer()
-                Text("Add a project")
-                    .font(.caption)
-                    .foregroundStyle(.tertiary)
-                Spacer()
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            // 空状態の案内は中央ペインの EmptyHubView に集約する。
+            // サイドバーは + ボタンと余白だけにしてノイズを抑える。
+            Color.clear
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
         } else {
             ScrollView {
                 VStack(alignment: .leading, spacing: 0) {

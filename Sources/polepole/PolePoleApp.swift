@@ -17,6 +17,12 @@ struct PolePoleApp: App {
     )
 
     init() {
+        // XCTest 実行時（unit test の TEST_HOST 経由）は重い初期化を全部 skip する。
+        // Ghostty / Sparkle / WebView prewarm / license check は test には不要 + 副作用が大きい。
+        // `XCTestConfigurationFilePath` は XCTest runner が必ずセットする env。
+        if ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil {
+            return
+        }
         Logger.shared.resetDebugMirror()
         GhosttyManager.shared.start()
         MRUKeyMonitor.install()
@@ -84,6 +90,8 @@ struct PolePoleApp: App {
             TabView {
                 ShortcutsSettingsView()
                     .tabItem { Label("Shortcuts", systemImage: "keyboard") }
+                ImportSettingsView()
+                    .tabItem { Label("Import", systemImage: "tray.and.arrow.down") }
                 LicenseSettingsView()
                     .tabItem { Label("License", systemImage: "checkmark.seal") }
             }

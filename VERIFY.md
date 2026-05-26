@@ -1982,5 +1982,83 @@ Workers Routes 経由で apex を受けるには、DNS タブに以下が必要:
 
 加えて Resend ドメイン認証で `send.polepole.dev` 配下に MX / TXT が入る (Auto configure で自動)。
 
+## 40. 空状態 UI とプロジェクトインポート
+
+### 40-A. EmptyHubView の表示 (実データ非破壊)
+
+`POLEPOLE_TEST_AUTO_EMPTY_HUB=1` で既存プロジェクトの有無に関係なく中央ペインを EmptyHubView に差し替える。
+
+```bash
+# fixture を作る
+FIX=/tmp/polepole-import-fixture
+rm -rf "$FIX"; mkdir -p "$FIX"/{conventional/ghq/github.com/foo,cmux,tmuxinator,vscode,cursor}
+mkdir -p "$FIX/conventional/ghq/github.com/foo/"{repo-a/.git,repo-b/.git}
+mkdir -p "$FIX/conventional/ghq/github.com/bar/repo-c/.git"
+cat > "$FIX/cmux/session.json" << JSON
+{"createdAt":0,"version":1,"windows":[{"tabManager":{"workspaces":[
+  {"currentDirectory":"$FIX/conventional/ghq/github.com/foo/repo-a","customTitle":"Pinned Repo A","isPinned":true},
+  {"currentDirectory":"$FIX/conventional/ghq/github.com/bar/repo-c","customTitle":null,"isPinned":false}
+]}}]}
+JSON
+cat > "$FIX/tmuxinator/sample.yml" << YML
+name: sample
+root: $FIX/conventional/ghq/github.com/foo/repo-b
+YML
+cat > "$FIX/vscode/storage.json" << JSON
+{"openedPathsList":{"entries":[
+  {"folderUri":"file://$FIX/conventional/ghq/github.com/foo/repo-a"},
+  {"folderUri":"file://$FIX/conventional/ghq/github.com/foo/repo-b"}
+]}}
+JSON
+
+# 起動
+pkill -x "PolePole Dev" >/dev/null 2>&1 || true
+open -n --env POLEPOLE_TEST_AUTO_EMPTY_HUB=1 --env POLEPOLE_TEST_IMPORT_FIXTURE="$FIX" \
+  "/tmp/polepole-build/Build/Products/Debug/PolePole Dev.app"
+sleep 3
+osascript -e 'tell application id "local.d0ne1s.polepole.dev" to activate'
+sleep 2
+
+# Dev のメインウィンドウだけ撮る (CGWindowList から title="PolePole Dev" を引く)
+scripts/polepole-screenshot.sh /tmp/polepole-emptyhub.png || true
+```
+
+期待:
+- スクショに `Get started with PolePole` 見出し、`Choose a folder…` / `Import projects (3)` ボタン、`cmux 2 · local 3 · tmuxinator 1 · VS Code 2` の内訳、`How to use PolePole` リンク
+- ログに `[import] scan started with 5 source(s)` → 各 source の `found=N` → `scan done candidates=3 alreadyImported=0`
+- `~/Library/Application Support/polepole-dev/projects.json` は変化なし (フラグは表示専用)
+
+```bash
+grep '\[import\]' "$HOME/Library/Logs/polepole-dev/"polepole-dev-*.log | tail -10
+```
+
+### 40-B. プロジェクト 1 件以上ある状態で scan が走らないこと
+
+`POLEPOLE_TEST_AUTO_EMPTY_HUB` を外して通常起動 (projects.json に 1 件以上ある前提)。`[import]` ログが一切出ないこと。
+
+### 40-C. Cursor / cmux 未インストール環境のシミュレーション
+
+fixture から `cursor/storage.json` を削除して再起動。`[import] source=cursor found=0` が出るがエラー toast は出ない。同様に cmux/session.json を消すと `source=cmux found=0`。
+
+### 40-D. Settings の Import タブ (既存ユーザー導線、目視)
+
+PolePole Dev 起動中に `Cmd+,` → Settings ウィンドウの `Import` タブを開く。同じ scan が走って候補リストが表示される。`Import N selected` で取り込むと `~/Library/Application Support/polepole-dev/projects.json` に末尾追加される (`cat ... | jq '.projects[].path'`)。
+
+```bash
+jq '.projects | length, [.[] | {path, isPinned, displayName}]' \
+  "$HOME/Library/Application Support/polepole-dev/projects.json"
+```
+
+期待: cmux 由来で `isPinned=true` だったエントリは PolePole 側でも `isPinned=true`、cmux の `customTitle` (`Pinned Repo A` など) が `displayName` に入る。
+
+### 40-E. Unit test (12 ケース)
+
+```bash
+xcodebuild -project polepole.xcodeproj -scheme polepole \
+  -configuration Debug -destination 'platform=macOS' \
+  -derivedDataPath /tmp/polepole-build test 2>&1 | grep -E "Test Case|Executed"
+```
+
+期待: `Executed 12 tests, with 0 failures`。
 
 

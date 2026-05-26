@@ -9,7 +9,7 @@ options:
 settings:
   base:
     SWIFT_VERSION: "6.0"
-    MARKETING_VERSION: "1.3.2"
+    MARKETING_VERSION: "1.4.0"
     # Sparkle は CFBundleVersion で比較する。MARKETING_VERSION と連動させて
     # おかないと「1.0.10 が build 1 を offer する」みたいな自己更新が起きる。
     # Xcode が build settings 内でも $(MARKETING_VERSION) を解決するので
@@ -79,6 +79,10 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: local.d0ne1s.polepole
         PRODUCT_NAME: PolePole
+        # Swift module 名は両 config で polepole に固定する（@testable import polepole が
+        # config に関係なく通るように）。Debug は PRODUCT_NAME が "PolePole Dev" になるため
+        # module-name に空白が入って実装上の不便を生むのも避ける。
+        PRODUCT_MODULE_NAME: polepole
         INFOPLIST_FILE: Resources/Info.plist
         ENABLE_PREVIEWS: YES
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
@@ -103,3 +107,41 @@ targets:
           DEVELOPMENT_TEAM: VYDUR99LAM
           CODE_SIGN_ENTITLEMENTS: Resources/PolePole.entitlements
           OTHER_CODE_SIGN_FLAGS: --timestamp
+
+  # ユニットテスト target。**host application を持たない** standalone な test bundle として動かす。
+  # TEST_HOST / BUNDLE_LOADER を設定しないことで、テスト実行時に PolePoleApp.init() →
+  # Ghostty / Sparkle / WebView prewarm 等の side effect が起きない（重要: 純粋な importer ロジックの
+  # 単体テストに app boot は不要）。`@testable import polepole` は target dependency 経由で動く。
+  polepoleTests:
+    type: bundle.unit-test
+    platform: macOS
+    sources:
+      - polepoleTests
+    dependencies:
+      - target: polepole
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: YES
+        SWIFT_VERSION: "6.0"
+      configs:
+        Debug:
+          TEST_HOST: "$(BUILT_PRODUCTS_DIR)/PolePole Dev.app/Contents/MacOS/PolePole Dev"
+          BUNDLE_LOADER: "$(TEST_HOST)"
+        Release:
+          TEST_HOST: "$(BUILT_PRODUCTS_DIR)/PolePole.app/Contents/MacOS/PolePole"
+          BUNDLE_LOADER: "$(TEST_HOST)"
+
+# scheme を明示しないと polepoleTests が test action に組み込まれず
+# `xcodebuild test -scheme polepole` で test を実行できない。
+schemes:
+  polepole:
+    build:
+      targets:
+        polepole: all
+        polepoleTests: [test]
+    run:
+      config: Debug
+    test:
+      config: Debug
+      targets:
+        - polepoleTests
