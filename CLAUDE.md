@@ -167,20 +167,17 @@ MRU の確定タイミング（修飾キーの release）は `ShortcutsStore.sho
 
 ## リリースノート (CHANGELOG)
 
-ユーザー目視で気づくレベルの変更は `docs/CHANGELOG.md` の `[Unreleased]` セクションに残す。基本は **リリース時** に AI が `release.sh` の pause 中に git log を見て一括で書く運用なので、日々のコミットでは追記しなくて良い。
+ユーザー目視で気づくレベルの変更は `docs/CHANGELOG.md` の `[Unreleased]` セクションに残す。基本は **リリース時** に AI が `release.sh` の pause 中に `git log` + `git diff` を見て一括で書く運用なので、日々のコミットでは追記しなくて良い。
 
-書く形式:
+**書き方の本体は [docs/CHANGELOG.md](./docs/CHANGELOG.md) 冒頭の「書き方」セクションに集約**してある。AI が自動生成するときはあそこだけ読めば自走できるレベルに整備済み (フォーマット制約・カテゴリ判定・ja/en の文体・粒度・書く / 書かない・自動生成チェックリスト)。
 
-```markdown
-### ✨ Added
-- ja: 機能 A を追加
-- en: Added feature A
-```
+キーポイントだけ:
 
-- 各項目は **必ず `- ja:` と `- en:` のペア** で書く（`backend/scripts/build-changelog.mjs` が prefix で振り分けて `/changelog` と `/en/changelog` を生成する）
-- カテゴリは `✨ Added` / `📝 Changed` / `🐛 Fixed` / `🗑️ Removed` / `🔒 Security` / `⚠️ Deprecated` から選ぶ
-- 内部リファクタ / docs-only / CI 調整は **書かない**
-- 詳しい運用は [docs/CHANGELOG.md](./docs/CHANGELOG.md) の冒頭 "書き方" セクション参照
+- **ペア**: 各項目は `- ja:` と `- en:` の 2 行を隣接させる (build script が prefix で振り分けて `/changelog` `/en/changelog` を生成)
+- **1 項目 = 1 行**: build script は単一行の `- ja:` / `- en:` しか拾わない。改行・継続行は捨てられる
+- **文体**: ja = 体言止め基調 (`〜を追加` / `〜を修正` / `〜に変更`)、en = ユーザー視点の現在形 / 単純過去
+- **書かない**: 内部リファクタ / docs-only / CI / version bump 自体 / 内部ログ調整 / 依存 bump
+- **粒度**: 1 リリース 1〜5 bullet が目安。同じ機能の連続 commit は 1 bullet にまとめる
 
 `scripts/release.sh <version>` が走ると以下が自動で起きる:
 

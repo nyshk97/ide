@@ -8,7 +8,11 @@ PolePole の更新履歴。形式は [Keep a Changelog](https://keepachangelog.c
 
 ## 書き方
 
-各 list item は同じ変更を `ja:` と `en:` の 2 行で並列に書く。build script はこの prefix で振り分けて `/changelog` (JP) と `/en/changelog` (EN) 両方を生成する。
+このセクションは AI が release.sh の pause 中に `[Unreleased]` を埋めるときの判断基準でもある。ここを読んだだけで自走できる粒度で書いてある。
+
+### 1. フォーマット
+
+各 list item は同じ変更を `- ja:` と `- en:` の 2 行ペアで並列に書く。build script はこの prefix で振り分けて `/changelog` (JP) と `/en/changelog` (EN) 両方を生成する。
 
 ```markdown
 ### ✨ Added
@@ -16,24 +20,99 @@ PolePole の更新履歴。形式は [Keep a Changelog](https://keepachangelog.c
 - en: Added feature A
 ```
 
-長めの説明が要るときは list item にインデントして 1〜数行で書ける (`ja:` 行の直下に `  - ja: 詳細...` 不要。`  詳細...` でも OK)。動画/画像は今は埋め込まない (将来検討)。
+**制約**:
 
-カテゴリは以下から選ぶ:
+- 1 項目 = 1 行。**改行や継続行は parse 時に捨てられる** (`backend/scripts/build-changelog.mjs` は `- ja:` / `- en:` で始まる単一行のみ拾う)。長くなりすぎるなら言い回しを削るか、2 つの bullet に分割する
+- インライン Markdown は `` `code` ``、`**strong**`、`[label](url)` のみサポート。画像・動画・複数段落は不可
+- ja/en の bullet 数とカテゴリ配置は揃える (片方だけ書かない)
+- ペアは隣接させる (`- ja:` の直後に `- en:`)
 
-- `✨ Added` — 新機能
-- `📝 Changed` — 既存機能の挙動変更 / 改善
-- `🐛 Fixed` — バグ修正
-- `🗑️ Removed` — 機能削除
-- `🔒 Security` — セキュリティ修正
-- `⚠️ Deprecated` — 将来削除予定の告知
+### 2. カテゴリ
 
-「内部リファクタ」「ドキュメント追加」「CI 調整」などユーザー目視で気づかない変更は **書かない**。
+```
+✨ Added       — 新しい機能・ボタン・画面・ショートカット・公式サイトの新ページ
+📝 Changed     — 既存機能の挙動・デフォルト値・配置・配布形式の変更
+🐛 Fixed       — 「期待通りに動かなかった」のが直った
+🗑️ Removed     — UI 要素・機能・ショートカットの削除
+🔒 Security    — 脆弱性修正
+⚠️ Deprecated  — 将来削除予定の告知
+```
+
+迷ったら **ユーザーが画面でどう感じるか** で選ぶ。「内部的にはバグ修正だが、見た目には挙動変更に見える」なら Changed で良い。
+
+### 3. 文体
+
+**ja は体言止め基調**にする。「〜しました」体は使わない。
+
+```
+✓ プレビュー右端に閉じるボタン (×) を追加
+✓ 起動時に最後に開いていたプロジェクトを自動で開くように変更
+✓ npm 経由でインストールした Claude Code / Codex CLI が通知を出さなかった問題を修正
+✗ 〜を追加しました
+✗ 〜変更しました
+✗ 〜なりました
+```
+
+カテゴリ別の語尾テンプレ:
+
+- Added: `〜を追加` / `〜できるように` / `〜が使えるように`
+- Changed: `〜に変更` / `〜を更新` / `〜を刷新` / `〜を整理`
+- Fixed: `〜問題を修正` / `〜不具合を修正`
+- Removed: `〜を削除`
+
+**en は現在形 / 単純過去をユーザー視点で**書く。
+
+```
+✓ Added a close button (×) to the right end of the preview toolbar
+✓ PolePole now auto-opens the most recently used project on launch
+✓ Fixed AI turn-completion notifications not firing for Claude Code installed via npm
+```
+
+ja/en は **意味の対応**であって逐語訳ではない。日本語で自然な体言止めが、英語で動詞無しになるなら自然な完文に直す。
+
+### 4. 長さと粒度
+
+- 1 項目は 1 文に収める。目安は **ja=60〜100 字 / en=80〜140 字**。長すぎるなら背景説明を削る
+- 直前との比較を入れたいときは `(以前は〜)` / `(previously, ...)` を末尾に短く添える。それでも長くなるなら諦めて省く
+- 1 リリースの bullet 数は **1〜5 が目安**。10 を超えたらカテゴリ整理が甘いか、書かなくていい項目が混ざっている
+
+### 5. 何を書く / 何を書かない
+
+**書く** (ユーザーがアプリ画面・公式サイト・配布物を通して気づく):
+
+- 画面の見た目・挙動・配置の変更、新しいボタンやショートカット
+- デフォルト値の変更 (ターミナルテーマ・通知音 等)
+- 配布形式の変更 (zip → dmg 等。インストール体験が変わる)
+- 公式サイトに増えたページ・大きく書き直したセクション
+- ライセンス・課金・トライアル周りのフロー変更
+- 通知・サウンド・バッジ・アップデーター挙動の修正
+
+**書かない**:
+
+- 内部リファクタ、テスト追加、CI / build script 調整
+- ドキュメント (`docs/` `README.md` `CLAUDE.md`) だけの更新
+- `MARKETING_VERSION` の bump 自体 (バージョン番号で表現される)
+- 内部ログのフォーマット変更、`POLEPOLE_TEST_*` フラグの追加
+- 依存ライブラリの version bump (挙動変化を伴わないもの)
+- 文字列の typo 修正 (ユーザー目視レベルで気付かないもの)
+
+### 6. AI 自動生成のチェックリスト
+
+`release.sh` の pause 中に `[Unreleased]` を埋めるとき、AI は以下に従う:
+
+1. **直近のリリース commit 以降の `git log` と `git diff` の両方を見る**。commit message だけでは「ユーザーにどう見えるか」が分からないので、必ず diff で確認する
+2. **同じ機能の連続 commit は 1 bullet にまとめる**。「ボタンを追加 → 配置調整 → 文言調整」が 3 commit でも、結果として 1 つの新機能なら 1 bullet
+3. **「これはユーザーがアプリ画面で気づくか？」を毎項目で自問**。気づかないなら書かない (上記「書かない」リスト参照)
+4. **カテゴリ判定に迷ったら**: 新規追加なら Added / 既存の挙動変化なら Changed / 「壊れていたのが直った」なら Fixed
+5. **文体ルール** (上記 3) に従う。書き終えたら ja は体言止めで終わっているか、en は自然な英文かを 1 度通読
+6. **書く順番**: カテゴリ内では「ユーザーへのインパクトが大きい順」に並べる。決め手がなければ commit 時系列で良い
+7. **ペアの整合性**: `- ja:` と `- en:` は隣接 / カテゴリ配置一致 / bullet 数一致 を最後に確認
 
 ## [Unreleased]
 
 ## [1.4.5] - 2026-05-26
 ### ✨ Added
-- ja: ファイルツリーのツールバーに検索ボタンを追加。クリックでファイル名検索 (⌘P) / 全文検索 (⌘⇧F) を開けるように
+- ja: ファイルツリーのツールバーにファイル名検索 (⌘P) / 全文検索 (⌘⇧F) を開くボタンを追加
 - en: Added search buttons to the file tree toolbar — click to open quick file search (⌘P) or full-text search (⌘⇧F)
 
 ### 📝 Changed
@@ -51,7 +130,7 @@ PolePole の更新履歴。形式は [Keep a Changelog](https://keepachangelog.c
 
 ## [1.4.3] - 2026-05-26
 ### ✨ Added
-- ja: ファイルプレビューのツールバー右端に閉じるボタン (×) を追加 (これまでは Esc / Cmd+W、または divider を端まで drag するしかありませんでした)
+- ja: ファイルプレビューのツールバー右端に閉じるボタン (×) を追加 (以前は Esc / Cmd+W、または divider を端までドラッグするしかなかった)
 - en: Added a close button (×) to the right end of the file preview toolbar (previously, the only ways to close were Esc / Cmd+W or dragging the divider to the edge)
 
 ## [1.4.2] - 2026-05-26
@@ -80,56 +159,56 @@ PolePole の更新履歴。形式は [Keep a Changelog](https://keepachangelog.c
 
 ## [1.3.1] - 2026-05-25
 ### 📝 Changed
-- ja: ターミナルのデフォルトテーマを GitHub Dark から Apple System Colors に変更しました (デフォルト状態で本文の文字が明るく見えるようになります)
+- ja: ターミナルのデフォルトテーマを GitHub Dark から Apple System Colors に変更 (デフォルト状態でも本文の文字が明るく見えるように)
 - en: Changed the default terminal theme from GitHub Dark to Apple System Colors so the default body text is brighter
-- ja: shell タブを閉じるときの確認ダイアログを既定でオフにしました
+- ja: シェルタブを閉じるときの確認ダイアログを既定でオフに変更
 - en: Disabled the close-confirmation dialog for shell tabs by default
 
 ## [1.3.0] - 2026-05-25
 ### 📝 Changed
-- ja: プレビューの ← / → 履歴を時系列ログ方式に変更しました (過去に ← で戻った状態から別ファイルを開いても、forward 履歴が消えなくなります)
+- ja: プレビューの ← / → 履歴を時系列ログ方式に変更 (← で戻った状態から別ファイルを開いても forward 履歴が消えない)
 - en: Preview ← / → history is now chronological — opening a new file after going back no longer truncates the forward entries
-- ja: プレビューツールバーの ← / → ボタンをファイル名の左側に移動しました (ファイル名の長さによってボタン位置がブレなくなります)
+- ja: プレビューツールバーの ← / → ボタンをファイル名の左側に移動 (ファイル名の長さでボタン位置がブレない)
 - en: Moved the ← / → buttons in the preview toolbar to the left of the file name so their position no longer shifts with file-name length
 
 ### 🐛 Fixed
-- ja: プレビューで ← / → や markdown 内リンク、Cmd+P、Cmd+Shift+F で別ファイルに移ったとき、ファイルツリー側のハイライトが追従するようにしました
+- ja: プレビューで ← / → / markdown 内リンク / Cmd+P / Cmd+Shift+F で別ファイルに移ったとき、ファイルツリー側のハイライトが追従するように修正
 - en: File tree highlight now follows the current preview file when navigating via ← / →, markdown links, Cmd+P, or Cmd+Shift+F
 
 ### 🗑️ Removed
-- ja: ツリー ↔ プレビューのトグルボタン (ツリー上部の doc.text アイコン) と Cmd+J ショートカットを削除しました (4 カラムレイアウトでツリーとプレビューが同時に見えるようになったため不要になりました)
+- ja: ツリー ↔ プレビューのトグルボタン (ツリー上部の doc.text アイコン) と Cmd+J ショートカットを削除 (4 カラムレイアウトでツリーとプレビューが同時に見えるため不要)
 - en: Removed the tree ↔ preview toggle button (doc.text icon above the tree) and the Cmd+J shortcut — both are no longer needed now that the tree and preview are visible at the same time in the 4-column layout
-- ja: プレビューツールバー先頭の「閉じる」アイコン (📁) を削除しました (閉じるには Esc / Cmd+W、または divider を端まで drag してください)
+- ja: プレビューツールバー先頭の「閉じる」アイコン (📁) を削除 (閉じるには Esc / Cmd+W、または divider を端までドラッグ)
 - en: Removed the "close" icon (📁) at the start of the preview toolbar — close via Esc / Cmd+W or by dragging the divider to the edge instead
 
 ## [1.2.0] - 2026-05-25
-### 📝 Changed
-- ja: ファイルツリーとプレビューを別ペインに分け、ファイルを開いてもツリーが消えなくなりました (3 列レイアウト → ファイル未オープン時は 3 列のまま、開いたときだけプレビュー列が現れる 4 列レイアウトに変更)
-- en: File tree and preview are now in separate panes — opening a file no longer hides the tree (the layout becomes 4 columns only while a preview is open; otherwise it stays 3 columns as before)
-- ja: プレビューの表示状態はプロジェクトごとに独立して保持されるようになりました (プロジェクト A でプレビューを開いて B に切り替えても B のプレビュー状態がそのまま)
-- en: Preview open/closed state is now tracked per project (switching from A to B keeps B's own preview state instead of inheriting A's)
-- ja: プレビューを Esc / Cmd+W で閉じる挙動を、プレビューにフォーカスがあるときだけに限定しました (端末側にフォーカスがあるときの Cmd+W は今まで通り端末タブの close になります)
-- en: Esc / Cmd+W now only closes the preview when the preview itself has focus — when the terminal has focus, Cmd+W still closes the terminal tab as before
-
 ### ✨ Added
-- ja: 左の **プロジェクト一覧サイドバー** を折りたたんで画面を広く使えるようになりました (デフォルト Cmd+S でトグル、折りたたみ中は左端の細いハンドルをクリックでも展開できます。Cmd+, の設定画面でショートカットを変更可能)
+- ja: 左の **プロジェクト一覧サイドバー** を折りたためる機能を追加 (デフォルト Cmd+S でトグル、折りたたみ中は左端の細いハンドルをクリックでも展開可能。Cmd+, の設定画面でショートカット変更可)
 - en: Added a way to collapse the **project sidebar** to reclaim screen width (toggle with Cmd+S by default; when collapsed, click the thin handle on the left edge to expand. The shortcut is rebindable in Settings, Cmd+,)
+
+### 📝 Changed
+- ja: ファイルツリーとプレビューを別ペインに分離し、ファイルを開いてもツリーが消えないように変更 (ファイル未オープン時は 3 列、プレビューを開いたときだけプレビュー列が現れる 4 列レイアウト)
+- en: File tree and preview are now in separate panes — opening a file no longer hides the tree (the layout becomes 4 columns only while a preview is open; otherwise it stays 3 columns as before)
+- ja: プレビューの表示状態をプロジェクトごとに独立して保持するように変更 (プロジェクト A でプレビューを開いて B に切り替えても B のプレビュー状態がそのまま)
+- en: Preview open/closed state is now tracked per project (switching from A to B keeps B's own preview state instead of inheriting A's)
+- ja: プレビューを Esc / Cmd+W で閉じる挙動を、プレビューにフォーカスがあるときだけに限定 (端末側にフォーカスがあるときの Cmd+W は今まで通り端末タブの close)
+- en: Esc / Cmd+W now only closes the preview when the preview itself has focus — when the terminal has focus, Cmd+W still closes the terminal tab as before
 
 ## [1.1.5] - 2026-05-25
 ### 📝 Changed
-- ja: アプリの配布形式を .zip から .dmg に変更しました (ダウンロードしてダブルクリックすると Finder にウィンドウが開き、Applications フォルダにドラッグしてインストールできる macOS 標準の画面になります)
+- ja: アプリの配布形式を .zip から .dmg に変更 (ダブルクリックすると Finder にマウントされ、Applications フォルダにドラッグしてインストールする macOS 標準フローに)
 - en: The app is now distributed as .dmg instead of .zip — double-click to mount and drag PolePole.app to your Applications folder, the standard macOS install flow
 
 ## [1.1.4] - 2026-05-25
 ### 📝 Changed
-- ja: アプリと公式サイトをダークモード固定の表示に変更しました (OS のライトモード設定に追従しなくなります)
+- ja: アプリと公式サイトをダークモード固定に変更 (OS のライトモード設定には追従しない)
 - en: The app and the official site now always render in dark mode and no longer follow the system light mode setting
 
 ## [1.1.3] - 2026-05-25
 ### 🐛 Fixed
-- ja: プレビューに表示中の Markdown / コードで、文字列を選択して Cmd+C を押してもコピーされない問題を修正しました (端末側の Cmd+C バインドが先取りしていたのを、フォーカス中のペインだけが握るように変更)
+- ja: プレビューに表示中の Markdown / コードで、文字列を選択して Cmd+C を押してもコピーされない問題を修正 (端末側の Cmd+C バインドが先取りしていたのを、フォーカス中のペインだけが握るように変更)
 - en: Fixed an issue where Cmd+C did not copy selected text in the Markdown / code preview (the terminal's Cmd+C binding was intercepting the shortcut; now only the focused pane consumes it)
-- ja: 閲覧中の Markdown / コードファイルがディスク上で更新されたとき、プレビューが先頭にスクロールバックしないようにしました (同じファイルの再描画はスクロール位置を保持、別ファイルに切り替えたときだけ先頭に戻ります)
+- ja: 閲覧中の Markdown / コードファイルがディスク上で更新されたとき、プレビューが先頭にスクロールバックしないように修正 (同じファイルの再描画はスクロール位置を保持、別ファイルに切り替えたときだけ先頭に戻る)
 - en: When the Markdown or code file you are previewing is updated on disk, the preview no longer jumps back to the top — the scroll position is preserved on same-file refreshes (it still resets when you open a different file)
 
 ## [1.1.2] - 2026-05-24
@@ -138,26 +217,26 @@ PolePole の更新履歴。形式は [Keep a Changelog](https://keepachangelog.c
 - en: Added a new [/guide](https://polepole.dev/guide) page on the official site, covering first launch, license activation, updates, and Ghostty configuration
 
 ### 📝 Changed
-- ja: Cmd+P (ファイル名検索) と Cmd+Shift+F (全文検索) で、`.gitignore` を持たないプロジェクトでも `node_modules` / `target` / `__pycache__` / `dist` / `vendor` / `.next` などの典型的なディレクトリを常に検索対象から除外するようにしました
+- ja: Cmd+P (ファイル名検索) と Cmd+Shift+F (全文検索) で、`.gitignore` を持たないプロジェクトでも `node_modules` / `target` / `__pycache__` / `dist` / `vendor` / `.next` などの典型的なディレクトリを常に検索対象から除外するように変更
 - en: Cmd+P (file search) and Cmd+Shift+F (full-text search) now always exclude common build/vendor/cache directories (`node_modules`, `target`, `__pycache__`, `dist`, `vendor`, `.next`, etc.) even when the project has no `.gitignore`
-- ja: ファイルツリーの reload ボタン・preview ↔ tree 切替ボタン・`.gitignored` 表示トグルに、Git ボタンと同じホバー背景を付けて操作可能な要素であることを分かりやすくしました
+- ja: ファイルツリーの reload ボタン・preview ↔ tree 切替ボタン・`.gitignored` 表示トグルに Git ボタンと同じホバー背景を追加し、操作可能な要素であることを分かりやすく変更
 - en: The reload button, preview ↔ tree toggle, and the hide-ignored toggle in the file tree now share the same hover background as the Git button, making them feel more clearly clickable
-- ja: ファイルツリーを reload した後も、開いていたディレクトリの展開状態を保持するようにしました
+- ja: ファイルツリーを reload した後も、開いていたディレクトリの展開状態を保持するように変更
 - en: The file tree now keeps each directory's expand state across reloads
 
 ### 🗑️ Removed
-- ja: Cmd+P 検索オーバーレイの「ignored を含む」トグルボタンを削除しました (常に除外する挙動に統一)
+- ja: Cmd+P 検索オーバーレイの「ignored を含む」トグルボタンを削除 (常に除外する挙動に統一)
 - en: Removed the "include ignored" toggle button from the Cmd+P overlay (it now always excludes ignored entries)
 
 ## [1.1.1] - 2026-05-24
 ### 📝 Changed
-- ja: トライアル期限切れ画面 (ペイウォール) を整理。アプリアイコンを表示し、価格表記を公式サイトと同じ ¥9,900 に統一、レイアウトの余白を調整しました
+- ja: トライアル期限切れ画面 (ペイウォール) を整理 — アプリアイコンを表示し、価格表記を公式サイトと同じ ¥9,900 に統一、レイアウトの余白を調整
 - en: Polished the trial-expiry paywall: shows the app icon, matches the website's ¥9,900 price, and tightened the layout spacing
-- ja: ご購入後のライセンス受け取りページを刷新。アプリアイコン・ライセンスキーのコピーボタン・3 ステップのアクティベートガイドを追加しました
+- ja: 購入後のライセンス受け取りページを刷新 — アプリアイコン・ライセンスキーのコピーボタン・3 ステップのアクティベートガイドを追加
 - en: Redesigned the post-purchase license page with the app icon, copy-to-clipboard buttons, and a 3-step activation guide
 
 ### 🗑️ Removed
-- ja: ペイウォールの「ライセンスキーを再送」ボタンを削除しました (紛失時はお問い合わせフォームからご連絡ください)
+- ja: ペイウォールの「ライセンスキーを再送」ボタンを削除 (紛失時はお問い合わせフォームから連絡)
 - en: Removed the "Resend license key" button from the paywall (please use the contact form if you lose your key)
 
 ## [1.1.0] - 2026-05-24
