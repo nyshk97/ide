@@ -45,7 +45,7 @@
         <div class="cl-category">
           <h3 class="cl-cat-title">✨ Added</h3>
           <ul>
-            <li>ファイルツリーのツールバーに検索ボタンを追加。クリックでファイル名検索 (⌘P) / 全文検索 (⌘⇧F) を開けるように</li>
+            <li>ファイルツリーのツールバーにファイル名検索 (⌘P) / 全文検索 (⌘⇧F) を開くボタンを追加</li>
           </ul>
         </div>
         <div class="cl-category">
@@ -81,7 +81,7 @@
         <div class="cl-category">
           <h3 class="cl-cat-title">✨ Added</h3>
           <ul>
-            <li>ファイルプレビューのツールバー右端に閉じるボタン (×) を追加 (これまでは Esc / Cmd+W、または divider を端まで drag するしかありませんでした)</li>
+            <li>ファイルプレビューのツールバー右端に閉じるボタン (×) を追加 (以前は Esc / Cmd+W、または divider を端までドラッグするしかなかった)</li>
           </ul>
         </div>
       </article>
@@ -143,8 +143,8 @@
         <div class="cl-category">
           <h3 class="cl-cat-title">📝 Changed</h3>
           <ul>
-            <li>ターミナルのデフォルトテーマを GitHub Dark から Apple System Colors に変更しました (デフォルト状態で本文の文字が明るく見えるようになります)</li>
-            <li>shell タブを閉じるときの確認ダイアログを既定でオフにしました</li>
+            <li>ターミナルのデフォルトテーマを GitHub Dark から Apple System Colors に変更 (デフォルト状態でも本文の文字が明るく見えるように)</li>
+            <li>シェルタブを閉じるときの確認ダイアログを既定でオフに変更</li>
           </ul>
         </div>
       </article>
@@ -156,21 +156,21 @@
         <div class="cl-category">
           <h3 class="cl-cat-title">📝 Changed</h3>
           <ul>
-            <li>プレビューの ← / → 履歴を時系列ログ方式に変更しました (過去に ← で戻った状態から別ファイルを開いても、forward 履歴が消えなくなります)</li>
-            <li>プレビューツールバーの ← / → ボタンをファイル名の左側に移動しました (ファイル名の長さによってボタン位置がブレなくなります)</li>
+            <li>プレビューの ← / → 履歴を時系列ログ方式に変更 (← で戻った状態から別ファイルを開いても forward 履歴が消えない)</li>
+            <li>プレビューツールバーの ← / → ボタンをファイル名の左側に移動 (ファイル名の長さでボタン位置がブレない)</li>
           </ul>
         </div>
         <div class="cl-category">
           <h3 class="cl-cat-title">🐛 Fixed</h3>
           <ul>
-            <li>プレビューで ← / → や markdown 内リンク、Cmd+P、Cmd+Shift+F で別ファイルに移ったとき、ファイルツリー側のハイライトが追従するようにしました</li>
+            <li>プレビューで ← / → / markdown 内リンク / Cmd+P / Cmd+Shift+F で別ファイルに移ったとき、ファイルツリー側のハイライトが追従するように修正</li>
           </ul>
         </div>
         <div class="cl-category">
           <h3 class="cl-cat-title">🗑️ Removed</h3>
           <ul>
-            <li>ツリー ↔ プレビューのトグルボタン (ツリー上部の doc.text アイコン) と Cmd+J ショートカットを削除しました (4 カラムレイアウトでツリーとプレビューが同時に見えるようになったため不要になりました)</li>
-            <li>プレビューツールバー先頭の「閉じる」アイコン (📁) を削除しました (閉じるには Esc / Cmd+W、または divider を端まで drag してください)</li>
+            <li>ツリー ↔ プレビューのトグルボタン (ツリー上部の doc.text アイコン) と Cmd+J ショートカットを削除 (4 カラムレイアウトでツリーとプレビューが同時に見えるため不要)</li>
+            <li>プレビューツールバー先頭の「閉じる」アイコン (📁) を削除 (閉じるには Esc / Cmd+W、または divider を端までドラッグ)</li>
           </ul>
         </div>
       </article>
@@ -180,17 +180,17 @@
           <time class="cl-date">2026-05-25</time>
         </header>
         <div class="cl-category">
-          <h3 class="cl-cat-title">📝 Changed</h3>
+          <h3 class="cl-cat-title">✨ Added</h3>
           <ul>
-            <li>ファイルツリーとプレビューを別ペインに分け、ファイルを開いてもツリーが消えなくなりました (3 列レイアウト → ファイル未オープン時は 3 列のまま、開いたときだけプレビュー列が現れる 4 列レイアウトに変更)</li>
-            <li>プレビューの表示状態はプロジェクトごとに独立して保持されるようになりました (プロジェクト A でプレビューを開いて B に切り替えても B のプレビュー状態がそのまま)</li>
-            <li>プレビューを Esc / Cmd+W で閉じる挙動を、プレビューにフォーカスがあるときだけに限定しました (端末側にフォーカスがあるときの Cmd+W は今まで通り端末タブの close になります)</li>
+            <li>左の <strong>プロジェクト一覧サイドバー</strong> を折りたためる機能を追加 (デフォルト Cmd+S でトグル、折りたたみ中は左端の細いハンドルをクリックでも展開可能。Cmd+, の設定画面でショートカット変更可)</li>
           </ul>
         </div>
         <div class="cl-category">
-          <h3 class="cl-cat-title">✨ Added</h3>
+          <h3 class="cl-cat-title">📝 Changed</h3>
           <ul>
-            <li>左の <strong>プロジェクト一覧サイドバー</strong> を折りたたんで画面を広く使えるようになりました (デフォルト Cmd+S でトグル、折りたたみ中は左端の細いハンドルをクリックでも展開できます。Cmd+, の設定画面でショートカットを変更可能)</li>
+            <li>ファイルツリーとプレビューを別ペインに分離し、ファイルを開いてもツリーが消えないように変更 (ファイル未オープン時は 3 列、プレビューを開いたときだけプレビュー列が現れる 4 列レイアウト)</li>
+            <li>プレビューの表示状態をプロジェクトごとに独立して保持するように変更 (プロジェクト A でプレビューを開いて B に切り替えても B のプレビュー状態がそのまま)</li>
+            <li>プレビューを Esc / Cmd+W で閉じる挙動を、プレビューにフォーカスがあるときだけに限定 (端末側にフォーカスがあるときの Cmd+W は今まで通り端末タブの close)</li>
           </ul>
         </div>
       </article>
@@ -202,7 +202,7 @@
         <div class="cl-category">
           <h3 class="cl-cat-title">📝 Changed</h3>
           <ul>
-            <li>アプリの配布形式を .zip から .dmg に変更しました (ダウンロードしてダブルクリックすると Finder にウィンドウが開き、Applications フォルダにドラッグしてインストールできる macOS 標準の画面になります)</li>
+            <li>アプリの配布形式を .zip から .dmg に変更 (ダブルクリックすると Finder にマウントされ、Applications フォルダにドラッグしてインストールする macOS 標準フローに)</li>
           </ul>
         </div>
       </article>
@@ -214,7 +214,7 @@
         <div class="cl-category">
           <h3 class="cl-cat-title">📝 Changed</h3>
           <ul>
-            <li>アプリと公式サイトをダークモード固定の表示に変更しました (OS のライトモード設定に追従しなくなります)</li>
+            <li>アプリと公式サイトをダークモード固定に変更 (OS のライトモード設定には追従しない)</li>
           </ul>
         </div>
       </article>
@@ -226,8 +226,8 @@
         <div class="cl-category">
           <h3 class="cl-cat-title">🐛 Fixed</h3>
           <ul>
-            <li>プレビューに表示中の Markdown / コードで、文字列を選択して Cmd+C を押してもコピーされない問題を修正しました (端末側の Cmd+C バインドが先取りしていたのを、フォーカス中のペインだけが握るように変更)</li>
-            <li>閲覧中の Markdown / コードファイルがディスク上で更新されたとき、プレビューが先頭にスクロールバックしないようにしました (同じファイルの再描画はスクロール位置を保持、別ファイルに切り替えたときだけ先頭に戻ります)</li>
+            <li>プレビューに表示中の Markdown / コードで、文字列を選択して Cmd+C を押してもコピーされない問題を修正 (端末側の Cmd+C バインドが先取りしていたのを、フォーカス中のペインだけが握るように変更)</li>
+            <li>閲覧中の Markdown / コードファイルがディスク上で更新されたとき、プレビューが先頭にスクロールバックしないように修正 (同じファイルの再描画はスクロール位置を保持、別ファイルに切り替えたときだけ先頭に戻る)</li>
           </ul>
         </div>
       </article>
@@ -245,15 +245,15 @@
         <div class="cl-category">
           <h3 class="cl-cat-title">📝 Changed</h3>
           <ul>
-            <li>Cmd+P (ファイル名検索) と Cmd+Shift+F (全文検索) で、<code>.gitignore</code> を持たないプロジェクトでも <code>node_modules</code> / <code>target</code> / <code>__pycache__</code> / <code>dist</code> / <code>vendor</code> / <code>.next</code> などの典型的なディレクトリを常に検索対象から除外するようにしました</li>
-            <li>ファイルツリーの reload ボタン・preview ↔ tree 切替ボタン・<code>.gitignored</code> 表示トグルに、Git ボタンと同じホバー背景を付けて操作可能な要素であることを分かりやすくしました</li>
-            <li>ファイルツリーを reload した後も、開いていたディレクトリの展開状態を保持するようにしました</li>
+            <li>Cmd+P (ファイル名検索) と Cmd+Shift+F (全文検索) で、<code>.gitignore</code> を持たないプロジェクトでも <code>node_modules</code> / <code>target</code> / <code>__pycache__</code> / <code>dist</code> / <code>vendor</code> / <code>.next</code> などの典型的なディレクトリを常に検索対象から除外するように変更</li>
+            <li>ファイルツリーの reload ボタン・preview ↔ tree 切替ボタン・<code>.gitignored</code> 表示トグルに Git ボタンと同じホバー背景を追加し、操作可能な要素であることを分かりやすく変更</li>
+            <li>ファイルツリーを reload した後も、開いていたディレクトリの展開状態を保持するように変更</li>
           </ul>
         </div>
         <div class="cl-category">
           <h3 class="cl-cat-title">🗑️ Removed</h3>
           <ul>
-            <li>Cmd+P 検索オーバーレイの「ignored を含む」トグルボタンを削除しました (常に除外する挙動に統一)</li>
+            <li>Cmd+P 検索オーバーレイの「ignored を含む」トグルボタンを削除 (常に除外する挙動に統一)</li>
           </ul>
         </div>
       </article>
@@ -265,14 +265,14 @@
         <div class="cl-category">
           <h3 class="cl-cat-title">📝 Changed</h3>
           <ul>
-            <li>トライアル期限切れ画面 (ペイウォール) を整理。アプリアイコンを表示し、価格表記を公式サイトと同じ ¥9,900 に統一、レイアウトの余白を調整しました</li>
-            <li>ご購入後のライセンス受け取りページを刷新。アプリアイコン・ライセンスキーのコピーボタン・3 ステップのアクティベートガイドを追加しました</li>
+            <li>トライアル期限切れ画面 (ペイウォール) を整理 — アプリアイコンを表示し、価格表記を公式サイトと同じ ¥9,900 に統一、レイアウトの余白を調整</li>
+            <li>購入後のライセンス受け取りページを刷新 — アプリアイコン・ライセンスキーのコピーボタン・3 ステップのアクティベートガイドを追加</li>
           </ul>
         </div>
         <div class="cl-category">
           <h3 class="cl-cat-title">🗑️ Removed</h3>
           <ul>
-            <li>ペイウォールの「ライセンスキーを再送」ボタンを削除しました (紛失時はお問い合わせフォームからご連絡ください)</li>
+            <li>ペイウォールの「ライセンスキーを再送」ボタンを削除 (紛失時はお問い合わせフォームから連絡)</li>
           </ul>
         </div>
       </article>
