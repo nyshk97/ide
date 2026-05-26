@@ -31,6 +31,7 @@ PolePole の更新履歴。形式は [Keep a Changelog](https://keepachangelog.c
 
 ## [Unreleased]
 
+## [1.4.1] - 2026-05-26
 ### ✨ Added
 - ja: シェルタブの並び替えをドラッグ&ドロップで行えるように
 - en: You can now reorder shell tabs by drag and drop
