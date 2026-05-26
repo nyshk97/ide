@@ -30,6 +30,8 @@ PolePole の更新履歴。形式は [Keep a Changelog](https://keepachangelog.c
 「内部リファクタ」「ドキュメント追加」「CI 調整」などユーザー目視で気づかない変更は **書かない**。
 
 ## [Unreleased]
+
+## [1.4.4] - 2026-05-26
 ### 📝 Changed
 - ja: 起動時に、最後に開いていたプロジェクトを自動で開くように変更 (これまでは未選択状態で起動していました)
 - en: PolePole now auto-opens the most recently used project on launch (previously it started with no project selected)
