@@ -30,6 +30,8 @@ PolePole の更新履歴。形式は [Keep a Changelog](https://keepachangelog.c
 「内部リファクタ」「ドキュメント追加」「CI 調整」などユーザー目視で気づかない変更は **書かない**。
 
 ## [Unreleased]
+
+## [1.4.5] - 2026-05-26
 ### ✨ Added
 - ja: ファイルツリーのツールバーに検索ボタンを追加。クリックでファイル名検索 (⌘P) / 全文検索 (⌘⇧F) を開けるように
 - en: Added search buttons to the file tree toolbar — click to open quick file search (⌘P) or full-text search (⌘⇧F)
