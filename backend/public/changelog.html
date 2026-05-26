@@ -39,6 +39,77 @@
       <div class="cl-timeline">
       <article class="cl-release">
         <header class="cl-release-header">
+          <span class="cl-version">v1.3.2</span>
+          <time class="cl-date">2026-05-26</time>
+        </header>
+        <div class="cl-category">
+          <h3 class="cl-cat-title">🐛 Fixed</h3>
+          <ul>
+            <li>npm 経由でインストールした Claude Code / Codex CLI が AI ターン完了通知 (音・赤いバッジ) を出さなかった問題を修正</li>
+          </ul>
+        </div>
+      </article>
+      <article class="cl-release">
+        <header class="cl-release-header">
+          <span class="cl-version">v1.3.1</span>
+          <time class="cl-date">2026-05-25</time>
+        </header>
+        <div class="cl-category">
+          <h3 class="cl-cat-title">📝 Changed</h3>
+          <ul>
+            <li>ターミナルのデフォルトテーマを GitHub Dark から Apple System Colors に変更しました (デフォルト状態で本文の文字が明るく見えるようになります)</li>
+            <li>shell タブを閉じるときの確認ダイアログを既定でオフにしました</li>
+          </ul>
+        </div>
+      </article>
+      <article class="cl-release">
+        <header class="cl-release-header">
+          <span class="cl-version">v1.3.0</span>
+          <time class="cl-date">2026-05-25</time>
+        </header>
+        <div class="cl-category">
+          <h3 class="cl-cat-title">📝 Changed</h3>
+          <ul>
+            <li>プレビューの ← / → 履歴を時系列ログ方式に変更しました (過去に ← で戻った状態から別ファイルを開いても、forward 履歴が消えなくなります)</li>
+            <li>プレビューツールバーの ← / → ボタンをファイル名の左側に移動しました (ファイル名の長さによってボタン位置がブレなくなります)</li>
+          </ul>
+        </div>
+        <div class="cl-category">
+          <h3 class="cl-cat-title">🐛 Fixed</h3>
+          <ul>
+            <li>プレビューで ← / → や markdown 内リンク、Cmd+P、Cmd+Shift+F で別ファイルに移ったとき、ファイルツリー側のハイライトが追従するようにしました</li>
+          </ul>
+        </div>
+        <div class="cl-category">
+          <h3 class="cl-cat-title">🗑️ Removed</h3>
+          <ul>
+            <li>ツリー ↔ プレビューのトグルボタン (ツリー上部の doc.text アイコン) と Cmd+J ショートカットを削除しました (4 カラムレイアウトでツリーとプレビューが同時に見えるようになったため不要になりました)</li>
+            <li>プレビューツールバー先頭の「閉じる」アイコン (📁) を削除しました (閉じるには Esc / Cmd+W、または divider を端まで drag してください)</li>
+          </ul>
+        </div>
+      </article>
+      <article class="cl-release">
+        <header class="cl-release-header">
+          <span class="cl-version">v1.2.0</span>
+          <time class="cl-date">2026-05-25</time>
+        </header>
+        <div class="cl-category">
+          <h3 class="cl-cat-title">📝 Changed</h3>
+          <ul>
+            <li>ファイルツリーとプレビューを別ペインに分け、ファイルを開いてもツリーが消えなくなりました (3 列レイアウト → ファイル未オープン時は 3 列のまま、開いたときだけプレビュー列が現れる 4 列レイアウトに変更)</li>
+            <li>プレビューの表示状態はプロジェクトごとに独立して保持されるようになりました (プロジェクト A でプレビューを開いて B に切り替えても B のプレビュー状態がそのまま)</li>
+            <li>プレビューを Esc / Cmd+W で閉じる挙動を、プレビューにフォーカスがあるときだけに限定しました (端末側にフォーカスがあるときの Cmd+W は今まで通り端末タブの close になります)</li>
+          </ul>
+        </div>
+        <div class="cl-category">
+          <h3 class="cl-cat-title">✨ Added</h3>
+          <ul>
+            <li>左の <strong>プロジェクト一覧サイドバー</strong> を折りたたんで画面を広く使えるようになりました (デフォルト Cmd+S でトグル、折りたたみ中は左端の細いハンドルをクリックでも展開できます。Cmd+, の設定画面でショートカットを変更可能)</li>
+          </ul>
+        </div>
+      </article>
+      <article class="cl-release">
+        <header class="cl-release-header">
           <span class="cl-version">v1.1.5</span>
           <time class="cl-date">2026-05-25</time>
         </header>

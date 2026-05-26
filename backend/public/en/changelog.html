@@ -40,6 +40,77 @@
       <div class="cl-timeline">
       <article class="cl-release">
         <header class="cl-release-header">
+          <span class="cl-version">v1.3.2</span>
+          <time class="cl-date">2026-05-26</time>
+        </header>
+        <div class="cl-category">
+          <h3 class="cl-cat-title">🐛 Fixed</h3>
+          <ul>
+            <li>Fixed AI turn-completion notifications (sound / red badge) not firing for Claude Code / Codex CLI installed via npm</li>
+          </ul>
+        </div>
+      </article>
+      <article class="cl-release">
+        <header class="cl-release-header">
+          <span class="cl-version">v1.3.1</span>
+          <time class="cl-date">2026-05-25</time>
+        </header>
+        <div class="cl-category">
+          <h3 class="cl-cat-title">📝 Changed</h3>
+          <ul>
+            <li>Changed the default terminal theme from GitHub Dark to Apple System Colors so the default body text is brighter</li>
+            <li>Disabled the close-confirmation dialog for shell tabs by default</li>
+          </ul>
+        </div>
+      </article>
+      <article class="cl-release">
+        <header class="cl-release-header">
+          <span class="cl-version">v1.3.0</span>
+          <time class="cl-date">2026-05-25</time>
+        </header>
+        <div class="cl-category">
+          <h3 class="cl-cat-title">📝 Changed</h3>
+          <ul>
+            <li>Preview ← / → history is now chronological — opening a new file after going back no longer truncates the forward entries</li>
+            <li>Moved the ← / → buttons in the preview toolbar to the left of the file name so their position no longer shifts with file-name length</li>
+          </ul>
+        </div>
+        <div class="cl-category">
+          <h3 class="cl-cat-title">🐛 Fixed</h3>
+          <ul>
+            <li>File tree highlight now follows the current preview file when navigating via ← / →, markdown links, Cmd+P, or Cmd+Shift+F</li>
+          </ul>
+        </div>
+        <div class="cl-category">
+          <h3 class="cl-cat-title">🗑️ Removed</h3>
+          <ul>
+            <li>Removed the tree ↔ preview toggle button (doc.text icon above the tree) and the Cmd+J shortcut — both are no longer needed now that the tree and preview are visible at the same time in the 4-column layout</li>
+            <li>Removed the &quot;close&quot; icon (📁) at the start of the preview toolbar — close via Esc / Cmd+W or by dragging the divider to the edge instead</li>
+          </ul>
+        </div>
+      </article>
+      <article class="cl-release">
+        <header class="cl-release-header">
+          <span class="cl-version">v1.2.0</span>
+          <time class="cl-date">2026-05-25</time>
+        </header>
+        <div class="cl-category">
+          <h3 class="cl-cat-title">📝 Changed</h3>
+          <ul>
+            <li>File tree and preview are now in separate panes — opening a file no longer hides the tree (the layout becomes 4 columns only while a preview is open; otherwise it stays 3 columns as before)</li>
+            <li>Preview open/closed state is now tracked per project (switching from A to B keeps B's own preview state instead of inheriting A's)</li>
+            <li>Esc / Cmd+W now only closes the preview when the preview itself has focus — when the terminal has focus, Cmd+W still closes the terminal tab as before</li>
+          </ul>
+        </div>
+        <div class="cl-category">
+          <h3 class="cl-cat-title">✨ Added</h3>
+          <ul>
+            <li>Added a way to collapse the <strong>project sidebar</strong> to reclaim screen width (toggle with Cmd+S by default; when collapsed, click the thin handle on the left edge to expand. The shortcut is rebindable in Settings, Cmd+,)</li>
+          </ul>
+        </div>
+      </article>
+      <article class="cl-release">
+        <header class="cl-release-header">
           <span class="cl-version">v1.1.5</span>
           <time class="cl-date">2026-05-25</time>
         </header>
