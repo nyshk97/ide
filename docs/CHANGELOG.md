@@ -31,6 +31,11 @@ PolePole の更新履歴。形式は [Keep a Changelog](https://keepachangelog.c
 
 ## [Unreleased]
 
+## [1.4.3] - 2026-05-26
+### ✨ Added
+- ja: ファイルプレビューのツールバー右端に閉じるボタン (×) を追加 (これまでは Esc / Cmd+W、または divider を端まで drag するしかありませんでした)
+- en: Added a close button (×) to the right end of the file preview toolbar (previously, the only ways to close were Esc / Cmd+W or dragging the divider to the edge)
+
 ## [1.4.2] - 2026-05-26
 ### 📝 Changed
 - ja: ファイル詳細画面で、ファイル名にホバーするとコピーアイコンが現れ、クリックすると相対パスがコピーされて 1 秒間チェックマークに変わるように変更 (以前は下線が引かれるだけで、結果のトーストも画面右下に出ていた)
