@@ -1,3 +1,4 @@
+import AppKit
 import Foundation
 
 @MainActor
@@ -38,6 +39,12 @@ final class TerminalTab: ObservableObject, Identifiable {
 
     /// 起動時 cwd。プロジェクトのルートを渡す想定。nil なら $HOME。
     let cwd: URL?
+
+    /// このタブを描画している NSView（GhosttyTerminalNSView）の weak 参照。
+    /// ペイン間移動（Cmd+Opt+↑/↓）で target pane の active tab にフォーカスを取りに行く逆引きに使う。
+    /// `viewDidMoveToWindow` で登録される想定。タブの背面に隠れている NSView は基本ぶら下がっているので、
+    /// 「active tab の view = 画面に乗っている view」と一致するはず。
+    weak var nsView: NSView?
 
     init(title: String, cwd: URL? = nil) {
         self.title = title

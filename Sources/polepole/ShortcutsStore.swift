@@ -29,13 +29,18 @@ enum ShortcutAction: String, CaseIterable, Codable {
 /// 録音時に `keyLabel` を `event.charactersIgnoringModifiers` または特殊キー名から決めて保存する。
 struct KeyCombo: Codable, Equatable {
     var keyCode: UInt16
-    /// `NSEvent.ModifierFlags.rawValue`。device-independent な flag のみ。
+    /// `NSEvent.ModifierFlags.rawValue`。primary modifier (Cmd/Ctrl/Opt/Shift) のみ。
+    /// 矢印・テンキー由来の `.numericPad` / `.function` は from(event:) で除去済みなので、
+    /// 比較や永続化では一切意識しなくてよい。
     var modifiers: UInt
     /// 表示用ラベル（例: "M", "↓", "Esc"）。録音時に決定。
     var keyLabel: String
 
+    /// `NSEvent.ModifierFlags` で比較するときに使うマスク。Shift 単独は他で除外。
+    static let primaryMask: NSEvent.ModifierFlags = [.command, .control, .option, .shift]
+
     var modifierFlags: NSEvent.ModifierFlags {
-        NSEvent.ModifierFlags(rawValue: modifiers).intersection(.deviceIndependentFlagsMask)
+        NSEvent.ModifierFlags(rawValue: modifiers).intersection(Self.primaryMask)
     }
 
     /// 修飾キー（Cmd/Ctrl/Opt のいずれか）が 1 つでも含まれているか。Shift 単独は無効扱い。
@@ -45,7 +50,7 @@ struct KeyCombo: Codable, Equatable {
     }
 
     func matches(_ event: NSEvent) -> Bool {
-        let mods = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
+        let mods = event.modifierFlags.intersection(Self.primaryMask)
         return event.keyCode == keyCode && mods == modifierFlags
     }
 
@@ -62,8 +67,10 @@ struct KeyCombo: Codable, Equatable {
     }
 
     /// NSEvent から KeyCombo を作る。
+    /// 矢印・テンキー由来の `.numericPad` / `.function` は保存しない（primary modifier のみ）。
+    /// これで「ユーザーが矢印キーで録音した combo」と「実行時の矢印 keyDown」が一致するようになる。
     static func from(event: NSEvent) -> KeyCombo {
-        let mods = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
+        let mods = event.modifierFlags.intersection(primaryMask)
         return KeyCombo(
             keyCode: event.keyCode,
             modifiers: mods.rawValue,
@@ -229,11 +236,20 @@ enum FixedShortcuts {
         Entry(keyCode: 37, modifiers: [.command, .shift],       label: "Cmd+Shift+L (Open Log Folder)"),
         Entry(keyCode: 45, modifiers: .control,                 label: "Ctrl+N (Overlay Down)"),
         Entry(keyCode: 35, modifiers: .control,                 label: "Ctrl+P (Overlay Up)"),
+        Entry(keyCode: 124, modifiers: [.command, .option],     label: "Cmd+Opt+→ (Next Tab)"),
+        Entry(keyCode: 123, modifiers: [.command, .option],     label: "Cmd+Opt+← (Previous Tab)"),
+        Entry(keyCode: 126, modifiers: [.command, .option],     label: "Cmd+Opt+↑ (Focus Top Pane)"),
+        Entry(keyCode: 125, modifiers: [.command, .option],     label: "Cmd+Opt+↓ (Focus Bottom Pane)"),
     ]
 
     static func conflict(for combo: KeyCombo) -> String? {
+        // 矢印キーで録音した combo は、修正後の from(event:) で .numericPad/.function を捨てているが、
+        // 旧バージョンで保存された combo にはそれらが残っている可能性がある。
+        // 両側を primary modifier に正規化して比較する。
+        let lhs = combo.modifierFlags.intersection(KeyCombo.primaryMask)
         for e in all {
-            if e.keyCode == combo.keyCode && e.modifiers == combo.modifierFlags {
+            let rhs = e.modifiers.intersection(KeyCombo.primaryMask)
+            if e.keyCode == combo.keyCode && lhs == rhs {
                 return e.label
             }
         }

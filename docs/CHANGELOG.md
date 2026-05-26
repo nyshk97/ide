@@ -31,6 +31,12 @@ PolePole の更新履歴。形式は [Keep a Changelog](https://keepachangelog.c
 
 ## [Unreleased]
 
+### ✨ Added
+- ja: シェルタブの並び替えをドラッグ&ドロップで行えるように
+- en: You can now reorder shell tabs by drag and drop
+- ja: ⌘⌥←/→ でアクティブペイン内のタブを切り替え、⌘⌥↑/↓ で上下ペインのフォーカスを切り替え
+- en: ⌘⌥←/→ now switches tabs within the active pane, and ⌘⌥↑/↓ moves focus between the top and bottom panes
+
 ## [1.4.0] - 2026-05-26
 ### ✨ Added
 - ja: プロジェクトが 0 件のときの中央ペインを「Get started」ハブに刷新。フォルダ選択ボタンに加え、cmux / tmuxinator / VS Code・Cursor / ghq 配下から既存プロジェクトを発見してまとめて取り込めるインポート画面を追加 (cmux のピン留めと表示名は引き継ぎ)

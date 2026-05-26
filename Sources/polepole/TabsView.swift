@@ -8,11 +8,36 @@ struct TabsView: View {
     @State private var renamingTabID: TerminalTab.ID?
     @State private var renameDraft: String = ""
     @FocusState private var renameFieldFocused: Bool
+    /// D&D 並び替え中のドロップ位置インジケータ表示用。
+    @State private var dropTarget: DropTarget = .none
+
+    enum DropTarget: Equatable {
+        case none
+        case beforeTab(UUID)
+        case end
+    }
+
+    /// drag payload は "paneID|tabID" 形式の文字列。
+    /// paneID を載せておくことで dropDestination 側で同一ペインかを判定できる（上下ペイン間移動は不要）。
+    private func dragPayload(for tab: TerminalTab) -> String {
+        "\(pane.id.uuidString)|\(tab.id.uuidString)"
+    }
+
+    /// payload を分解。同一ペインからの drop なら source tab の UUID を返す。
+    private func sourceTabID(from items: [String]) -> UUID? {
+        guard let payload = items.first else { return nil }
+        let parts = payload.split(separator: "|")
+        guard parts.count == 2,
+              let sourcePaneID = UUID(uuidString: String(parts[0])),
+              let sourceTabID = UUID(uuidString: String(parts[1])),
+              sourcePaneID == pane.id else { return nil }
+        return sourceTabID
+    }
 
     /// ForEach のループ内で各 tab を `@ObservedObject` 化するため、ヘルパで個別に観測する
     private struct TabObserver<Content: View>: View {
         @ObservedObject var tab: TerminalTab
-        let content: (TerminalTab) -> Content
+        @ViewBuilder let content: (TerminalTab) -> Content
         var body: some View { content(tab) }
     }
 
@@ -49,13 +74,45 @@ struct TabsView: View {
         HStack(spacing: 4) {
             ForEach(Array(pane.tabs.enumerated()), id: \.element.id) { index, tab in
                 tabButton(index: index, tab: tab)
+                    .overlay(alignment: .leading) {
+                        // この tab の直前へ drop するときのインジケータ（2px 縦線）
+                        if dropTarget == .beforeTab(tab.id) {
+                            Color.accentColor.frame(width: 2)
+                                .padding(.vertical, 2)
+                                .offset(x: -3)
+                        }
+                    }
             }
+            // + ボタンに dropDestination を兼ねさせる（末尾並べ替え）。
+            // 専用の透明領域を挟むと + ボタンが右に離れすぎるため、領域を共有する。
             Button(action: { pane.addTab(); workspace.setActive(pane) }) {
                 Image(systemName: "plus")
                     .frame(width: 22, height: 22)
             }
             .buttonStyle(.plain)
             .help("New tab (⌘T)")
+            .overlay(alignment: .leading) {
+                if dropTarget == .end {
+                    Color.accentColor.frame(width: 2)
+                        .padding(.vertical, 2)
+                        .offset(x: -3)
+                }
+            }
+            .dropDestination(for: String.self) { items, _ in
+                guard let sourceID = sourceTabID(from: items) else {
+                    dropTarget = .none
+                    return false
+                }
+                pane.moveTab(from: sourceID, before: nil)
+                dropTarget = .none
+                return true
+            } isTargeted: { isTargeted in
+                if isTargeted {
+                    dropTarget = .end
+                } else if dropTarget == .end {
+                    dropTarget = .none
+                }
+            }
 
             Spacer()
         }
@@ -67,13 +124,14 @@ struct TabsView: View {
 
     private func tabButton(index: Int, tab: TerminalTab) -> some View {
         TabObserver(tab: tab) { tab in
-            TabButton(
+            let isRenaming = renamingTabID == tab.id
+            let core = TabButton(
                 tab: tab,
                 index: index,
                 isActive: index == pane.activeIndex,
                 isFocused: index == pane.activeIndex && paneIsActive,
                 isHovered: hoveredTabID == tab.id,
-                isRenaming: renamingTabID == tab.id,
+                isRenaming: isRenaming,
                 renameDraft: $renameDraft,
                 renameFieldFocused: $renameFieldFocused,
                 onSelect: {
@@ -91,6 +149,38 @@ struct TabsView: View {
                     hoveredTabID = tab.id
                 } else if hoveredTabID == tab.id {
                     hoveredTabID = nil
+                }
+            }
+
+            // rename 中は .draggable を付けない（TextField のテキスト選択ドラッグと競合させない）。
+            // dropDestination は付けたまま（他タブから rename 中タブの位置にドロップしたい）。
+            Group {
+                if isRenaming {
+                    core
+                } else {
+                    core.draggable(dragPayload(for: tab)) {
+                        Text(tab.title)
+                            .font(.system(size: 12))
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 4)
+                            .background(Color(nsColor: .windowBackgroundColor))
+                            .clipShape(RoundedRectangle(cornerRadius: 4))
+                    }
+                }
+            }
+            .dropDestination(for: String.self) { items, _ in
+                guard let sourceID = sourceTabID(from: items) else {
+                    dropTarget = .none
+                    return false
+                }
+                pane.moveTab(from: sourceID, before: tab.id)
+                dropTarget = .none
+                return true
+            } isTargeted: { isTargeted in
+                if isTargeted {
+                    dropTarget = .beforeTab(tab.id)
+                } else if dropTarget == .beforeTab(tab.id) {
+                    dropTarget = .none
                 }
             }
         }

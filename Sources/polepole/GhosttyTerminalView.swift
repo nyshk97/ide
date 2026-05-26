@@ -19,6 +19,14 @@ struct GhosttyTerminalView: NSViewRepresentable {
         nsView.pane = pane
         nsView.tab = tab
     }
+
+    /// SwiftUI が NSView を破棄するとき、TerminalTab に残った weak 参照を確実に切る。
+    /// `viewDidMoveToWindow(window: nil)` でも clear するが、突発的に dismantle される経路でも漏れないように。
+    static func dismantleNSView(_ nsView: GhosttyTerminalNSView, coordinator: ()) {
+        if nsView.tab?.nsView === nsView {
+            nsView.tab?.nsView = nil
+        }
+    }
 }
 
 // MARK: - NSView 実装
@@ -90,6 +98,13 @@ final class GhosttyTerminalNSView: NSView {
             createSurface()
             // SwiftUI の WindowGroup 配下では自動で first responder にならないので明示
             window?.makeFirstResponder(self)
+        }
+        // ペイン間移動（Cmd+Opt+↑/↓）で target tab の NSView を first responder にするための逆引き。
+        // window が付いた時点で登録、外れた時点でクリアする。
+        if window != nil {
+            tab?.nsView = self
+        } else if tab?.nsView === self {
+            tab?.nsView = nil
         }
     }
 

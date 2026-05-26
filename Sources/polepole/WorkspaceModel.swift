@@ -35,6 +35,22 @@ final class WorkspaceModel: ObservableObject {
         pane === activePane
     }
 
+    /// Cmd+Opt+↑/↓ 用。指定のペインにフォーカスを移す（既にそのペインなら no-op）。
+    /// target pane の active tab に対応する NSView を first responder にすると、
+    /// becomeFirstResponder の既存フローで setActive とアクティブ化が連動する。
+    func focusPane(_ target: PaneState) {
+        guard target !== activePane else { return }
+        // NSView 参照あり & window 取れ & makeFirstResponder が成功した場合のみ早期 return。
+        // 上記いずれかが欠ければ fallback で activePane だけでも動かす（setActive を呼ぶことで
+        // タブバーのハイライト等の表示は追従する。キー入力は次のクリック等で正しい view に入る）。
+        if let view = target.activeTab?.nsView,
+           let window = view.window,
+           window.makeFirstResponder(view) {
+            return
+        }
+        setActive(target)
+    }
+
     /// 上下どちらかのペインのいずれかのタブに未読通知があるか。
     /// サイドバーのプロジェクトリング表示の派生元。
     var hasUnreadTab: Bool {

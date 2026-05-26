@@ -85,6 +85,33 @@ enum MRUKeyMonitor {
             return true
         }
 
+        // Cmd+Opt+←/→: アクティブペイン内のタブ移動（wrap あり）。
+        // Cmd+Opt+↑/↓: 上下ペイン間のフォーカス移動。
+        // どの overlay も出ていないときだけ働かせる（overlay 表示中は consume せず素通り）。
+        // 注: 矢印キーには .numericPad / .function フラグが乗るので、`mods == [.command, .option]`
+        // の厳密一致だと外れる。primary modifier (Cmd/Ctrl/Opt/Shift) だけ取り出して比較する。
+        let primaryMods = mods.intersection([.command, .control, .option, .shift])
+        if primaryMods == [.command, .option],
+           model.mruOverlay == nil, !model.quickSearchVisible, !model.fullSearchVisible, !model.diffOverlayVisible,
+           let ws = model.activeWorkspace {
+            switch event.keyCode {
+            case 124:  // →: 次のタブへ
+                ws.activePane.selectNextTab()
+                return true
+            case 123:  // ←: 前のタブへ
+                ws.activePane.selectPreviousTab()
+                return true
+            case 126:  // ↑: 上ペインへ
+                ws.focusPane(ws.topPane)
+                return true
+            case 125:  // ↓: 下ペインへ
+                ws.focusPane(ws.bottomPane)
+                return true
+            default:
+                break
+            }
+        }
+
         // Cmd+F: プレビュー表示中ならファイル内検索バーを開く（既に開いていれば再フォーカス）。
         // Cmd+Shift+F（全文検索）は上で先に処理済みなので、ここに来るのは Shift なしの Cmd+F のみ。
         if mods == .command, event.keyCode == 3 {  // 3 = F
