@@ -67,20 +67,20 @@ cmux の `session-*.json` 構造はユーザーマシン (16 workspaces) で実�
 ## 実装計画
 
 ### 事前準備 [人間👨‍💻]
-- [ ] (なし — 既存環境で完結する)
+- [x] (なし — 既存環境で完結する)
 
 ### Phase 1: テスト基盤と ProjectsModel 拡張 [AI🤖]
-- [ ] `project.yml` に `polepoleTests` test target を追加 (`type: bundle.unit-test`、`platform: macOS`、`scheme: PolePole Dev` 内に test action を組み込み)
-- [ ] XcodeGen 再生成 (`xcodegen generate`) と `mise run build` が通ることの確認
-- [ ] `Sources/polepole/Import/PathNormalizer.swift` を新規作成
+- [x] `project.yml` に `polepoleTests` test target を追加 (`type: bundle.unit-test`、`platform: macOS`、`scheme: PolePole Dev` 内に test action を組み込み)
+- [x] XcodeGen 再生成 (`xcodegen generate`) と `mise run build` が通ることの確認
+- [x] `Sources/polepole/Import/PathNormalizer.swift` を新規作成
   - `static func canonicalKey(_ path: String) -> String?` (`resolvingSymlinksInPath().standardizedFileURL.path`、存在しない or 空文字は nil)
   - `static func expandTilde(_ path: String) -> String` (`(path as NSString).expandingTildeInPath`)
-- [ ] `ProjectsModel.project(at:)` の path 比較を `PathNormalizer.canonicalKey` ベースに置き換え (`Sources/polepole/ProjectsModel.swift:718` 周辺)。既存ユニットテスト・スナップショットがあれば差分確認
-- [ ] `Sources/polepole/Import/ImportTypes.swift` で共通型を定義
+- [x] `ProjectsModel.project(at:)` の path 比較を `PathNormalizer.canonicalKey` ベースに置き換え (`Sources/polepole/ProjectsModel.swift:718` 周辺)。既存ユニットテスト・スナップショットがあれば差分確認
+- [x] `Sources/polepole/Import/ImportTypes.swift` で共通型を定義
   - `struct DiscoveredProject { canonicalKey: String; preferredPath: String; displayName: String?; isPinned: Bool; lastAccessAt: Date?; sourceId: String }`
   - `struct ImportCandidate { canonicalKey: String; preferredPath: String; displayName: String?; isPinned: Bool; sources: [String]; lastAccessAt: Date?; defaultSelected: Bool }`
   - `struct ImportPayload { preferredPath: String; displayName: String?; isPinned: Bool }`
-- [ ] `ProjectsModel.importProjects(_ payloads: [ImportPayload]) -> [Project]` を追加
+- [x] `ProjectsModel.importProjects(_ payloads: [ImportPayload]) -> [Project]` を追加
   - `PathNormalizer.canonicalKey` で既存 path と被るものはスキップ
   - `isPinned == true` は pinned 配列の末尾に、false は temporary 配列の末尾に振り分け
   - `persist()` を1回だけ呼ぶ
@@ -88,23 +88,23 @@ cmux の `session-*.json` 構造はユーザーマシン (16 workspaces) で実�
   - 返り値で実際に追加された Project を返す (sheet 側で count 表示に使う)
 
 ### Phase 2: ImportSource プロトコルと4つの source 実装 [AI🤖]
-- [ ] `Sources/polepole/Import/ImportSource.swift`
+- [x] `Sources/polepole/Import/ImportSource.swift`
   - `protocol ImportSource { var id: String { get }; var displayName: String { get }; func discover() async -> [DiscoveredProject] }`
-- [ ] `Sources/polepole/Import/ImportAggregator.swift`
+- [x] `Sources/polepole/Import/ImportAggregator.swift`
   - 複数 source の `DiscoveredProject` を canonical key で merge し `ImportCandidate` を組み立て
   - 既存 `ProjectsModel.pinned + temporary` の path と被るものを `alreadyImported` に分離 (こちらも `PathNormalizer.canonicalKey`)
   - デフォルト選択スコア式を実装 (cmux pinned 強め)
-- [ ] `ConventionalDirScanSource`
+- [x] `ConventionalDirScanSource`
   - 探索ルート: `~/ghq` `~/src` `~/dev` `~/Projects` `~/Code` (固定)
   - 各 root を BFS、最大深さ 4。`.git` がある dir を見つけたらそこで打ち止め (それより下は降りない)
   - source 全体に 3 秒の timeout (超過したらそれまでの結果を返す)
   - **`fixtureRoots: [URL]? = nil` を init で受け取れるようにし、テスト時は fixture ツリーを差し込めるようにする**
-- [ ] `CmuxSessionSource`
+- [x] `CmuxSessionSource`
   - `~/Library/Application Support/cmux/session-com.cmuxterm.app.json` を Codable で読む
   - `windows[].tabManager.workspaces[]` から `currentDirectory` / `customTitle` / `isPinned` を抽出
   - ファイル無ければ空配列
   - **`fixturePath: URL? = nil` を init で受け取り可能に**
-- [ ] `TmuxinatorSource`
+- [x] `TmuxinatorSource`
   - `~/.tmuxinator/*.yml` を列挙
   - 各 YAML を行ベースで読み、`^\s*root:\s*(.+)$` をマッチ。マッチ後に
     - quote (`'...'` / `"..."`) を剥がす
@@ -114,66 +114,66 @@ cmux の `session-*.json` 構造はユーザーマシン (16 workspaces) で実�
     - 環境変数 (`$HOME` 等) は素朴に `expandingTildeInPath` のみ。`$VAR` 形式は今回は展開しない (失敗時スキップ)
     - 最後に `FileManager.default.fileExists(atPath:)` で実在確認、無ければ捨てる
   - **`fixtureRoot: URL? = nil` を init で受け取り可能に**
-- [ ] `VSCodeRecentSource`
+- [x] `VSCodeRecentSource`
   - `~/Library/Application Support/{Code,Cursor}/User/globalStorage/storage.json` を JSONDecoder で読む
   - `openedPathsList.entries[].folderUri` の `file://` を path に変換
   - 配列順を最終 access 順とみなして `lastAccessAt` を `Date()` から逆算する (storage に明示的なタイムスタンプは無いので、新しいものから 1 日ずつ古くする近似)
   - **`fixturePaths: [URL]? = nil` を init で受け取り可能に**
-- [ ] `polepoleTests/ImportSourceTests.swift` を追加
+- [x] `polepoleTests/ImportSourceTests.swift` を追加
   - `polepoleTests/Fixtures/import/conventional/...` に偽 git リポジトリを置いて scan を検証
   - `Fixtures/import/cmux/session.json` に最小限の cmux session を置く (workspace 3件、うち 1 件 pin)
   - `Fixtures/import/tmuxinator/{quoted,commented,erb,nonexistent,plain}.yml` を置いて root: 解析の edge case を検証
   - `Fixtures/import/vscode/storage.json` も同様
   - `ImportAggregator` の merge / dedup / `alreadyImported` 分離 / スコア式を検証
-- [ ] `POLEPOLE_TEST_IMPORT_FIXTURE=<dir>` の env を読み、各 source の本番経路でも fixture root に差し替えできるようにする (Phase 5/動作確認の screenshot 用)。`docs/DEV.md` のフラグ表に追記
+- [x] `POLEPOLE_TEST_IMPORT_FIXTURE=<dir>` の env を読み、各 source の本番経路でも fixture root に差し替えできるようにする (Phase 5/動作確認の screenshot 用)。`docs/DEV.md` のフラグ表に追記
 
 ### Phase 3: EmptyHubView (中央ペイン統一ハブ) [AI🤖]
-- [ ] `Sources/polepole/EmptyHubView.swift` を新規作成
+- [x] `Sources/polepole/EmptyHubView.swift` を新規作成
   - 上部: PolePole ロゴ + 「Get started」見出し
   - 中段: `[ Choose a folder... ]` プライマリボタン → `NSOpenPanel` (既存 `LeftSidebarView` のロジックを共通化して呼ぶ)
   - 区切り: `── or ──`
   - `[ Import projects... ]` ボタン (初期は disabled + スピナー、scan 完了で件数を載せて enabled に。0件なら disabled のまま `No projects found to import`)
   - 下部: `📖 How to use PolePole` リンク → `NSWorkspace.shared.open(URL(string: "https://polepole.dev/guide")!)`
-- [ ] `CenterPaneView.swift:49-62` の現行空状態分岐を `EmptyHubView` に差し替え
-- [ ] `EmptyHubView` 表示時に `Task { await scanner.discover() }` を起動。`@StateObject` でスキャナの結果と loading 状態をバインド
-- [ ] `POLEPOLE_TEST_AUTO_EMPTY_HUB=1` の env を読み、既存プロジェクトがあっても強制的に EmptyHub を出すフラグを追加 (`docs/DEV.md` 追記)
-- [ ] `LeftSidebarView.swift:68` の `Add a project` テキストはツールチップに整理 (空状態案内は中央ペインに集約)
+- [x] `CenterPaneView.swift:49-62` の現行空状態分岐を `EmptyHubView` に差し替え
+- [x] `EmptyHubView` 表示時に `Task { await scanner.discover() }` を起動。`@StateObject` でスキャナの結果と loading 状態をバインド
+- [x] `POLEPOLE_TEST_AUTO_EMPTY_HUB=1` の env を読み、既存プロジェクトがあっても強制的に EmptyHub を出すフラグを追加 (`docs/DEV.md` 追記)
+- [x] `LeftSidebarView.swift:68` の `Add a project` テキストはツールチップに整理 (空状態案内は中央ペインに集約)
 
 ### Phase 4: ImportSheet (インポート画面の共通 View) [AI🤖]
-- [ ] `Sources/polepole/Import/ImportSheetView.swift` を新規作成。**EmptyHubView と Settings から共有して使う共通 View**
-- [ ] EmptyHubView から `.sheet(isPresented:)` で開き、Settings からは NavigationStack 内に embed
-- [ ] レイアウト:
+- [x] `Sources/polepole/Import/ImportSheetView.swift` を新規作成。**EmptyHubView と Settings から共有して使う共通 View**
+- [x] EmptyHubView から `.sheet(isPresented:)` で開き、Settings からは NavigationStack 内に embed
+- [x] レイアウト:
   - ヘッダ: `Found N unique projects · M already in PolePole`
   - source フィルタ chips: `[ All N | cmux x | ghq y | tmuxinator z | VSCode w ]` (排他 toggle)
   - リスト: 1行=1 candidate、チェックボックス + (pin 📌) + displayName + path + source バッジ + (古い VS Code は `last opened 90d ago`)
   - 折りたたみ `▸ Already in PolePole (M hidden)` 展開可
-  - 下部: クイック選択 `[ All ] [ None ] [ cmux pinned only ]` と `[ Import N selected ]`
-- [ ] Import 実行時は **必ず `ProjectsModel.importProjects(_:)` 経由**。直接 ProjectsStore を触らない
-- [ ] cmux 由来の `isPinned == true` は `ImportPayload.isPinned: true`、cmux の `customTitle` があれば `displayName` に採用
-- [ ] EmptyHub からの sheet を閉じたら active project が変わるので、`CenterPaneView` はプロジェクトリストの 1件目に切り替わる (既存の選択ロジックに任せる)
+  - 下部: クイック選択 `[ All ] [ None ]` と `[ Import N selected ]` (※`cmux pinned only` は実装後に撤回 → ログ参照)
+- [x] Import 実行時は **必ず `ProjectsModel.importProjects(_:)` 経由**。直接 ProjectsStore を触らない
+- [x] cmux 由来の `isPinned == true` は `ImportPayload.isPinned: true`、cmux の `customTitle` があれば `displayName` に採用
+- [x] EmptyHub からの sheet を閉じたら active project が変わるので、`CenterPaneView` はプロジェクトリストの 1件目に切り替わる (既存の選択ロジックに任せる)
 
 ### Phase 5: Settings に Import タブ [AI🤖]
-- [ ] 既存 Settings ウィンドウのタブ構成を把握し (おそらく `SettingsView.swift` / `polepoleApp.swift` 周辺)、新規 `Import` タブを追加
-- [ ] タブを開くと「Scan for projects」ボタン (押下時に初めて scan を開始するモード) + `ImportSheetView` を embed
-- [ ] EmptyHubView の自動 scan と違って、こちらは押下時 scan (明示的に開いた = 待つ前提)
-- [ ] Import 完了したら toast (`ErrorBus.shared.notify` の info 系) で `Imported N projects` 表示し、Settings は閉じない
+- [x] 既存 Settings ウィンドウのタブ構成を把握し (おそらく `SettingsView.swift` / `polepoleApp.swift` 周辺)、新規 `Import` タブを追加
+- [x] タブを開くと「Scan for projects」ボタン (押下時に初めて scan を開始するモード) + `ImportSheetView` を embed
+- [x] EmptyHubView の自動 scan と違って、こちらは押下時 scan (明示的に開いた = 待つ前提)
+- [x] Import 完了したら toast (`ErrorBus.shared.notify` の info 系) で `Imported N projects` 表示し、Settings は閉じない
 
 ### Phase 6: 結線・微調整 [AI🤖]
-- [ ] `mise run build` が通ること
-- [ ] Logger で `[import]` プレフィックスのデバッグログを各 `source.discover()` / `aggregator.merge` / `ProjectsModel.importProjects` に仕込む
-- [ ] `docs/DEV.md` のフラグ表に `POLEPOLE_TEST_AUTO_EMPTY_HUB` / `POLEPOLE_TEST_IMPORT_FIXTURE` を追記
-- [ ] `VERIFY.md` に下記の動作確認手順番号を追記
+- [x] `mise run build` が通ること
+- [x] Logger で `[import]` プレフィックスのデバッグログを各 `source.discover()` / `aggregator.merge` / `ProjectsModel.importProjects` に仕込む
+- [x] `docs/DEV.md` のフラグ表に `POLEPOLE_TEST_AUTO_EMPTY_HUB` / `POLEPOLE_TEST_IMPORT_FIXTURE` を追記
+- [x] `VERIFY.md` に下記の動作確認手順番号を追記
 
 ### 動作確認 [人間👨‍💻 + AI🤖]
-- [ ] [AI🤖] `POLEPOLE_TEST_AUTO_EMPTY_HUB=1` で起動 → `EmptyHubView` が表示される (`polepole-screenshot.sh`)。実データは触らない
-- [ ] [AI🤖] `POLEPOLE_TEST_AUTO_EMPTY_HUB=1 POLEPOLE_TEST_IMPORT_FIXTURE=<fixture dir>` で起動 → ボタンが `Import projects...` → `Import projects (N)` に切り替わる (screenshot 2枚比較)
-- [ ] [AI🤖] `[ Import projects ]` 押下 → sheet 表示 → 候補リストに cmux/ghq/tmuxinator/VSCode 由来が混在 (screenshot)
-- [ ] [AI🤖] `[ cmux pinned only ]` クイック選択 → cmux pinned だけ ON (screenshot)
-- [ ] [AI🤖] Import 実行 → fixture 経由で `polepole-dev/projects.json` に追加され、pin/displayName が反映 (`cat projects.json | jq`)
-- [ ] [AI🤖] 重複排除: 同じ canonical key が cmux+ghq に居るときに 1 行に merge され source バッジが両方出る (fixture で検証 + unit test)
-- [ ] [AI🤖] symlink 経由の path で cmux に居る workspace は **`preferredPath` のまま保存される** (canonical key は dedupe 用にしか使われない) — unit test で確認
-- [ ] [AI🤖] 1件以上プロジェクトがある状態 (`POLEPOLE_TEST_AUTO_EMPTY_HUB=0`) では EmptyHub も自動 scan も走らない (`Logger` の `[import]` ログが出ない)
-- [ ] [AI🤖] Settings → Import タブ → Scan ボタン押下 → sheet 同等の UI が出る (screenshot)
+- [x] [AI🤖] `POLEPOLE_TEST_AUTO_EMPTY_HUB=1` で起動 → `EmptyHubView` が表示される (`polepole-screenshot.sh`)。実データは触らない
+- [x] [AI🤖] `POLEPOLE_TEST_AUTO_EMPTY_HUB=1 POLEPOLE_TEST_IMPORT_FIXTURE=<fixture dir>` で起動 → ボタンが `Import projects...` → `Import projects (N)` に切り替わる (screenshot 2枚比較)
+- [x] [AI🤖] `[ Import projects ]` 押下 → sheet 表示 → 候補リストに cmux/ghq/tmuxinator/VSCode 由来が混在 (screenshot)
+- [x] ~~[AI🤖] `[ cmux pinned only ]` クイック選択 → cmux pinned だけ ON (screenshot)~~ (ボタン撤回のため不要)
+- [x] [AI🤖] Import 実行 → fixture 経由で `polepole-dev/projects.json` に追加され、pin/displayName が反映 (`cat projects.json | jq`)
+- [x] [AI🤖] 重複排除: 同じ canonical key が cmux+ghq に居るときに 1 行に merge され source バッジが両方出る (fixture で検証 + unit test)
+- [x] [AI🤖] symlink 経由の path で cmux に居る workspace は **`preferredPath` のまま保存される** (canonical key は dedupe 用にしか使われない) — unit test で確認
+- [x] [AI🤖] 1件以上プロジェクトがある状態 (`POLEPOLE_TEST_AUTO_EMPTY_HUB=0`) では EmptyHub も自動 scan も走らない (`Logger` の `[import]` ログが出ない)
+- [x] [AI🤖] Settings → Import タブ → Scan ボタン押下 → sheet 同等の UI が出る (screenshot)
 - [ ] [人間👨‍💻] EmptyHubView の `📖 How to use PolePole` リンクを実クリックして polepole.dev/guide が外部ブラウザで開く (PolePole 内 Claude Code からクリックは自動化できない)
 - [ ] [人間👨‍💻] 「Already in PolePole (M hidden)」の展開動作と、その状態でのチェックボックス挙動の目視確認
 
@@ -183,10 +183,13 @@ cmux の `session-*.json` 構造はユーザーマシン (16 workspaces) で実�
 - 2026-05-26: Phase 1〜6 を 1 セッションで実装完了。
   - `PRODUCT_MODULE_NAME: polepole` を base に固定して Debug / Release 両方で `@testable import polepole` を可能に (PRODUCT_NAME は `PolePole Dev` / `PolePole` で別だが module 名は共通化)
   - test target を `bundle.unit-test` で host application 付きに。XcodeGen は `schemes:` を明示しないと test target を `test` action に含めてくれなかった (CLAUDE.md の指摘どおり) → `schemes.polepole.test.targets` に明示
-  - Unit test 12 ケース全部 pass (PathNormalizer / 4 source / Aggregator)
+  - Unit test 16 ケース全部 pass (PathNormalizer / 4 source / Aggregator、レビュー対応で +4 件)
   - 実機 fixture で起動 → ログから `scan started with 5 source(s)` → `source=cursor found=0`（静かにスキップ） → `source=vscode found=2` / `cmux found=2` / `ghq found=3` / `tmuxinator found=1` → `scan done candidates=3` が確認できた
   - PolePole Dev のウィンドウ screenshot は CGWindowList 経由で「title="PolePole Dev" のウィンドウを直接 ID 指定」で撮ると Brew 版 PolePole が前面でも撮れる
 - 2026-05-26: cmux session.json (`~/Library/Application Support/cmux/session-com.cmuxterm.app.json`) の構造はユーザーの実機 16 workspace で実測。`currentDirectory` / `customTitle` / `isPinned` の 3 フィールドが期待通り取れる
+- 2026-05-26 (レビュー第 2 回): 実機の VS Code / Cursor の `storage.json` は **`openedPathsList` を持たず**、現代 schema は `windowsState.lastActiveWindow.folder` / `windowsState.openedWindows[].folder` / `backupWorkspaces.folders[].folderUri` の 3 経路。fixture で legacy schema だけ書いていたため初版実装で 0 件取りこぼし → modern + legacy 両対応に拡張
+- 2026-05-26 (リリース): `pnpm deploy` は pnpm v9 で workspace 専用コマンドに変わり、polepole-backend のような単体 package では `pnpm run deploy` を明示する必要がある。`scripts.deploy` 直叩きを忘れると `ERR_PNPM_CANNOT_DEPLOY` で死ぬ
+- 2026-05-26 (リリース): Test target を host-less にするのは難しい (`@testable import polepole` の symbol が link されない)。代替として `PolePoleApp.init()` で `ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil` を見て side effect (Ghostty / Sparkle / WebView prewarm) を skip する方式に倒した。test 中に `~/Library/Logs/polepole-dev/` にログファイルが増えないことで成功確認
 
 ### 方針変更
 - 2026-05-26: レビュー指摘を受けて初版から以下を変更
@@ -199,3 +202,14 @@ cmux の `session-*.json` 構造はユーザーマシン (16 workspaces) で実�
   - L7: tmuxinator パースの edge case (quote / comment / ERB / 環境変数 / 存在確認) を Phase 2 の仕様 + fixture に明記
   - 新規: 既存ユーザー導線として Settings に Import タブを追加 (新 Phase 5)
 - 2026-05-26 (実装後): `cmux pinned only` クイック選択ボタンを撤回。cmux 使ってたユーザーにも需要が薄いとユーザー判断。`All` / `None` の 2 つだけに簡素化
+- 2026-05-26 (レビュー第 2 回): 以下を追加で反映
+  - VS Code / Cursor source を modern schema (`windowsState` + `backupWorkspaces`) 対応に拡張。`openedPathsList` も legacy として残す
+  - `PathNormalizer.canonicalKey` に `isDirectory` チェックを追加。VS Code の `fileUri` (単発ファイル) も無視。Project が常に dir 前提なので、import 時にレギュラーファイルが project になる事故を防ぐ
+  - Test target を host-less にするのは link 切れで断念し、`PolePoleApp.init()` で `XCTestConfigurationFilePath` env を見て side effect を skip する方式に倒した
+  - Settings 埋め込み時の sheet で import 後に `scanner.scan()` を再走させる。取り込み済みは `Already in PolePole` 側に移動するので二度押し時に「Imported 0 projects」になる問題を回避
+  - `ImportAggregator` の preferredPath 選択を「最短 path」から「source 優先順 (cmux > tmuxinator > vscode/cursor > ghq)」に変更。cmux の symlink 経由パスが ghq の実体パスで上書きされる事故を防ぐ
+- 2026-05-26 (リリース): `v1.4.0` リリース完了
+  - GitHub Release: https://github.com/nyshk97/polepole-releases/releases/tag/v1.4.0
+  - SHA256: `22250f4fe84016f8c7bc4a4dedfafc4072eaadc775bc8d96670988ad5fc7f095`
+  - Homebrew tap (`nyshk97/homebrew-tap/Casks/polepole.rb`) 1.4.0 に更新済
+  - 公式サイト `/changelog` `/en/changelog` deploy 済 (postdeploy で HTML 再生成 + main push)
