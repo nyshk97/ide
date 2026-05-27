@@ -109,6 +109,8 @@ ja/en は **意味の対応**であって逐語訳ではない。日本語で自
 7. **ペアの整合性**: `- ja:` と `- en:` は隣接 / カテゴリ配置一致 / bullet 数一致 を最後に確認
 
 ## [Unreleased]
+
+## [1.4.7] - 2026-05-27
 ### ✨ Added
 - ja: シェルタブを上下ペイン間でドラッグ&ドロップ または `Cmd+Shift+Opt+↑/↓` で移動できるように。shell セッション・履歴・Claude セッションを保ったまま移動可能
 - en: You can now move shell tabs between the top and bottom panes via drag-and-drop or `Cmd+Shift+Opt+↑/↓` — the shell session, history, and Claude session all stay alive across the move
