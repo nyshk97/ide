@@ -9,7 +9,7 @@ struct WorkspaceView: View {
     @ObservedObject var workspace: WorkspaceModel
 
     var body: some View {
-        SplitPane(initialTopRatio: 0.3) {
+        SplitPane(initialTopRatio: 0.3, paneLayout: workspace.paneLayout) {
             TabsView(pane: workspace.topPane, workspace: workspace)
         } bottom: {
             TabsView(pane: workspace.bottomPane, workspace: workspace)
@@ -19,13 +19,17 @@ struct WorkspaceView: View {
 
 /// 上下分割の SplitView。`initialTopRatio` で初期比率を指定し、
 /// その後はユーザーがドラッグで自由にリサイズできる。
+/// `paneLayout == .singleBottom` のときは上ペインを `isCollapsed = true` で畳む。
+/// NSView は tree に残るため、上ペインのタブが持つ Ghostty surface は collapse 中も生存する。
 private struct SplitPane<Top: View, Bottom: View>: NSViewControllerRepresentable {
     let initialTopRatio: CGFloat
+    let paneLayout: PaneLayout
     let top: () -> Top
     let bottom: () -> Bottom
 
-    init(initialTopRatio: CGFloat, @ViewBuilder top: @escaping () -> Top, @ViewBuilder bottom: @escaping () -> Bottom) {
+    init(initialTopRatio: CGFloat, paneLayout: PaneLayout, @ViewBuilder top: @escaping () -> Top, @ViewBuilder bottom: @escaping () -> Bottom) {
         self.initialTopRatio = initialTopRatio
+        self.paneLayout = paneLayout
         self.top = top
         self.bottom = bottom
     }
@@ -41,6 +45,12 @@ private struct SplitPane<Top: View, Bottom: View>: NSViewControllerRepresentable
         let topVC = NSHostingController(rootView: top())
         let topItem = NSSplitViewItem(viewController: topVC)
         topItem.minimumThickness = 80
+        topItem.isCollapsed = (paneLayout == .singleBottom)
+        // 初期状態が collapsed なら、RatioSplitViewController の初回 setPosition で
+        // divider 位置を 3:7 に戻されないよう「初期化済み」フラグを立てておく。
+        if paneLayout == .singleBottom {
+            svc.didSetInitial = true
+        }
         svc.addSplitViewItem(topItem)
 
         let bottomVC = NSHostingController(rootView: bottom())
@@ -50,6 +60,7 @@ private struct SplitPane<Top: View, Bottom: View>: NSViewControllerRepresentable
 
         context.coordinator.topVC = topVC
         context.coordinator.bottomVC = bottomVC
+        context.coordinator.topItem = topItem
         return svc
     }
 
@@ -60,6 +71,13 @@ private struct SplitPane<Top: View, Bottom: View>: NSViewControllerRepresentable
         if let host = context.coordinator.bottomVC as? NSHostingController<Bottom> {
             host.rootView = bottom()
         }
+        // paneLayout の変化を topItem.isCollapsed に反映する。animator を通すと滑らかに開閉する。
+        if let topItem = context.coordinator.topItem {
+            let shouldCollapse = (paneLayout == .singleBottom)
+            if topItem.isCollapsed != shouldCollapse {
+                topItem.animator().isCollapsed = shouldCollapse
+            }
+        }
     }
 
     func makeCoordinator() -> Coordinator { Coordinator() }
@@ -67,6 +85,7 @@ private struct SplitPane<Top: View, Bottom: View>: NSViewControllerRepresentable
     final class Coordinator {
         weak var topVC: NSViewController?
         weak var bottomVC: NSViewController?
+        weak var topItem: NSSplitViewItem?
     }
 }
 
@@ -76,7 +95,9 @@ private struct SplitPane<Top: View, Bottom: View>: NSViewControllerRepresentable
 /// 1 回だけ setPosition する。
 private final class RatioSplitViewController: NSSplitViewController {
     var initialTopRatio: CGFloat = 0.3
-    private var didSetInitial = false
+    /// 初回 divider 設定が済んだか。`paneLayout == .singleBottom` で起動するときは
+    /// 外部から true にして初回 setPosition を抑止する（collapsed 状態を上書きしないため）。
+    var didSetInitial = false
     private var lastHeight: CGFloat = 0
 
     override func viewDidLayout() {

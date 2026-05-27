@@ -25,25 +25,6 @@ final class PaneState: ObservableObject, Identifiable {
         activeIndex = tabs.count - 1
     }
 
-    func closeActiveTab() {
-        closeTab(at: activeIndex)
-    }
-
-    func closeTab(at index: Int) {
-        guard tabs.indices.contains(index) else { return }
-        tabs.remove(at: index)
-        if tabs.isEmpty {
-            // 最後のタブが閉じたら新規を1つ自動で立てる（PoC 段階の暫定挙動）
-            addTab()
-        } else if activeIndex >= tabs.count {
-            activeIndex = tabs.count - 1
-        } else if index < activeIndex {
-            activeIndex -= 1
-        }
-        // 未読タブを閉じた可能性があるのでサイドバーのリングを再計算
-        ProjectsModel.shared.refreshUnreadProjects()
-    }
-
     func selectTab(at index: Int) {
         guard tabs.indices.contains(index) else { return }
         activeIndex = index

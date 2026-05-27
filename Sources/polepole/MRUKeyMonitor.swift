@@ -29,6 +29,14 @@ enum MRUKeyMonitor {
         let shortcuts = ShortcutsStore.shared
         let mods = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
 
+        // Settings 画面でショートカット録音中は、固定ショートカット (Cmd+P 等) も含めて
+        // 何も握らず素通りさせる。録音 monitor が後勝ちでイベントを取れるようにするため。
+        // これがないと「固定ショートカットを割り当てようとしたら衝突警告が出ず、裏で実動作する」
+        // 状態になる。
+        if shortcuts.isRecordingShortcut {
+            return false
+        }
+
         // MRU オーバーレイ起動 / 次の候補へサイクル（default: Ctrl+M, keyCode 46）。
         // chars だと Ctrl+letter で CR(\r) にマップされるため keyCode で判定する必要があり、
         // ユーザーがリバインドした場合も同じ理由で keyCode 比較になる。
@@ -86,14 +94,13 @@ enum MRUKeyMonitor {
         }
 
         // Cmd+Opt+←/→: アクティブペイン内のタブ移動（wrap あり）。
-        // Cmd+Opt+↑/↓: 上下ペイン間のフォーカス移動。
+        // Cmd+Opt+↑/↓: 上下ペイン間のフォーカス移動（1 ペインモード中は no-op）。
         // どの overlay も出ていないときだけ働かせる（overlay 表示中は consume せず素通り）。
         // 注: 矢印キーには .numericPad / .function フラグが乗るので、`mods == [.command, .option]`
         // の厳密一致だと外れる。primary modifier (Cmd/Ctrl/Opt/Shift) だけ取り出して比較する。
         let primaryMods = mods.intersection([.command, .control, .option, .shift])
-        if primaryMods == [.command, .option],
-           model.mruOverlay == nil, !model.quickSearchVisible, !model.fullSearchVisible, !model.diffOverlayVisible,
-           let ws = model.activeWorkspace {
+        let overlaysClosed = model.mruOverlay == nil && !model.quickSearchVisible && !model.fullSearchVisible && !model.diffOverlayVisible
+        if primaryMods == [.command, .option], overlaysClosed, let ws = model.activeWorkspace {
             switch event.keyCode {
             case 124:  // →: 次のタブへ
                 ws.activePane.selectNextTab()
@@ -101,15 +108,25 @@ enum MRUKeyMonitor {
             case 123:  // ←: 前のタブへ
                 ws.activePane.selectPreviousTab()
                 return true
-            case 126:  // ↑: 上ペインへ
-                ws.focusPane(ws.topPane)
+            case 126:  // ↑: 上ペインへ（1 ペイン中は no-op）
+                if ws.paneLayout == .split {
+                    ws.focusPane(ws.topPane)
+                }
                 return true
-            case 125:  // ↓: 下ペインへ
-                ws.focusPane(ws.bottomPane)
+            case 125:  // ↓: 下ペインへ（1 ペイン中は no-op）
+                if ws.paneLayout == .split {
+                    ws.focusPane(ws.bottomPane)
+                }
                 return true
             default:
                 break
             }
+        }
+
+        // ペインレイアウト切替（default: Cmd+/、リバインド可能）。
+        if shortcuts.matches(event, .togglePaneLayout), overlaysClosed, let ws = model.activeWorkspace {
+            ws.togglePaneLayout()
+            return true
         }
 
         // Cmd+F: プレビュー表示中ならファイル内検索バーを開く（既に開いていれば再フォーカス）。

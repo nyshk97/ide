@@ -145,6 +145,7 @@ WorkspaceModel(project: ide)
 ```
 NSEvent.addLocalMonitorForEvents (MRUKeyMonitor)
   → Ctrl+M / Cmd+P / Cmd+Shift+F / (ツリーにフォーカス時) Cmd+R / overlay 中の Esc/↑/↓ を握って終了
+  → Cmd+Opt+←/→/↑/↓ (タブ切替 / ペイン間フォーカス移動)、Cmd+/ (ペインレイアウト切替) もここで握る
   ↓
 SwiftUI の View 階層
   → SwiftUI Button の keyboardShortcut（プレビューの「← ツリーに戻る」「Cursor で開く」 等）

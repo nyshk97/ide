@@ -11,6 +11,17 @@ final class WorkspaceModel: ObservableObject {
 
     @Published var activePane: PaneState
 
+    /// 上下分割 / 下のみ。プロジェクトごとに `Project.paneLayout` として永続化される。
+    /// `didSet` で `ProjectsModel.updatePaneLayout` を呼んで自動 persist。
+    @Published var paneLayout: PaneLayout {
+        didSet {
+            guard paneLayout != oldValue else { return }
+            if let projectID = project?.id {
+                ProjectsModel.shared.updatePaneLayout(projectID: projectID, layout: paneLayout)
+            }
+        }
+    }
+
     init(project: Project?) {
         self.project = project
         let cwd = project?.path
@@ -20,6 +31,7 @@ final class WorkspaceModel: ObservableObject {
         self.bottomPane = bottom
         // 初期フォーカスは下ペイン（「下大ターミナル」がメイン作業領域の想定）
         self.activePane = bottom
+        self.paneLayout = project?.paneLayout ?? .split
     }
 
     func setActive(_ pane: PaneState) {
@@ -49,6 +61,60 @@ final class WorkspaceModel: ObservableObject {
             return
         }
         setActive(target)
+    }
+
+    /// タブを閉じる。最後の 1 個を閉じたときの挙動はペインに応じて分岐する（`handlePaneEmpty` 参照）。
+    /// `PaneState.closeTab` の自動 addTab + refreshUnreadProjects 責務をここに集約。
+    func closeTab(in pane: PaneState, at index: Int) {
+        guard pane.tabs.indices.contains(index) else { return }
+        pane.tabs.remove(at: index)
+        if pane.tabs.isEmpty {
+            handlePaneEmpty(pane)
+        } else if index < pane.activeIndex {
+            pane.activeIndex -= 1
+        } else if pane.activeIndex >= pane.tabs.count {
+            pane.activeIndex = pane.tabs.count - 1
+        }
+        // 未読タブを閉じた可能性があるのでサイドバーのリングを再計算
+        ProjectsModel.shared.refreshUnreadProjects()
+    }
+
+    /// アクティブペインのアクティブタブを閉じる。`Cmd+W` 経路で使う。
+    func closeActiveTabOfActivePane() {
+        closeTab(in: activePane, at: activePane.activeIndex)
+    }
+
+    /// `.split` ⇔ `.singleBottom` を切替える。`Cmd+Opt+\` と TabsView の分割追加ボタンから呼ぶ。
+    /// - `.split → .singleBottom`: activePane を bottomPane に明示遷移
+    ///   （畳まれた上ペインに `Cmd+T` / `Cmd+W` が効かないように）
+    /// - `.singleBottom → .split`: 上ペインが空ならタブを 1 つ用意
+    ///   （「空のまま split」を作らないため）
+    func togglePaneLayout() {
+        switch paneLayout {
+        case .split:
+            paneLayout = .singleBottom
+            if activePane === topPane {
+                activePane = bottomPane
+            }
+        case .singleBottom:
+            if topPane.tabs.isEmpty {
+                topPane.addTab()
+            }
+            paneLayout = .split
+        }
+    }
+
+    /// ペインのタブが 0 になったときの遷移ルール。
+    /// - 上ペインで `.split` 中なら `.singleBottom` に切替えて上ペインを畳む。activePane も bottom に移す
+    ///   （畳まれた上ペインに `Cmd+T` / `Cmd+W` が効いてしまうのを防ぐ）。
+    /// - それ以外（下ペイン or 1 ペイン中の唯一ペイン）は新規タブを 1 つ自動生成する。
+    func handlePaneEmpty(_ pane: PaneState) {
+        if pane === topPane && paneLayout == .split {
+            paneLayout = .singleBottom
+            activePane = bottomPane
+        } else {
+            pane.addTab()
+        }
     }
 
     /// 上下どちらかのペインのいずれかのタブに未読通知があるか。

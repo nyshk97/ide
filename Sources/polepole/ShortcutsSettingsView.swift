@@ -106,6 +106,9 @@ struct ShortcutsSettingsView: View {
         stopRecording()
         recording = action
         recordingError = nil
+        // MRUKeyMonitor は addLocalMonitorForEvents で keyDown を最優先で握っているので、
+        // フラグを立てて MRUKeyMonitor 側に「録音中だから素通りして」と伝える必要がある。
+        store.isRecordingShortcut = true
         recordingMonitor = NSEvent.addLocalMonitorForEvents(matching: [.keyDown]) { event in
             handleRecorded(event: event, for: action)
             return nil  // 録音中は全 keyDown を消費して他に流さない
@@ -119,6 +122,7 @@ struct ShortcutsSettingsView: View {
         recordingMonitor = nil
         recording = nil
         recordingError = nil
+        store.isRecordingShortcut = false
     }
 
     private func handleRecorded(event: NSEvent, for action: ShortcutAction) {

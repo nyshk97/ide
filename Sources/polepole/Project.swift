@@ -1,5 +1,12 @@
 import Foundation
 
+/// 右側シェルエリアのペイン構成。プロジェクトごとに永続化する。
+/// `.split` は上小・下大の 2 ペイン、`.singleBottom` は下ペインだけを表示し上ペインは collapse する。
+enum PaneLayout: String, Codable, Hashable {
+    case split
+    case singleBottom
+}
+
 /// PolePole が扱うプロジェクト 1 つを表す値型。
 struct Project: Identifiable, Hashable, Codable {
     let id: UUID
@@ -9,6 +16,8 @@ struct Project: Identifiable, Hashable, Codable {
     var lastOpenedAt: Date
     /// アバターの色 (`ProjectColor.rawValue`)。nil なら名前から自動決定。
     var colorKey: String?
+    /// 右側シェルエリアのペイン構成。デフォルトは `.split`。
+    var paneLayout: PaneLayout
 
     init(
         id: UUID = UUID(),
@@ -16,7 +25,8 @@ struct Project: Identifiable, Hashable, Codable {
         displayName: String? = nil,
         isPinned: Bool = false,
         lastOpenedAt: Date = .now,
-        colorKey: String? = nil
+        colorKey: String? = nil,
+        paneLayout: PaneLayout = .split
     ) {
         self.id = id
         self.path = path
@@ -24,6 +34,7 @@ struct Project: Identifiable, Hashable, Codable {
         self.isPinned = isPinned
         self.lastOpenedAt = lastOpenedAt
         self.colorKey = colorKey
+        self.paneLayout = paneLayout
     }
 
     /// path がファイルシステム上に存在しないか、ディレクトリでない場合 true。
@@ -38,7 +49,7 @@ struct Project: Identifiable, Hashable, Codable {
     // URL を path 文字列として保存（フルパス、標準化済み）
 
     private enum CodingKeys: String, CodingKey {
-        case id, path, displayName, isPinned, lastOpenedAt, colorKey
+        case id, path, displayName, isPinned, lastOpenedAt, colorKey, paneLayout
     }
 
     init(from decoder: Decoder) throws {
@@ -50,6 +61,8 @@ struct Project: Identifiable, Hashable, Codable {
         self.isPinned = try c.decode(Bool.self, forKey: .isPinned)
         self.lastOpenedAt = try c.decode(Date.self, forKey: .lastOpenedAt)
         self.colorKey = try c.decodeIfPresent(String.self, forKey: .colorKey)
+        // paneLayout は後追い追加なので、旧 JSON 互換のため decodeIfPresent + .split フォールバック
+        self.paneLayout = try c.decodeIfPresent(PaneLayout.self, forKey: .paneLayout) ?? .split
     }
 
     func encode(to encoder: Encoder) throws {
@@ -60,5 +73,6 @@ struct Project: Identifiable, Hashable, Codable {
         try c.encode(isPinned, forKey: .isPinned)
         try c.encode(lastOpenedAt, forKey: .lastOpenedAt)
         try c.encodeIfPresent(colorKey, forKey: .colorKey)
+        try c.encode(paneLayout, forKey: .paneLayout)
     }
 }

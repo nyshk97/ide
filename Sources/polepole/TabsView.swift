@@ -3,6 +3,9 @@ import SwiftUI
 struct TabsView: View {
     @ObservedObject var pane: PaneState
     @ObservedObject var workspace: WorkspaceModel
+    /// help テキストにバインド済みショートカット (⌘/ など) を表示するため。
+    /// ユーザーが Settings でリバインドしたら自動追従する。
+    @ObservedObject private var shortcuts = ShortcutsStore.shared
 
     @State private var hoveredTabID: TerminalTab.ID?
     @State private var renamingTabID: TerminalTab.ID?
@@ -114,6 +117,23 @@ struct TabsView: View {
                 }
             }
 
+            // 下ペインのタブバーに、ペインレイアウト切替ボタンを常時表示する。
+            // - .split のとき: 上ペインを畳む（→ 1 ペイン化）
+            // - .singleBottom のとき: 上ペインを復活させる（→ 2 ペイン化）
+            // Cmd+Opt+\ のショートカットと同等。下ペインを「メイン作業領域」と位置付けているので
+            // 上ペイントグルのコントロールは下ペイン側に置く。
+            if pane === workspace.bottomPane {
+                Button(action: { workspace.togglePaneLayout() }) {
+                    Image(systemName: workspace.paneLayout == .split
+                          ? "rectangle.bottomhalf.filled"
+                          : "rectangle.split.1x2")
+                        .frame(width: 22, height: 22)
+                }
+                .buttonStyle(.plain)
+                .help((workspace.paneLayout == .split ? "Hide top pane" : "Split pane")
+                      + " (\(shortcuts.combo(for: .togglePaneLayout).display))")
+            }
+
             Spacer()
         }
         .padding(.horizontal, 6)
@@ -138,7 +158,7 @@ struct TabsView: View {
                     self.pane.selectTab(at: index)
                     self.workspace.setActive(self.pane)
                 },
-                onClose: { self.pane.closeTab(at: index) },
+                onClose: { self.workspace.closeTab(in: self.pane, at: index) },
                 onBeginRename: { beginRename(tab: tab) },
                 onCommitRename: { commitRename(tab: tab) },
                 onCancelRename: { cancelRename() },

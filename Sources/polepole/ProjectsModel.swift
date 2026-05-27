@@ -545,6 +545,25 @@ final class ProjectsModel: ObservableObject {
         if activeProject?.id == project.id { activeProject = project }
     }
 
+    /// プロジェクトの `paneLayout` を更新する。`WorkspaceModel.paneLayout.didSet` から呼ばれる。
+    /// `update(_:displayName:colorKey:)` と同じパターン: apply → pinned/temporary 更新 → syncActive → persist。
+    func updatePaneLayout(projectID: UUID, layout: PaneLayout) {
+        let apply: (inout Project) -> Void = { p in
+            p.paneLayout = layout
+        }
+        if let idx = pinned.firstIndex(where: { $0.id == projectID }) {
+            apply(&pinned[idx])
+            syncActive(to: pinned[idx])
+            persist()
+            return
+        }
+        if let idx = temporary.firstIndex(where: { $0.id == projectID }) {
+            apply(&temporary[idx])
+            syncActive(to: temporary[idx])
+            persist()
+        }
+    }
+
     // MARK: - アクティブ切替
 
     /// プロジェクトを active にする。

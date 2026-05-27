@@ -267,7 +267,7 @@ final class GhosttyTerminalNSView: NSView {
                 ProjectsModel.shared.activeWorkspace?.activePane.addTab()
                 return true
             case "w":
-                ProjectsModel.shared.activeWorkspace?.activePane.closeActiveTab()
+                ProjectsModel.shared.activeWorkspace?.closeActiveTabOfActivePane()
                 return true
             default:
                 break

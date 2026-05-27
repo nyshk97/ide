@@ -7,21 +7,24 @@ enum ShortcutAction: String, CaseIterable, Codable {
     case mruOverlay
     case diffOverlay
     case toggleSidebar
+    case togglePaneLayout
 
     var label: String {
         switch self {
-        case .mruOverlay:    return "MRU project switcher"
-        case .diffOverlay:   return "Diff overlay"
-        case .toggleSidebar: return "Show/Hide Project Sidebar"
+        case .mruOverlay:       return "MRU project switcher"
+        case .diffOverlay:      return "Diff overlay"
+        case .toggleSidebar:    return "Show/Hide Project Sidebar"
+        case .togglePaneLayout: return "Toggle pane layout (split / single)"
         }
     }
 
-    /// 初期値。Ctrl+M / Cmd+D / Cmd+S。
+    /// 初期値。Ctrl+M / Cmd+D / Cmd+S / Cmd+/。
     /// PolePole は編集機能を持たないので Cmd+S (save) が空いている。
     static let defaults: [ShortcutAction: KeyCombo] = [
-        .mruOverlay:    KeyCombo(keyCode: 46, modifiers: NSEvent.ModifierFlags.control.rawValue, keyLabel: "M"),
-        .diffOverlay:   KeyCombo(keyCode: 2,  modifiers: NSEvent.ModifierFlags.command.rawValue, keyLabel: "D"),
-        .toggleSidebar: KeyCombo(keyCode: 1,  modifiers: NSEvent.ModifierFlags.command.rawValue, keyLabel: "S"),
+        .mruOverlay:       KeyCombo(keyCode: 46, modifiers: NSEvent.ModifierFlags.control.rawValue, keyLabel: "M"),
+        .diffOverlay:      KeyCombo(keyCode: 2,  modifiers: NSEvent.ModifierFlags.command.rawValue, keyLabel: "D"),
+        .toggleSidebar:    KeyCombo(keyCode: 1,  modifiers: NSEvent.ModifierFlags.command.rawValue, keyLabel: "S"),
+        .togglePaneLayout: KeyCombo(keyCode: 44, modifiers: NSEvent.ModifierFlags.command.rawValue, keyLabel: "/"),
     ]
 }
 
@@ -115,6 +118,13 @@ final class ShortcutsStore: ObservableObject {
     static let shared = ShortcutsStore()
 
     @Published private(set) var bindings: [ShortcutAction: KeyCombo]
+
+    /// Settings 画面でショートカット録音中かどうか。
+    /// MRUKeyMonitor は `addLocalMonitorForEvents` で keyDown をプロセス全体から横取りするため、
+    /// 録音中にユーザーが押した固定ショートカット (Cmd+P 等) が MRUKeyMonitor に消費されてしまい、
+    /// Settings の録音 monitor に届かない＝衝突警告が出ない問題があった。
+    /// 録音中は MRUKeyMonitor 側でこのフラグを見て素通りさせる。
+    @Published var isRecordingShortcut: Bool = false
 
     private init() {
         self.bindings = Self.loadFromDisk() ?? ShortcutAction.defaults
