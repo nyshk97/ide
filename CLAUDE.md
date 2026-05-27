@@ -96,6 +96,23 @@ mv "$BACKUP_DIR/polepole-dev-backup" "$HOME/Library/Application Support/polepole
 
 ---
 
+## libghostty (Metal renderer) の制約
+
+`ghostty_surface_new` で渡した `cfg.platform.macos.nsview` を libghostty が**内部で握り続ける**。`ghostty_surface_set_*` には nsview 差し替え API が無い。`addSubview` で reparent しても新 superlayer に Metal binding が再束縛されず、移動後のタブが真っ黒になる (Phase 3 で踏んだ)。
+
+surface を抱える NSView (`GhosttyTerminalNSView`) は **lifetime を通じて同じ superview に固定**し、見た目を動かしたい場合は `TerminalsHostView` + `TerminalAnchorView` の **portal host + anchor 追従パターン**を使う:
+
+- `WorkspaceModel.terminalsHost` が window root 付近の固定 NSView 配下で全 tab の `realNSView` を抱える
+- SwiftUI tree には透明な `AnchorNSView` を置き、自身の frame を host 座標系に変換 (`convert(bounds, to: host)`) して host に通知
+- host が `tab.realNSView.frame` を anchor 位置に追従させる
+- ペイン跨ぎ移動 = `pane.tabs` 配列の操作だけ。`realNSView` の親 (host) は不変
+
+closeTab で `terminalsHost.detach(realNSView)` + `releaseSurface()` を **必ず即時実行する**こと。host は subview を強参照するため、忘れると閉じたタブの view が画面に残る / surface free が遅延する / firstResponder が宙に浮く。
+
+cmux 実装も同じ理解 (`.refs/cmux/Sources/GhosttyTerminalView.swift` 参照)。
+
+---
+
 ## ログの使い分け
 
 - **`Logger.shared.{error|warn|info|debug}(...)`**: 唯一のログ経路。永続ログは `~/Library/Logs/{polepole,polepole-dev}/`、加えて stderr に出力する
@@ -163,6 +180,8 @@ file "$(which claude)" && head -1 "$(which claude)"
 
 MRU の確定タイミング（修飾キーの release）は `ShortcutsStore.shouldCommitMRU` 経由なので、`.mruOverlay` のバインドをリバインドしても自動で追随する。
 
+`MRUKeyMonitor.handleKeyDown` 冒頭の `if shortcuts.isRecordingShortcut { return false }` は**必ず維持**する。これを抜くと、Settings 画面で既存ショートカット (Cmd+P / Cmd+T 等) を録音しようとした瞬間にプロセスレベルの `addLocalMonitorForEvents` が先勝ちで握って実動作してしまい、衝突警告が出ない。新規ハンドラを追加するときも、この素通り条件より下に置く前提で書く。
+
 ---
 
 ## リリースノート (CHANGELOG)
@@ -191,6 +210,8 @@ MRU の確定タイミング（修飾キーの release）は `ShortcutsStore.sho
 `[Unreleased]` を事前に埋めておけば、`echo "" | bash scripts/release.sh <version>` で pause を即抜けて非対話で回せる（CHANGELOG 編集は AI が事前に済ませる前提）。**事前に `project.yml` の `MARKETING_VERSION` を bump してコミット**しておく必要がある（release.sh は project.yml をいじらない）。
 
 **release.sh が終わったあとの手動作業**: Homebrew cask (`nyshk97/homebrew-tap/Casks/polepole.rb`) の `version` / `sha256` 更新。release.sh 末尾の出力をそのまま `version "X.Y.Z"` / `sha256 "..."` に貼って、別 repo を clone → 編集 → commit `"polepole X.Y.Z"` → push する（`brew upgrade --cask polepole` の更新元なので、ここを忘れると Homebrew ユーザーは古いままになる）。
+
+cask は `/opt/homebrew/Library/Taps/nyshk97/homebrew-tap/` にある (`brew --repository nyshk97/tap` で取れる)。**push 順序**: brew tap 更新で remote が先行している可能性があるので **commit → `pull --rebase origin main` → push** の順で。`pull --rebase` は dirty tree だと拒否されるので必ず commit が先。conflict が出たら新版 (1.4.X) を採用して `git add` → `git rebase --continue` → push。
 
 公式サイトの `/changelog` `/en/changelog` は `pnpm build:changelog` (= `node backend/scripts/build-changelog.mjs`) で再生成する。`wrangler deploy` の `predeploy` フックに入っているので、デプロイすれば自動で最新になる。
 
