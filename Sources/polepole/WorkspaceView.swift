@@ -9,12 +9,27 @@ struct WorkspaceView: View {
     @ObservedObject var workspace: WorkspaceModel
 
     var body: some View {
-        SplitPane(initialTopRatio: 0.3, paneLayout: workspace.paneLayout) {
-            TabsView(pane: workspace.topPane, workspace: workspace)
-        } bottom: {
-            TabsView(pane: workspace.bottomPane, workspace: workspace)
+        ZStack {
+            SplitPane(initialTopRatio: 0.3, paneLayout: workspace.paneLayout) {
+                TabsView(pane: workspace.topPane, workspace: workspace)
+            } bottom: {
+                TabsView(pane: workspace.bottomPane, workspace: workspace)
+            }
+            // Ghostty surface を抱える portal host を root ZStack の最上層に重ねる。
+            // host の hitTest は subview のエリア外なら nil を返すので、空白部分のクリックは
+            // 下の SwiftUI 階層 (タブバー / divider / ペイン背景) に通る (TerminalsHostView 参照)。
+            TerminalsHostRepresentable(host: workspace.terminalsHost)
         }
     }
+}
+
+/// `TerminalsHostView` を SwiftUI ZStack に乗せるためのラッパ。
+/// host 自体の frame は ZStack 全体に広げる。subview の frame は host が `setGeometry` で管理する。
+private struct TerminalsHostRepresentable: NSViewRepresentable {
+    let host: TerminalsHostView
+
+    func makeNSView(context: Context) -> TerminalsHostView { host }
+    func updateNSView(_ nsView: TerminalsHostView, context: Context) {}
 }
 
 /// 上下分割の SplitView。`initialTopRatio` で初期比率を指定し、

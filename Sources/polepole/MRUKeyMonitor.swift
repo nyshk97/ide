@@ -129,6 +129,24 @@ enum MRUKeyMonitor {
             return true
         }
 
+        // Cmd+Shift+Opt+↑/↓: アクティブタブを上/下ペインへ移動。
+        // 1 ペイン中 (.singleBottom) は no-op (確定仕様)。
+        if primaryMods == [.command, .shift, .option], overlaysClosed, let ws = model.activeWorkspace,
+           ws.paneLayout == .split {
+            if event.keyCode == 126 {  // ↑: 下ペインから上ペインへ
+                if ws.activePane === ws.bottomPane, let tab = ws.bottomPane.activeTab {
+                    ws.moveTab(tab.id, from: ws.bottomPane, to: ws.topPane, before: nil)
+                }
+                return true
+            }
+            if event.keyCode == 125 {  // ↓: 上ペインから下ペインへ
+                if ws.activePane === ws.topPane, let tab = ws.topPane.activeTab {
+                    ws.moveTab(tab.id, from: ws.topPane, to: ws.bottomPane, before: nil)
+                }
+                return true
+            }
+        }
+
         // Cmd+F: プレビュー表示中ならファイル内検索バーを開く（既に開いていれば再フォーカス）。
         // Cmd+Shift+F（全文検索）は上で先に処理済みなので、ここに来るのは Shift なしの Cmd+F のみ。
         if mods == .command, event.keyCode == 3 {  // 3 = F

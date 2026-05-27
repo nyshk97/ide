@@ -11,6 +11,11 @@ final class WorkspaceModel: ObservableObject {
 
     @Published var activePane: PaneState
 
+    /// このワークスペースの全 tab の `realNSView` を抱える portal host。
+    /// `WorkspaceView` の root に配置する。tab の親はここに固定され、reparent しない設計
+    /// (詳細は `TerminalsHostView` の doc 参照)。
+    let terminalsHost: TerminalsHostView = TerminalsHostView()
+
     /// 上下分割 / 下のみ。プロジェクトごとに `Project.paneLayout` として永続化される。
     /// `didSet` で `ProjectsModel.updatePaneLayout` を呼んで自動 persist。
     @Published var paneLayout: PaneLayout {
@@ -65,9 +70,26 @@ final class WorkspaceModel: ObservableObject {
 
     /// タブを閉じる。最後の 1 個を閉じたときの挙動はペインに応じて分岐する（`handlePaneEmpty` 参照）。
     /// `PaneState.closeTab` の自動 addTab + refreshUnreadProjects 責務をここに集約。
+    ///
+    /// **Phase 3 portal host 方式での重要な掃除手順**:
+    /// - `terminalsHost.detach(...)` で host の subview 配列から外す。これをしないと閉じたタブの
+    ///   `realNSView` が画面に残り続け、描画残り・hit target 残留・firstResponder 残留・subview 蓄積
+    ///   につながる (host は subview を強参照する)。
+    /// - `releaseSurface()` を即時呼んで PTY を解放。`TerminalTab.deinit` でも呼ばれるが、host が
+    ///   subview として `realNSView` を強参照していると TerminalTab の deinit が遅延するので、ここで
+    ///   明示的にやる。
     func closeTab(in pane: PaneState, at index: Int) {
         guard pane.tabs.indices.contains(index) else { return }
+        let removed = pane.tabs[index]
+        let wasActiveInActivePane = (pane === activePane && pane.activeIndex == index)
+
+        // 1. host から実体 NSView を外す (subview 強参照を切る)
+        terminalsHost.detach(removed.realNSView)
+        // 2. surface を即時解放 (PTY kill)
+        removed.realNSView.releaseSurface()
+        // 3. tabs から remove
         pane.tabs.remove(at: index)
+
         if pane.tabs.isEmpty {
             handlePaneEmpty(pane)
         } else if index < pane.activeIndex {
@@ -75,6 +97,14 @@ final class WorkspaceModel: ObservableObject {
         } else if pane.activeIndex >= pane.tabs.count {
             pane.activeIndex = pane.tabs.count - 1
         }
+
+        // 閉じたタブが active だった場合、firstResponder が浮かないよう
+        // 新しい active tab (or 自動遷移後の activePane.activeTab) に focus を移す。
+        if wasActiveInActivePane, let newActive = activePane.activeTab,
+           let window = newActive.realNSView.window {
+            window.makeFirstResponder(newActive.realNSView)
+        }
+
         // 未読タブを閉じた可能性があるのでサイドバーのリングを再計算
         ProjectsModel.shared.refreshUnreadProjects()
     }
@@ -82,6 +112,59 @@ final class WorkspaceModel: ObservableObject {
     /// アクティブペインのアクティブタブを閉じる。`Cmd+W` 経路で使う。
     func closeActiveTabOfActivePane() {
         closeTab(in: activePane, at: activePane.activeIndex)
+    }
+
+    /// タブをペイン間で移動する。D&D とキーボードショートカット (`Cmd+Shift+Opt+↑/↓`) の両方から呼ばれる。
+    /// `beforeTabID == nil` は targetPane の末尾に挿入。
+    /// 同一ペイン (sourcePane === targetPane) のときは `PaneState.moveTab` を呼ぶこと (責務分離)。
+    ///
+    /// 新設計 (Phase 3 portal host 方式) では `tab.realNSView` は `terminalsHost` に固定 attach 済みで、
+    /// 移動時に reparent しない。`activePane` 切替で次の layout pass で anchor frame が新ペインに移り、
+    /// `realNSView.frame` がそれに追従して見た目が動く。
+    func moveTab(_ tabID: UUID, from sourcePane: PaneState, to targetPane: PaneState, before beforeTabID: UUID?) {
+        guard sourcePane !== targetPane else { return }
+        guard let sourceIndex = sourcePane.tabs.firstIndex(where: { $0.id == tabID }) else { return }
+        let wasActiveInSource = sourcePane.activeIndex == sourceIndex
+
+        let movedTab = sourcePane.tabs.remove(at: sourceIndex)
+
+        let insertIndex: Int
+        if let beforeTabID, let idx = targetPane.tabs.firstIndex(where: { $0.id == beforeTabID }) {
+            insertIndex = idx
+        } else {
+            insertIndex = targetPane.tabs.count
+        }
+        targetPane.tabs.insert(movedTab, at: insertIndex)
+
+        // source 側の activeIndex 整合
+        if !sourcePane.tabs.isEmpty {
+            if wasActiveInSource {
+                sourcePane.activeIndex = min(sourceIndex, sourcePane.tabs.count - 1)
+            } else if sourceIndex < sourcePane.activeIndex {
+                sourcePane.activeIndex -= 1
+            }
+        }
+
+        // target 側は移動したタブを active に
+        targetPane.activeIndex = insertIndex
+
+        // active pane を target に明示遷移 (見た目の active tab と active pane がズレないように)
+        activePane = targetPane
+
+        // realNSView.pane を targetPane に張り替えてから makeFirstResponder。
+        // SwiftUI の updateNSView は次 render cycle で走るので、ここで張り替えないと
+        // becomeFirstResponder が wrong pane (= sourcePane) を active にしてしまう。
+        movedTab.realNSView.pane = targetPane
+        if let window = movedTab.realNSView.window {
+            window.makeFirstResponder(movedTab.realNSView)
+        }
+
+        // source が空なら自動遷移 (上ペインなら 1 ペイン化、下ペインなら新規タブ補充)
+        if sourcePane.tabs.isEmpty {
+            handlePaneEmpty(sourcePane)
+        }
+
+        ProjectsModel.shared.refreshUnreadProjects()
     }
 
     /// `.split` ⇔ `.singleBottom` を切替える。`Cmd+Opt+\` と TabsView の分割追加ボタンから呼ぶ。

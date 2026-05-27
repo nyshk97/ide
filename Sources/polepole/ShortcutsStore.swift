@@ -250,6 +250,8 @@ enum FixedShortcuts {
         Entry(keyCode: 123, modifiers: [.command, .option],     label: "Cmd+Opt+← (Previous Tab)"),
         Entry(keyCode: 126, modifiers: [.command, .option],     label: "Cmd+Opt+↑ (Focus Top Pane)"),
         Entry(keyCode: 125, modifiers: [.command, .option],     label: "Cmd+Opt+↓ (Focus Bottom Pane)"),
+        Entry(keyCode: 126, modifiers: [.command, .shift, .option], label: "Cmd+Shift+Opt+↑ (Move Tab to Top Pane)"),
+        Entry(keyCode: 125, modifiers: [.command, .shift, .option], label: "Cmd+Shift+Opt+↓ (Move Tab to Bottom Pane)"),
     ]
 
     static func conflict(for combo: KeyCombo) -> String? {

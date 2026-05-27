@@ -21,20 +21,40 @@ struct TabsView: View {
     }
 
     /// drag payload は "paneID|tabID" 形式の文字列。
-    /// paneID を載せておくことで dropDestination 側で同一ペインかを判定できる（上下ペイン間移動は不要）。
+    /// paneID を載せておくことで dropDestination 側で同一ペイン / 別ペインを判定できる。
     private func dragPayload(for tab: TerminalTab) -> String {
         "\(pane.id.uuidString)|\(tab.id.uuidString)"
     }
 
-    /// payload を分解。同一ペインからの drop なら source tab の UUID を返す。
-    private func sourceTabID(from items: [String]) -> UUID? {
+    /// payload を分解して (source pane ID, source tab ID) を返す。
+    /// 別ペイン間移動 (Phase 3) でも source pane を引きたいので、同一ペイン制限はかけない。
+    private func parseDragPayload(_ items: [String]) -> (paneID: UUID, tabID: UUID)? {
         guard let payload = items.first else { return nil }
         let parts = payload.split(separator: "|")
         guard parts.count == 2,
               let sourcePaneID = UUID(uuidString: String(parts[0])),
-              let sourceTabID = UUID(uuidString: String(parts[1])),
-              sourcePaneID == pane.id else { return nil }
-        return sourceTabID
+              let sourceTabID = UUID(uuidString: String(parts[1])) else { return nil }
+        return (sourcePaneID, sourceTabID)
+    }
+
+    /// source pane ID から workspace 内の対応 PaneState を引く。topPane / bottomPane のどちらか。
+    private func paneByID(_ id: UUID) -> PaneState? {
+        if workspace.topPane.id == id { return workspace.topPane }
+        if workspace.bottomPane.id == id { return workspace.bottomPane }
+        return nil
+    }
+
+    /// drop された payload を「同一ペイン並び替え」「別ペイン移動」に振り分けて実行する。
+    private func handleDrop(items: [String], beforeTabID: UUID?) -> Bool {
+        guard let ref = parseDragPayload(items) else { return false }
+        if ref.paneID == pane.id {
+            pane.moveTab(from: ref.tabID, before: beforeTabID)
+        } else if let sourcePane = paneByID(ref.paneID) {
+            workspace.moveTab(ref.tabID, from: sourcePane, to: pane, before: beforeTabID)
+        } else {
+            return false
+        }
+        return true
     }
 
     /// ForEach のループ内で各 tab を `@ObservedObject` 化するため、ヘルパで個別に観測する
@@ -60,11 +80,15 @@ struct TabsView: View {
     }
 
     /// 1タブ分の表示。lifecycle に応じて exited overlay を被せる。
+    /// 実体の Ghostty surface (`tab.realNSView`) は `WorkspaceModel.terminalsHost` に attach されており、
+    /// この `TerminalAnchorView` の frame に追従して表示される (Phase 3 portal host 方式)。
     private func paneContent(index: Int, tab: TerminalTab) -> some View {
         TabObserver(tab: tab) { tab in
             ZStack {
-                // Phase 2 以降は Container 方式なので view 再生成は不要。tab.id だけで安定 identity。
-                GhosttyTerminalView(pane: self.pane, tab: tab)
+                TerminalAnchorView(tab: tab,
+                                   pane: self.pane,
+                                   workspace: workspace,
+                                   isActive: index == pane.activeIndex && paneIsVisible)
                     .id(tab.id)
                 if case .exited(let code) = tab.lifecycle {
                     ExitedOverlayView(exitCode: code, onRestart: { tab.restart() })
@@ -102,13 +126,9 @@ struct TabsView: View {
                 }
             }
             .dropDestination(for: String.self) { items, _ in
-                guard let sourceID = sourceTabID(from: items) else {
-                    dropTarget = .none
-                    return false
-                }
-                pane.moveTab(from: sourceID, before: nil)
+                let ok = handleDrop(items: items, beforeTabID: nil)
                 dropTarget = .none
-                return true
+                return ok
             } isTargeted: { isTargeted in
                 if isTargeted {
                     dropTarget = .end
@@ -189,13 +209,9 @@ struct TabsView: View {
                 }
             }
             .dropDestination(for: String.self) { items, _ in
-                guard let sourceID = sourceTabID(from: items) else {
-                    dropTarget = .none
-                    return false
-                }
-                pane.moveTab(from: sourceID, before: tab.id)
+                let ok = handleDrop(items: items, beforeTabID: tab.id)
                 dropTarget = .none
-                return true
+                return ok
             } isTargeted: { isTargeted in
                 if isTargeted {
                     dropTarget = .beforeTab(tab.id)
@@ -227,6 +243,13 @@ struct TabsView: View {
     }
 
     private var paneIsActive: Bool { workspace.isActive(pane) }
+
+    /// このペイン自身が画面に表示されているか。`.singleBottom` モード中の `topPane` は collapsed なので
+    /// 非表示扱い。`TerminalAnchorView.isActive` の判定に使い、host が裏ペインの realNSView を
+    /// オフスクリーン化できるようにする (collapsed transition で古い frame が通知されても画面に出ない)。
+    private var paneIsVisible: Bool {
+        workspace.paneLayout == .split || pane === workspace.bottomPane
+    }
 
     private func programIcon(_ program: TerminalTab.ForegroundProgram) -> Text? {
         switch program {
