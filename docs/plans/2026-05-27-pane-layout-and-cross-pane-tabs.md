@@ -215,52 +215,83 @@ GhosttyTerminalView (NSViewRepresentable)
 
 ### Phase 3: タブのペイン間移動 [AI🤖]
 
-> ⚠️ **2026-05-27 時点で保留**: 一度実装したが、移動後の Ghostty surface のレンダリングが新 superlayer に追従しないバグ (`addSubview` で CAMetalLayer の Metal context が新階層で再 attach されない) を解決できず、Phase 3 関連の変更を `git checkout` で破棄して Phase 2 状態に戻している。詳細はログ「方針変更」参照。再着手時は Ghostty / cmux 実装の render 経路を読み込んでから戻ること。
+> ⚠️ **2026-05-27 時点で着手保留 (新方針で再設計済み、実装は後日)**: 当初 Container 方式 (`addSubview` で realNSView を別 superview に reparent) で実装したが、移動後の Ghostty surface のレンダリングが新階層に追従しないバグで撤退。原因は **libghostty が surface 作成時の NSView pointer / CAMetalLayer を内部で握り続けるため、AppKit 側で reparent しても layer / display link が新階層に再束縛されない**こと。cmux 実装も同様の理解で、reparent ではなく **portal host + anchor 追従**方式を採用している。詳細は本ファイル下部「ログ > 試したこと・わかったこと」「ログ > 方針変更」を参照。
 
-ターゲット: D&D とキーボードショートカットで上下ペイン間にタブを移動できる状態。
+ターゲット: D&D とキーボードショートカットで上下ペイン間にタブを移動できる状態。**`realNSView` は一度 host に attach したら以降 reparent しない**設計。
 
-#### 3-1. moveTab API
-- [ ] `WorkspaceModel` に `moveTab(_ tabID: UUID, from sourcePane: PaneState, to targetPane: PaneState, before beforeTabID: UUID?)` を追加:
-  - sourcePane.tabs から該当 TerminalTab を remove
-  - targetPane.tabs の指定位置に insert（`beforeTabID == nil` は末尾）
-  - **両ペインの activeIndex を整合**:
-    - 移動したタブが sourcePane の active タブだった場合: sourcePane の activeIndex を `min(sourceIndex, sourcePane.tabs.count - 1)` に。空なら handlePaneEmpty 発火後の挙動に任せる
-    - targetPane の activeIndex は「insert された位置」に変える（移動したタブが target でアクティブになる）
-  - **`activePane = targetPane` に明示遷移**（見た目の active tab と active pane がズレないように。特にキーボード移動で重要）
-  - **`movedTab.realNSView.pane = targetPane` を `makeFirstResponder` の前に明示的に張り替える**（SwiftUI の `updateNSView` は state 変更後の次 render cycle で走るため、makeFirstResponder が同期的に発火した時点では realNSView.pane がまだ source を指したまま。その状態で `becomeFirstResponder` が `setActive(pane)` を呼ぶと wrong pane を active にしてしまう。`becomeFirstResponder` の実装は `GhosttyTerminalView.swift:135-139` 参照）
-  - **`movedTab.realNSView.window?.makeFirstResponder(movedTab.realNSView)` で first responder を移す**（activePane と activeIndex の整合だけだと、キー入力が旧 first responder（移動元タブの NSView）に残り続ける可能性がある。`becomeFirstResponder` 経由で focus 連動が走るようにする）
-  - 移動後 sourcePane が空なら `handlePaneEmpty(sourcePane)` を呼ぶ（Phase 1 で実装済み）
+#### 3-0. 新方針 (anchor + portal host 方式)
 
-#### 3-2. D&D の cross-pane 対応
-- [ ] `TabsView.swift` の `sourceTabID(from:)` を `sourceTabRef(from:) -> (paneID: UUID, tabID: UUID)?` に変更（source pane ID を捨てずに返す）
-- [ ] `dropDestination` クロージャを書き換え:
-  - source pane == drop pane → 既存の `pane.moveTab(from:before:)` (同一ペイン並び替え)
-  - source pane != drop pane → `workspace.moveTab(tabID, from: sourcePane, to: pane, before: tab.id)` を呼ぶ
-  - source pane を引くには `WorkspaceModel.topPane / bottomPane` を `id` で照合（または `workspace` 経由のヘルパ）
-- [ ] `dropTarget` インジケータが別ペイン source の drag でも正しく表示されること（既存の `dropTarget` state は drop 側 pane の `@State` なので、source pane に関係なく動くはず。要検証）
+```
+NSWindow
+├─ TerminalsHostView (= portal host、window root 直下に 1 個固定)
+│   ├─ tab1.realNSView (frame は anchor1 を window 座標に変換した値)
+│   ├─ tab2.realNSView (frame は anchor2…、非 active なら isHidden=true)
+│   └─ tab3.realNSView (...)
+│
+└─ SwiftUI tree
+    ├─ 上ペインの TabsView
+    │   ├─ pane clip slot (NSView, host の subview を frame で位置決め)
+    │   └─ TerminalAnchorView(tab=tab1)  ← layout で frame を WorkspaceModel に伝える
+    └─ 下ペインの TabsView
+        ├─ pane clip slot
+        └─ TerminalAnchorView(tab=tab2)
+```
 
-#### 3-3. キーボードショートカット
-- [ ] `MRUKeyMonitor` に `Cmd+Shift+Opt+↑/↓` (keyCode 126/125, modifiers `[.command, .shift, .option]`) のハンドラを追加:
-  - `Cmd+Shift+Opt+↑`: active pane が bottomPane なら active tab を topPane に移動。1 ペインモード中 (`.singleBottom`) は **no-op** (確定仕様)
-  - `Cmd+Shift+Opt+↓`: active pane が topPane なら active tab を bottomPane に移動。1 ペインモード中は **no-op**
-- [ ] `ShortcutsStore.swift:225` の `FixedShortcuts.all` に `Cmd+Shift+Opt+↑/↓` を追加
+**ポイント**:
+- `realNSView` は一度 `TerminalsHostView` に `addSubview` したら以降 **reparent しない**。Metal binding が壊れない
+- 各 SwiftUI tab content には軽量な `TerminalAnchorView` (NSViewRepresentable で `NSView` を返すだけ) を置き、その frame を window 座標に変換して `WorkspaceModel.terminalGeometry[tabID]` に書き込む
+- レイアウトが落ち着いた tick で `TerminalsHostView` が `tab.realNSView.frame` を anchor 位置に合わせる (geometry reconcile)
+- タブ移動 = `tabs` 配列間で `TerminalTab` を移すだけ。`realNSView` の親は変わらず、`anchor` 位置 (上ペインの slot → 下ペインの slot) が変わるので frame が追従して見た目が移動する
+- 非 active タブは `isHidden = true` か frame をオフスクリーン (`-10000, -10000`) に
+- pane 境界で clip: pane 配下に slot view (`wantsLayer = true`, `masksToBounds = true`) を仕込んで、host の subview をその上に重ねる。slot は SwiftUI から AppKit のクリッピング容器として使う
+- focus: タブ切替やペイン跨ぎ移動のとき `makeFirstResponder(tab.realNSView)` を呼ぶ。`realNSView.pane` は新ペインに張り替えてから
 
-#### 3-4. ドキュメント
-- [ ] `docs/CHANGELOG.md` の `[Unreleased]` に ja/en 1 bullet ずつ追記（Phase 1/2 とまとめてもよい）
-- [ ] `docs/ARCHITECTURE.md` の「キー入力の優先順位」セクションに `Cmd+Shift+Opt+↑/↓` を追記
+#### 3-1. PoC: 1 タブを host + anchor で動かす
+- [ ] `TerminalsHostView` (NSView サブクラス、`wantsLayer = true`) を作成し、`WorkspaceView` のルートに 1 個だけ配置
+- [ ] `TerminalAnchorView` (`NSViewRepresentable`) を作成。空の NSView を返し、`layout` 通知で自身の `convert(bounds, to: window.contentView)` を `WorkspaceModel.setAnchor(for: tabID, frame:)` で公開
+- [ ] `WorkspaceModel.terminalGeometry: [UUID: CGRect]` を `@Published` で持つ。または observer で TerminalsHostView に流す
+- [ ] `TerminalsHostView.reconcileGeometry()` を実装。各 tab の `realNSView.frame` を anchor frame に合わせる。`isHidden` も active かどうかで切替
+- [ ] 既存の `GhosttyTerminalView` (Container 方式) を撤去。`TabsView` の中身は `TerminalAnchorView(tab:)` に変える
+- [ ] PoC 段階: 1 ペイン構成でタブ切替が壊れないことを確認 (描画追従、focus、IME、resize)
+
+#### 3-2. ペイン境界の clip 対応
+- [ ] 各 `TabsView` の content area に `PaneClipSlotView` (NSView, `masksToBounds = true`) を仕込み、TerminalsHostView の subview がはみ出ないようにする
+- [ ] あるいは、各 pane の bounds で realNSView の `mask` layer を切る方法も検討
+- [ ] ペイン divider のドラッグ resize 中も追従すること
+
+#### 3-3. moveTab API (Phase 2 で書いた版を簡素化)
+- [ ] `WorkspaceModel.moveTab(_ tabID: UUID, from sourcePane: PaneState, to targetPane: PaneState, before beforeTabID: UUID?)`:
+  - sourcePane.tabs から remove → targetPane.tabs に insert
+  - `activePane = targetPane`、target の activeIndex を insert 位置に
+  - **`tab.realNSView.pane = targetPane` を張り替え** (becomeFirstResponder で wrong pane を active にしないため)
+  - `window.makeFirstResponder(tab.realNSView)`
+  - sourcePane が空なら `handlePaneEmpty(sourcePane)` (Phase 1 実装済み)
+  - **realNSView の reparent は不要**: 次の layout で anchor が新ペインに移ったことが反映されて frame が追従する
+
+#### 3-4. D&D の cross-pane 対応
+- [ ] `TabsView.swift` の `sourceTabID(from:)` を `sourceTabRef(from:) -> (paneID: UUID, tabID: UUID)?` に変更
+- [ ] dropDestination: 同一ペイン → `pane.moveTab`、別ペイン → `workspace.moveTab`
+
+#### 3-5. キーボードショートカット
+- [ ] `MRUKeyMonitor` に `Cmd+Shift+Opt+↑/↓` ハンドラ追加 (1 ペイン中は no-op)
+- [ ] `FixedShortcuts.all` に追加
+
+#### 3-6. ドキュメント
+- [ ] `docs/CHANGELOG.md` `[Unreleased]` に追記
+- [ ] `docs/ARCHITECTURE.md` の「キー入力の優先順位」と「全体図」セクションを更新 (TerminalsHostView の位置付け)
 
 ### Phase 3 動作確認 [AI🤖 + 人間👨‍💻]
 
 - [ ] `mise run build` が通る [AI🤖]
-- [ ] D&D で上ペインのタブを下ペインに移動できること（PTY が生存していること、Claude セッション継続） [人間👨‍💻]
-- [ ] D&D で下ペインのタブを上ペインに移動できること [人間👨‍💻]
-- [ ] `Cmd+Shift+Opt+↓` で上ペインの active タブが下に移ること [人間👨‍💻]
-- [ ] `Cmd+Shift+Opt+↑` で下ペインの active タブが上に移ること [人間👨‍💻]
-- [ ] 上ペインの最後のタブを下に移動すると自動で 1 ペインモードに遷移すること [人間👨‍💻]
-- [ ] 1 ペインモード中の `Cmd+Shift+Opt+↑/↓` が no-op であること [人間👨‍💻]
-- [ ] 移動したタブの Claude セッション（or vim 等）が継続していることを目視 [人間👨‍💻]
-- [ ] 設定画面で `Cmd+Shift+Opt+↑/↓` を他に割り当てようとしたとき衝突警告が出ること [人間👨‍💻]
-- [ ] Phase 1/2 で確認した全項目が引き続きパスすること [人間👨‍💻]
+- [ ] **3-1 PoC 段階**: 1 ペイン構成でタブ切替が壊れないこと (描画、focus、IME) [人間👨‍💻]
+- [ ] D&D で上ペインのタブを下ペインに移動 → 描画が新位置に追従、Claude セッション継続 [人間👨‍💻]
+- [ ] D&D で下ペインのタブを上ペインに移動 [人間👨‍💻]
+- [ ] `Cmd+Shift+Opt+↓` / `↑` でタブが移動 [人間👨‍💻]
+- [ ] 上ペインの最後のタブを下に移動 → 自動で 1 ペインモードに [人間👨‍💻]
+- [ ] 1 ペインモード中の `Cmd+Shift+Opt+↑/↓` が no-op [人間👨‍💻]
+- [ ] ペイン divider をドラッグ resize しても realNSView が anchor に追従 [人間👨‍💻]
+- [ ] ペイン境界で realNSView が clip される (はみ出ない) [人間👨‍💻]
+- [ ] Phase 1/2 で確認した全項目が引き続きパス [人間👨‍💻]
 
 ### 仕上げ [AI🤖 + 人間👨‍💻]
 
@@ -295,3 +326,9 @@ GhosttyTerminalView (NSViewRepresentable)
   - `ghostty_surface_refresh()` で強制再描画 → 効かず
   - `ghostty_surface_set_occlusion(false)` 追加 + `Task { @MainActor }` で 1 tick 遅延の再 invalidate → 起動シーケンス自体を壊した（全タブで prompt が出なくなる）ため即 revert
   CAMetalLayer の `addSubview` 後の再 attach 周りで、Ghostty 内部の render 経路を読まずに推測ベースで触ると危険と判断。Phase 3 関連の uncommitted な変更（5 files）を `git checkout --` で破棄し、Phase 2 状態に戻した。**ペイン間タブ移動は将来の調査タスクとして残す**（Ghostty / cmux 実装の研究が必要）
+
+- **2026-05-27 (リリース後) 外部調査結果: reparent 方式は塞がれている**: cmux のソースを実際に読んでもらったところ、Container 方式 (`addSubview` で reparent) はそもそも libghostty + Metal の仕組み上動かないことが判明:
+  - `ghostty_surface_new` 時に `cfg.platform.macos.nsview = self` で渡した NSView pointer / CAMetalLayer / display link を **libghostty が内部で握り続けている**。`ghostty_surface_set_*` には nsview 差し替え API がなく、新 superlayer への再束縛もできない (`GhosttyTerminalView.swift:194` 参照)
+  - cmux の `TerminalSurface.attachToView` も「既に別 view に attach 済みなら skip」する作りで、reparent 経路は最初から塞がれている (`.refs/cmux/Sources/GhosttyTerminalView.swift:4740` 参照)
+  - cmux は代わりに **portal host / lease / geometry reconcile** で「見た目上の配置を動かす」方式を採用。ソースに「別 pane に mount されたら portal host lease を置き換える」「待つと moved pane が blank/stale になる」のコメントがあり、今回の症状と一致
+  → 新方針: `realNSView` は window root 直下の `TerminalsHostView` に一度だけ attach、各 SwiftUI tab content は軽量な `TerminalAnchorView` だけ置いて anchor frame を host に伝え、host が `realNSView.frame` を追従させる。タブ移動は `realNSView` の reparent ではなく「どの anchor に追従するか」を切り替えるだけ。Phase 3 セクションをこの方針で書き直し済み。再着手は別タイミング
