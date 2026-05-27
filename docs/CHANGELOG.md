@@ -109,6 +109,8 @@ ja/en は **意味の対応**であって逐語訳ではない。日本語で自
 7. **ペアの整合性**: `- ja:` と `- en:` は隣接 / カテゴリ配置一致 / bullet 数一致 を最後に確認
 
 ## [Unreleased]
+
+## [1.4.6] - 2026-05-27
 ### ✨ Added
 - ja: 右側シェルエリアを `Cmd+/` (リバインド可) で 1 ペイン / 2 ペインに切替できるように。設定はプロジェクトごとに永続化
 - en: Added `Cmd+/` (rebindable) to toggle the right shell area between 1-pane and 2-pane layouts; the choice persists per project
