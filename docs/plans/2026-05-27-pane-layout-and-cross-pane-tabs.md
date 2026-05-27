@@ -163,14 +163,14 @@ GhosttyTerminalView (NSViewRepresentable)
 ターゲット: SwiftUI の view tree 変動と無関係に Ghostty surface を生かしておけるようにする。Phase 3 のペイン間タブ移動の前提。
 
 #### 2-1. TerminalTab に NSView を持たせる
-- [ ] `TerminalTab` に `let realNSView: GhosttyTerminalNSView` を追加（strong）
-- [ ] `TerminalTab.init` で `GhosttyTerminalNSView` を生成し `realNSView` に代入。さらに `realNSView.tab = self` で逆参照を張る
-- [ ] `TerminalTab.deinit` で `realNSView` の surface を解放（後述 2-3 の手順で）
-- [ ] 既存の `weak var nsView: NSView?` は撤去（`realNSView` に一本化）。逆引き用途は `tab.realNSView` で直接見られる
-- [ ] 関連箇所の `tab.nsView` 参照を `tab.realNSView` に置換: `WorkspaceModel.focusPane()` (`L41-52`)、その他あれば全て
+- [x] `TerminalTab` に `let realNSView: GhosttyTerminalNSView` を追加（strong）
+- [x] `TerminalTab.init` で `GhosttyTerminalNSView` を生成し `realNSView` に代入。さらに `realNSView.tab = self` で逆参照を張る
+- [x] `TerminalTab.deinit` で `realNSView` の surface を解放（後述 2-3 の手順で）
+- [x] 既存の `weak var nsView: NSView?` は撤去（`realNSView` に一本化）。逆引き用途は `tab.realNSView` で直接見られる
+- [x] 関連箇所の `tab.nsView` 参照を `tab.realNSView` に置換: `WorkspaceModel.focusPane()` (`L41-52`)、その他あれば全て
 
 #### 2-2. SwiftUI ラッパを Container 方式に書き換え
-- [ ] `GhosttyTerminalView` (`GhosttyTerminalView.swift:7`) を以下のように書き換え:
+- [x] `GhosttyTerminalView` (`GhosttyTerminalView.swift:7`) を以下のように書き換え:
   - `makeNSView` は空の `NSView` (Container) を返す（フレーム指定なし）
   - `updateNSView` で:
     - もし `tab.realNSView.superview !== container` なら `container.addSubview(tab.realNSView)` を呼ぶ（AppKit が旧 superview から自動で外す）
@@ -179,39 +179,39 @@ GhosttyTerminalView (NSViewRepresentable)
   - `dismantleNSView` は no-op（あるいは `tab.realNSView` が container.subviews に居れば removeFromSuperview だけ）。surface は触らない
 
 #### 2-3. surface ライフサイクルの移譲
-- [ ] `GhosttyTerminalNSView.deinit` から `GhosttyManager.shared.unregister(surface:)` と `ghostty_surface_free(s)` を削除
-- [ ] 代わりに `GhosttyTerminalNSView` にインスタンスメソッド `func releaseSurface()` を追加し、以下を実行:
+- [x] `GhosttyTerminalNSView.deinit` から `GhosttyManager.shared.unregister(surface:)` と `ghostty_surface_free(s)` を削除
+- [x] 代わりに `GhosttyTerminalNSView` にインスタンスメソッド `func releaseSurface()` を追加し、以下を実行:
   1. `unregister` + `ghostty_surface_free` + `surface = nil`
   2. **`lastPixelWidth = 0; lastPixelHeight = 0` でサイズキャッシュをリセット**（次の `createSurface()` で新 surface に初回 size を確実に送るため。`syncSize()` (`L217-230`) は同 pixel size だと早期 return するので、キャッシュが残ったままだと新 surface に size が送られない）
-- [ ] `GhosttyTerminalNSView` に **`func restartSurface()`** を追加。`releaseSurface()` を呼んでから `createSurface()` を呼ぶ（`createSurface()` の private を維持し、外部からは `restartSurface()` を通すことで lifecycle 周りの逸脱を防ぐ）
-- [ ] `TerminalTab.deinit` で `realNSView.releaseSurface()` を呼ぶ（@MainActor 制約注意。`MainActor.assumeIsolated` などで対応）
-- [ ] `GhosttyTerminalNSView.viewDidMoveToWindow` のロジックは現状の `if window != nil, surface == nil { createSurface() }` のまま維持（遅延生成方針）
+- [x] `GhosttyTerminalNSView` に **`func restartSurface()`** を追加。`releaseSurface()` を呼んでから `createSurface()` を呼ぶ（`createSurface()` の private を維持し、外部からは `restartSurface()` を通すことで lifecycle 周りの逸脱を防ぐ）
+- [x] `TerminalTab.deinit` で `realNSView.releaseSurface()` を呼ぶ（@MainActor 制約注意。`MainActor.assumeIsolated` などで対応）
+- [x] `GhosttyTerminalNSView.viewDidMoveToWindow` のロジックは現状の `if window != nil, surface == nil { createSurface() }` のまま維持（遅延生成方針）
 
 #### 2-4. surface 作成タイミング (現行と同じ遅延生成を維持)
-- [ ] `GhosttyTerminalNSView.viewDidMoveToWindow` の `if window != nil, surface == nil { createSurface() }` ロジックは現状通り残す。`ghostty_surface_new` が `cfg.platform.macos.nsview` を要求するため、windowless で作る方式は採らない
-- [ ] 新設計でも「裏で SwiftUI tree から外れる」と Container は dismantle されるが、`tab.realNSView` は TerminalTab に掴まれて生存し続けるので、surface も生きたまま。再 attach 時は `viewDidMoveToWindow` の condition `surface == nil` に該当しないので createSurface は走らず、既存 surface を使い続ける
-- [ ] window が付くタイミングで `ghostty_surface_set_display_id`、`ghostty_surface_set_content_scale` を呼ぶフローは現状通り (`L207-211`)
+- [x] `GhosttyTerminalNSView.viewDidMoveToWindow` の `if window != nil, surface == nil { createSurface() }` ロジックは現状通り残す。`ghostty_surface_new` が `cfg.platform.macos.nsview` を要求するため、windowless で作る方式は採らない
+- [x] 新設計でも「裏で SwiftUI tree から外れる」と Container は dismantle されるが、`tab.realNSView` は TerminalTab に掴まれて生存し続けるので、surface も生きたまま。再 attach 時は `viewDidMoveToWindow` の condition `surface == nil` に該当しないので createSurface は走らず、既存 surface を使い続ける
+- [x] window が付くタイミングで `ghostty_surface_set_display_id`、`ghostty_surface_set_content_scale` を呼ぶフローは現状通り (`L207-211`)
 
 #### 2-5. restart() 経路の検証
-- [ ] `TerminalTab.restart()` (`TerminalTab.swift:54-57`) は現状 `lifecycle = .alive; generation += 1` で SwiftUI の `.id` を変えて view 再生成する。新設計では view 再生成しても `realNSView` は同じインスタンス → surface も同じ → restart にならない
-- [ ] **新しい restart の実装**:
+- [x] `TerminalTab.restart()` (`TerminalTab.swift:54-57`) は現状 `lifecycle = .alive; generation += 1` で SwiftUI の `.id` を変えて view 再生成する。新設計では view 再生成しても `realNSView` は同じインスタンス → surface も同じ → restart にならない
+- [x] **新しい restart の実装**:
   1. `realNSView.restartSurface()` を呼ぶ（2-3 で追加した `releaseSurface()` + `createSurface()` 一体メソッド。サイズキャッシュリセットも内包される）
   2. **`lifecycle = .alive` を必ず戻す**（ExitedOverlayView の表示条件 `if case .exited = tab.lifecycle` が満たされたままだと overlay が消えないので必須）
   3. `generation += 1` は不要（SwiftUI 経由の view 再生成は不要になる）
-- [ ] `ExitedOverlayView` の `onRestart: { tab.restart() }` 経路がそのまま動くことを確認（overlay 消える + 新しい shell が立ち上がる）
+- [x] `ExitedOverlayView` の `onRestart: { tab.restart() }` 経路がそのまま動くことを確認（overlay 消える + 新しい shell が立ち上がる）
 
 ### Phase 2 動作確認 [AI🤖 + 人間👨‍💻]
 
-- [ ] `mise run build` が通る [AI🤖]
-- [ ] 起動後にシェルが正常に立ち上がること、PTY 入出力が動くこと [AI🤖 — keystroke + screenshot]
-- [ ] タブ切替で旧タブの surface が解放されないこと（裏に隠れたタブの shell プロセスが生きていることを `ps -ef | grep -E "(zsh|bash)"` で確認） [AI🤖]
-- [ ] タブを × ボタンで閉じると surface が解放されること（対応 shell プロセスが消える） [AI🤖]
-- [ ] `Cmd+W` で閉じても同様に shell プロセスが消えること [AI🤖]
-- [ ] `restart()` 経路（exit overlay の「再起動」ボタン）が動くこと [人間👨‍💻]
-- [ ] `Cmd+Opt+\` での 1↔2 ペイン切替で上ペインのタブの shell が生存し続けること [人間👨‍💻]
-- [ ] プロジェクト切替で裏に回ったプロジェクトの shell が生存していること [人間👨‍💻]
-- [ ] Phase 1 で確認した全項目が引き続きパスすること [人間👨‍💻]
-- [ ] PolePole 終了時に全 shell プロセスが綺麗に解放されること（プロセスリーク無し） [AI🤖]
+- [x] `mise run build` が通る [AI🤖]
+- [x] 起動後にシェルが正常に立ち上がること、PTY 入出力が動くこと [AI🤖 — keystroke + screenshot]
+- [x] タブ切替で旧タブの surface が解放されないこと（裏に隠れたタブの shell プロセスが生きていることを `ps -ef | grep -E "(zsh|bash)"` で確認） [AI🤖]
+- [x] タブを × ボタンで閉じると surface が解放されること（対応 shell プロセスが消える） [AI🤖]
+- [x] `Cmd+W` で閉じても同様に shell プロセスが消えること [AI🤖]
+- [x] `restart()` 経路（exit overlay の「再起動」ボタン）が動くこと [人間👨‍💻]
+- [x] `Cmd+Opt+\` での 1↔2 ペイン切替で上ペインのタブの shell が生存し続けること [人間👨‍💻]
+- [x] プロジェクト切替で裏に回ったプロジェクトの shell が生存していること [人間👨‍💻]
+- [x] Phase 1 で確認した全項目が引き続きパスすること [人間👨‍💻]
+- [x] PolePole 終了時に全 shell プロセスが綺麗に解放されること（プロセスリーク無し） [AI🤖]
 
 ### Phase 3: タブのペイン間移動 [AI🤖]
 
@@ -274,6 +274,13 @@ GhosttyTerminalView (NSViewRepresentable)
 - **2026-05-27 衝突警告のバグ発見**: 動作確認で `Cmd+Opt+\`（後に `Cmd+/`）を Settings で他に割り当てようとしたら、衝突警告が出ず裏で実動作してしまった。原因は `MRUKeyMonitor` の `NSEvent.addLocalMonitorForEvents` がプロセスレベルで keyDown を握り、`ShortcutsSettingsView` の録音 monitor より先勝ちで消費していたため。これは Cmd+P / Cmd+Shift+F 等の既存固定ショートカットでも同じ問題があった既知の穴。`ShortcutsStore.isRecordingShortcut: Bool` を追加し、録音中は MRUKeyMonitor 側で素通り (`return false`) させて解決。Phase 1 の付随修正として取り込み
 
 - **2026-05-27 isCollapsed が初期 setPosition に上書きされる問題**: 起動時に `paneLayout = .singleBottom` のはずなのに 2 ペインで開いた。原因は `RatioSplitViewController.viewDidLayout` の初回 `setPosition(h * initialTopRatio, ofDividerAt: 0)` が、`makeNSViewController` で立てた `topItem.isCollapsed = true` を上書きしていた。`makeNSViewController` で `paneLayout == .singleBottom` のときに `svc.didSetInitial = true` を予め立てて、初回 `setPosition` を抑止して解決
+
+- **2026-05-27 Phase 2 Container 方式リファクタ完了**: 設計通り動いた。`TerminalTab.realNSView`（strong）+ Container NSView の二段構成で、SwiftUI tree の dismantle / make を受けても surface が生存。動作確認:
+  - 起動後の子プロセス数: `/usr/bin/login × 2`（上下ペイン分）
+  - スクリーンショットで両ペインに shell prompt 表示
+  - 人間確認: Cmd+/ で 1↔2 ペイン切替しても上タブの shell が生存（Phase 2 の本丸）
+  - `TabsView` の `.id("\(tab.id)-\(tab.generation)")` を `.id(tab.id)` に simplify、`TerminalTab.generation` property を撤去（Container 方式で view 再生成不要のため）
+  - `tab.nsView` (weak) → `tab.realNSView` (strong) に一本化
 
 ### 方針変更
 

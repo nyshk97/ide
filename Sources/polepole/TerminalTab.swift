@@ -11,9 +11,6 @@ final class TerminalTab: ObservableObject, Identifiable {
     /// シェルの生死状態。exit 時は overlay で exit code を表示する。
     @Published var lifecycle: Lifecycle = .alive
 
-    /// `restart()` で increment。SwiftUI 側の `.id()` に混ぜることで view 再生成を起こす。
-    @Published var generation: Int = 0
-
     /// AI 完了などで未読通知が立っている状態。アクティブ化で自動クリアする。
     @Published var hasUnreadNotification: Bool = false
 
@@ -40,19 +37,36 @@ final class TerminalTab: ObservableObject, Identifiable {
     /// 起動時 cwd。プロジェクトのルートを渡す想定。nil なら $HOME。
     let cwd: URL?
 
-    /// このタブを描画している NSView（GhosttyTerminalNSView）の weak 参照。
-    /// ペイン間移動（Cmd+Opt+↑/↓）で target pane の active tab にフォーカスを取りに行く逆引きに使う。
-    /// `viewDidMoveToWindow` で登録される想定。タブの背面に隠れている NSView は基本ぶら下がっているので、
-    /// 「active tab の view = 画面に乗っている view」と一致するはず。
-    weak var nsView: NSView?
+    /// このタブが所有する NSView（Phase 2 リファクタ）。
+    /// SwiftUI の view tree 変動と無関係に Ghostty surface を生かしておくため、
+    /// `TerminalTab` が strong で抱える。`SwiftUI 側 (GhosttyTerminalView)` は Container NSView だけを
+    /// SwiftUI に見せ、`updateNSView` で `realNSView` を `addSubview` する設計。
+    /// ペイン跨ぎ移動でも `addSubview` の AppKit 仕様で旧 superview から自動的に外れて
+    /// 新 superview に付け替わる → NSView 本体は一度も destroy されない → surface 生存 → shell 死なない。
+    let realNSView: GhosttyTerminalNSView
 
     init(title: String, cwd: URL? = nil) {
         self.title = title
         self.cwd = cwd
+        self.realNSView = GhosttyTerminalNSView(frame: .zero)
+        // 全 stored property の初期化後に self を逆参照させる
+        self.realNSView.tab = self
     }
 
+    /// `TerminalTab` が捨てられたタイミングで Ghostty surface を解放する。
+    /// NSView 側の `deinit` からは `ghostty_surface_free` を外したので、ここでやる責務がある。
+    /// `deinit` は nonisolated だが、TerminalTab の lifecycle は MainActor 文脈で操作されるため
+    /// `MainActor.assumeIsolated` で MainActor を仮定して呼ぶ。
+    deinit {
+        MainActor.assumeIsolated {
+            realNSView.releaseSurface()
+        }
+    }
+
+    /// exit overlay の「再起動」ボタンから呼ばれる。surface を作り直して overlay を消す。
+    /// 新設計では SwiftUI 経由の view 再生成は不要（同じ `realNSView` 内で surface だけ入れ替える）。
     func restart() {
+        realNSView.restartSurface()
         lifecycle = .alive
-        generation += 1
     }
 }

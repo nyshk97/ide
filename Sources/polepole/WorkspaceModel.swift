@@ -52,10 +52,10 @@ final class WorkspaceModel: ObservableObject {
     /// becomeFirstResponder の既存フローで setActive とアクティブ化が連動する。
     func focusPane(_ target: PaneState) {
         guard target !== activePane else { return }
-        // NSView 参照あり & window 取れ & makeFirstResponder が成功した場合のみ早期 return。
+        // window 取れ & makeFirstResponder が成功した場合のみ早期 return。
         // 上記いずれかが欠ければ fallback で activePane だけでも動かす（setActive を呼ぶことで
         // タブバーのハイライト等の表示は追従する。キー入力は次のクリック等で正しい view に入る）。
-        if let view = target.activeTab?.nsView,
+        if let view = target.activeTab?.realNSView,
            let window = view.window,
            window.makeFirstResponder(view) {
             return

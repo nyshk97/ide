@@ -35,7 +35,8 @@ final class PaneState: ObservableObject, Identifiable {
         // activeIndex を変えただけだと旧タブの NSView が first responder のまま残り、
         // 見た目は切り替わったのにキー入力が旧タブに入る。新タブの NSView に明示的にフォーカスを移す。
         // タブクリック経路では mouseDown が既にフォーカスを取っているので二重呼びになるが冪等。
-        if let view = tabs[index].nsView, let window = view.window {
+        let view = tabs[index].realNSView
+        if let window = view.window {
             window.makeFirstResponder(view)
         }
     }

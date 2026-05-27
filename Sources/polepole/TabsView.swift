@@ -63,9 +63,9 @@ struct TabsView: View {
     private func paneContent(index: Int, tab: TerminalTab) -> some View {
         TabObserver(tab: tab) { tab in
             ZStack {
-                // .id に generation を混ぜると restart() で view 再生成→新 surface
+                // Phase 2 以降は Container 方式なので view 再生成は不要。tab.id だけで安定 identity。
                 GhosttyTerminalView(pane: self.pane, tab: tab)
-                    .id("\(tab.id.uuidString)-\(tab.generation)")
+                    .id(tab.id)
                 if case .exited(let code) = tab.lifecycle {
                     ExitedOverlayView(exitCode: code, onRestart: { tab.restart() })
                 }

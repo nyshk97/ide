@@ -3,29 +3,45 @@ import SwiftUI
 import GhosttyKit
 
 // MARK: - SwiftUI ラッパー
+//
+// Phase 2 リファクタ: TerminalTab が strong で抱える `realNSView` を SwiftUI tree に乗せる。
+// SwiftUI には「空っぽの Container NSView」だけを見せ、実際の Ghostty surface 持ち NSView は
+// `updateNSView` の中で `addSubview` で挿入する。これにより:
+//   - SwiftUI の view 再構築で Container が destroy されても、`tab.realNSView` は生存する
+//     (TerminalTab が strong 参照しているため)
+//   - ペイン跨ぎ移動でも、`addSubview` が AppKit 仕様で旧 superview から自動的に外すため
+//     `tab.realNSView` は物理的に新 Container に張り替わる（destroy されない → surface 生存）
 
 struct GhosttyTerminalView: NSViewRepresentable {
     let pane: PaneState
     let tab: TerminalTab
 
-    func makeNSView(context: Context) -> GhosttyTerminalNSView {
-        let view = GhosttyTerminalNSView(frame: .zero)
+    func makeNSView(context: Context) -> NSView {
+        let container = NSView(frame: .zero)
+        container.autoresizesSubviews = true
+        return container
+    }
+
+    func updateNSView(_ container: NSView, context: Context) {
+        let view = tab.realNSView
+        // pane 参照は毎回張り替える（ペイン間移動後に古い pane を指したまま becomeFirstResponder が
+        // 走ると wrong pane を active にしてしまうため）。Phase 3 のペイン間タブ移動でも効く。
         view.pane = pane
-        view.tab = tab
-        return view
-    }
-
-    func updateNSView(_ nsView: GhosttyTerminalNSView, context: Context) {
-        nsView.pane = pane
-        nsView.tab = tab
-    }
-
-    /// SwiftUI が NSView を破棄するとき、TerminalTab に残った weak 参照を確実に切る。
-    /// `viewDidMoveToWindow(window: nil)` でも clear するが、突発的に dismantle される経路でも漏れないように。
-    static func dismantleNSView(_ nsView: GhosttyTerminalNSView, coordinator: ()) {
-        if nsView.tab?.nsView === nsView {
-            nsView.tab?.nsView = nil
+        if view.superview !== container {
+            view.removeFromSuperview()
+            view.translatesAutoresizingMaskIntoConstraints = true
+            view.autoresizingMask = [.width, .height]
+            view.frame = container.bounds
+            container.addSubview(view)
+        } else if view.frame != container.bounds {
+            view.frame = container.bounds
         }
+    }
+
+    /// Container 自体が dismantle されても、中の `tab.realNSView` は TerminalTab が strong 所有しているので
+    /// 生存する。surface には触らない。
+    static func dismantleNSView(_ container: NSView, coordinator: ()) {
+        // no-op
     }
 }
 
@@ -70,11 +86,27 @@ final class GhosttyTerminalNSView: NSView {
 
     required init?(coder: NSCoder) { fatalError("not implemented") }
 
-    deinit {
+    // surface の所有権は TerminalTab に移譲済み（Phase 2 リファクタ）。
+    // NSView が destroy されても surface は解放しない。TerminalTab.deinit が
+    // releaseSurface() を呼んで解放する設計。
+
+    /// surface を解放し、サイズキャッシュもリセットする。
+    /// TerminalTab.deinit から、または restartSurface() の前半として呼ばれる。
+    func releaseSurface() {
         if let s = surface {
             GhosttyManager.shared.unregister(surface: s)
             ghostty_surface_free(s)
         }
+        surface = nil
+        // 次の createSurface() で新 surface に必ず初回 size が送られるようキャッシュリセット
+        lastPixelWidth = 0
+        lastPixelHeight = 0
+    }
+
+    /// surface を作り直す（exit 後の restart 経路）。size キャッシュもリセット済みになる。
+    func restartSurface() {
+        releaseSurface()
+        createSurface()
     }
 
     override func makeBackingLayer() -> CALayer {
@@ -99,13 +131,8 @@ final class GhosttyTerminalNSView: NSView {
             // SwiftUI の WindowGroup 配下では自動で first responder にならないので明示
             window?.makeFirstResponder(self)
         }
-        // ペイン間移動（Cmd+Opt+↑/↓）で target tab の NSView を first responder にするための逆引き。
-        // window が付いた時点で登録、外れた時点でクリアする。
-        if window != nil {
-            tab?.nsView = self
-        } else if tab?.nsView === self {
-            tab?.nsView = nil
-        }
+        // 逆引き用の `tab.nsView` は撤去（Phase 2: TerminalTab が realNSView を strong 所有）。
+        // ペイン間フォーカス移動などは `tab.realNSView` で直接取得できる。
     }
 
     override func viewDidChangeBackingProperties() {
