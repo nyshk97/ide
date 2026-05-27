@@ -113,6 +113,10 @@ ja/en は **意味の対応**であって逐語訳ではない。日本語で自
 - ja: 右側シェルエリアを `Cmd+/` (リバインド可) で 1 ペイン / 2 ペインに切替できるように。設定はプロジェクトごとに永続化
 - en: Added `Cmd+/` (rebindable) to toggle the right shell area between 1-pane and 2-pane layouts; the choice persists per project
 
+### 🐛 Fixed
+- ja: 設定でショートカットを録音中、既存の固定ショートカット (⌘P / ⌘T / ⌘W 等) を割り当てようとしたとき衝突警告が出ず裏で実動作してしまう問題を修正
+- en: Fixed an issue where rebinding a shortcut to an existing built-in (⌘P / ⌘T / ⌘W, etc.) silently triggered the built-in action instead of showing a conflict warning
+
 ## [1.4.5] - 2026-05-26
 ### ✨ Added
 - ja: ファイルツリーのツールバーにファイル名検索 (⌘P) / 全文検索 (⌘⇧F) を開くボタンを追加
