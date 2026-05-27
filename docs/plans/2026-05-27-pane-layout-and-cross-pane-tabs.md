@@ -215,6 +215,8 @@ GhosttyTerminalView (NSViewRepresentable)
 
 ### Phase 3: タブのペイン間移動 [AI🤖]
 
+> ⚠️ **2026-05-27 時点で保留**: 一度実装したが、移動後の Ghostty surface のレンダリングが新 superlayer に追従しないバグ (`addSubview` で CAMetalLayer の Metal context が新階層で再 attach されない) を解決できず、Phase 3 関連の変更を `git checkout` で破棄して Phase 2 状態に戻している。詳細はログ「方針変更」参照。再着手時は Ghostty / cmux 実装の render 経路を読み込んでから戻ること。
+
 ターゲット: D&D とキーボードショートカットで上下ペイン間にタブを移動できる状態。
 
 #### 3-1. moveTab API
@@ -287,3 +289,9 @@ GhosttyTerminalView (NSViewRepresentable)
 - **2026-05-27 ペインレイアウト切替ショートカット**: 当初 `Cmd+Opt+\` だったが、ユーザー要望で `Cmd+/` に変更。さらに「設定で変えられるようにして」との要望で `ShortcutAction.togglePaneLayout` としてリバインド可能化（defaults: `Cmd+/`）。これに伴い `FixedShortcuts.all` の entry は不要となり削除。TabsView の help テキストも `ShortcutsStore.shared.combo(for: .togglePaneLayout).display` で動的に組み立てる形に変更（リバインド時に自動追従）
 
 - **2026-05-27 下ペインのトグルボタンを常時表示に変更**: 当初は「1 ペインモード時のみ分割追加ボタンを表示」予定だったが、UI 統一感のためトグルボタンとして常時表示に変更。`.split` 時は `rectangle.bottomhalf.filled`（上を畳むイメージ）、`.singleBottom` 時は `rectangle.split.1x2`（分割追加イメージ）で同じ位置のアイコンが切替わる。下ペイン = メイン作業領域の前提と整合
+
+- **2026-05-27 Phase 3 を一旦 revert**: Phase 3 の moveTab / D&D cross-pane / `Cmd+Shift+Opt+↑/↓` を実装し、機能としては動作（タブが物理的にペイン間を移動、shell プロセスも生存）。ただし**移動後に Ghostty surface のレンダリングが新 superlayer に追従しない**バグに遭遇し、新タブ側が真っ黒のままになる。試したこと:
+  - `lastPixelWidth/Height = 0` で size キャッシュリセット + `syncSize()` 再実行 → 効かず
+  - `ghostty_surface_refresh()` で強制再描画 → 効かず
+  - `ghostty_surface_set_occlusion(false)` 追加 + `Task { @MainActor }` で 1 tick 遅延の再 invalidate → 起動シーケンス自体を壊した（全タブで prompt が出なくなる）ため即 revert
+  CAMetalLayer の `addSubview` 後の再 attach 周りで、Ghostty 内部の render 経路を読まずに推測ベースで触ると危険と判断。Phase 3 関連の uncommitted な変更（5 files）を `git checkout --` で破棄し、Phase 2 状態に戻した。**ペイン間タブ移動は将来の調査タスクとして残す**（Ghostty / cmux 実装の研究が必要）
