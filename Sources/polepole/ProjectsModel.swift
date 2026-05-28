@@ -220,6 +220,53 @@ final class ProjectsModel: ObservableObject {
             // ErrorBus は MainActor、init からの呼び出しは MainActor 隔離なので OK
             ErrorBus.shared.notify(toast, kind: .error)
         }
+
+        // FSEvents → FileIndex 自動更新の検証。`POLEPOLE_TEST_AUTO_FSEVENTS_PROBE=<filename>`
+        // を渡すと、active project に当該ファイルを touch → 数秒待って FileIndex.search() の
+        // hit 数を Logger に出す。再起動なしで FSEvents 経路そのものを検証する手段。
+        if let filename = env["POLEPOLE_TEST_AUTO_FSEVENTS_PROBE"], let active = activeProject {
+            runFsEventsProbe(filename: filename, project: active)
+        }
+    }
+
+    /// FSEvents probe: active project に `<filename>` を作成し、
+    /// debounce + rebuild の時間を待ってから FileIndex.search() の結果を log に出す。
+    /// VERIFY での自動検証用。
+    private func runFsEventsProbe(filename: String, project: Project) {
+        Task { @MainActor [weak self] in
+            guard let self else { return }
+            // FileIndex を **先に** 作成して watcher を立ち上げる。
+            // この呼び出しが lazy 生成のトリガなので、これより前に touch しても
+            // watcher が居らず event を取りこぼす。
+            let index = self.fileIndex(for: project)
+            Logger.shared.info("[fsevents-probe] FileIndex created, waiting for initial rebuild")
+            // 初回 rebuild (Task.detached + scan) が完了するまで polling 待ち
+            for _ in 0..<30 {
+                try? await Task.sleep(nanoseconds: 200_000_000)
+                if !index.isBuilding && index.entries.count > 0 { break }
+            }
+            Logger.shared.info("[fsevents-probe] initial rebuild done entries=\(index.entries.count)")
+
+            let probeURL = project.path.appendingPathComponent(filename)
+            do {
+                try "fsevents probe".write(to: probeURL, atomically: true, encoding: .utf8)
+                Logger.shared.info("[fsevents-probe] created \(probeURL.path)")
+            } catch {
+                Logger.shared.error("[fsevents-probe] failed to create: \(error)")
+                return
+            }
+            // FSEvents (1.0s latency) + debounce (0.5s) + minRebuildInterval (2s) + rebuild を考慮
+            try? await Task.sleep(nanoseconds: 5_000_000_000)
+            let hits = index.search(filename).count
+            Logger.shared.info("[fsevents-probe] search(\(filename)) hits=\(hits)")
+
+            // 削除側の検証も同 probe で実施
+            try? FileManager.default.removeItem(at: probeURL)
+            Logger.shared.info("[fsevents-probe] removed \(probeURL.path)")
+            try? await Task.sleep(nanoseconds: 5_000_000_000)
+            let hitsAfterDelete = index.search(filename).count
+            Logger.shared.info("[fsevents-probe] after-delete search(\(filename)) hits=\(hitsAfterDelete)")
+        }
     }
 
     /// `POLEPOLE_TEST_SIDEBAR_COLLAPSED=1` が立っていたら起動時にサイドバー折畳状態に。

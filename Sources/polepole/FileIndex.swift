@@ -26,19 +26,87 @@ final class FileIndex: ObservableObject {
         var id: URL { url }
     }
 
+    /// project root を再帰監視する FSEvents watcher。
+    /// `nonisolated(unsafe)` で deinit から release できるようにする。
+    nonisolated(unsafe) private var watcher: DirectoryChangeWatcher?
+
+    /// rebuild 中に来た event を 1 回にまとめるフラグ。
+    private var pendingRebuild = false
+    /// 直近 rebuild の完了時刻。短時間に連続 rebuild するのを防ぐのに使う。
+    private var lastRebuildFinishedAt: Date = .distantPast
+    /// rebuild の最短間隔。`git checkout` / `mise run build` で event ストームが
+    /// 起きても秒間 1 回未満に抑える。
+    private let minRebuildInterval: TimeInterval = 2.0
+
     init(project: Project) {
         self.project = project
-        rebuild()
+        // **先に** watcher を張ってから初回 rebuild する。
+        // sinceNow で stream を張る都合上、rebuild の前に start しておかないと
+        // 「scan 中に作成されたファイル」を取りこぼす。
+        // watcher.start() は queue.sync で同期完了するので、return 後は stream 起動済み。
+        let w = DirectoryChangeWatcher(root: project.path) { [weak self] in
+            Task { @MainActor [weak self] in
+                self?.requestRebuild(reason: "fsevents")
+            }
+        }
+        w.start()
+        self.watcher = w
+        requestRebuild(reason: "initial")
     }
 
+    deinit {
+        // 明示 stop() で FSEvents stream を release する。
+        // context.retain を使っているので、stop() を呼ばないと watcher 自身が
+        // FSEvents から strong ref で握られ続け deinit が走らない。
+        watcher?.stop()
+    }
+
+    /// rebuild の入口。in-flight / クールダウン中はスキップ or 予約。
+    private func requestRebuild(reason: String) {
+        if isBuilding {
+            pendingRebuild = true
+            return
+        }
+        let elapsed = Date().timeIntervalSince(lastRebuildFinishedAt)
+        if elapsed < minRebuildInterval {
+            let delay = minRebuildInterval - elapsed
+            pendingRebuild = true
+            Task { @MainActor [weak self] in
+                try? await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
+                guard let self else { return }
+                if self.pendingRebuild && !self.isBuilding {
+                    self.pendingRebuild = false
+                    self.rebuild(reason: reason)
+                }
+            }
+            return
+        }
+        rebuild(reason: reason)
+    }
+
+    /// 手動 reload (Cmd+R / 🔄 等) 用の public 入口。
+    /// `requestRebuild` に通すことで in-flight 中の並列 scan race を防ぐ。
     func rebuild() {
+        requestRebuild(reason: "manual")
+    }
+
+    private func rebuild(reason: String) {
         isBuilding = true
         let root = project.path
+        Logger.shared.debug("[fsevents] rebuild start reason=\(reason)")
         Task.detached { [weak self] in
             let entries = Self.scan(root: root)
             await MainActor.run {
-                self?.entries = entries
-                self?.isBuilding = false
+                guard let self else { return }
+                self.entries = entries
+                self.isBuilding = false
+                self.lastRebuildFinishedAt = Date()
+                Logger.shared.debug("[fsevents] rebuild end entries=\(entries.count)")
+                // rebuild 中に来た event を反映するため、pending があれば再キック
+                if self.pendingRebuild {
+                    self.pendingRebuild = false
+                    self.requestRebuild(reason: "pending")
+                }
             }
         }
     }
@@ -142,6 +210,11 @@ final class FileIndex: ObservableObject {
     /// Git repo では `git ls-files -co --exclude-standard -z` でファイル一覧を取得し、
     /// 親ディレクトリを合成して `Entry` を組む。非 git repo（exit 128 等）では nil を返す。
     /// `.git` 配下は `git ls-files` がそもそも列挙しないので明示の除外は不要。
+    ///
+    /// `git ls-files -c` は **git index に残っているファイル** を返すため、
+    /// `rm tracked.txt` した直後の (`git add` で削除を記録していない) ファイルも出る。
+    /// FSEvents 経由の rebuild で「削除を反映」したいので、ここで
+    /// `FileManager.fileExists` チェックを入れてディスクに無い path は捨てる。
     nonisolated private static func scanViaGit(root: URL, rootPath: String) -> [Entry]? {
         guard let git = BinaryLocator.git else { return nil }
         let result = ProcessRunner.run(
@@ -153,12 +226,18 @@ final class FileIndex: ObservableObject {
         )
         guard result.exitCode == 0 else { return nil }  // 128 = 非 git repo など
 
+        let fm = FileManager.default
         var entries: [Entry] = []
         var seenDirs = Set<String>()  // 合成済みディレクトリの相対パス
         for chunk in result.stdout.split(separator: 0) {
             let rel = String(decoding: chunk, as: UTF8.self)
             guard !rel.isEmpty else { continue }
-            // 親ディレクトリを root 直下まで合成
+
+            // ディスクに存在しない path (削除されたが git add していない tracked file) は捨てる
+            let fileURL = root.appendingPathComponent(rel)
+            guard fm.fileExists(atPath: fileURL.path) else { continue }
+
+            // 親ディレクトリを root 直下まで合成 (存在するファイルの親のみ)
             let components = rel.split(separator: "/").map(String.init)
             if components.count > 1 {
                 var acc = ""
@@ -169,7 +248,7 @@ final class FileIndex: ObservableObject {
                     }
                 }
             }
-            appendEntry(&entries, url: root.appendingPathComponent(rel), isDir: false, rootPath: rootPath)
+            appendEntry(&entries, url: fileURL, isDir: false, rootPath: rootPath)
             if entries.count > 50000 { break }
         }
         return entries

@@ -139,6 +139,8 @@ VERIFY 用に起動時の状態を仕込めるフラグ。**本番ユーザー�
 | `POLEPOLE_TEST_SIDEBAR_COLLAPSED=1` | 起動時に左サイドバー（プロジェクト一覧）を折りたたみ状態にする。値は `1` または `true` を受ける。`Cmd+S` で同等のトグル（リバインド可能） |
 | `POLEPOLE_TEST_AUTO_EMPTY_HUB=1` | プロジェクトが何件かあっても中央ペインを EmptyHubView (`Get started` 画面) に差し替える。実 `projects.json` を空にする破壊的検証を避けたいときに使う。値は `1` または `true` |
 | `POLEPOLE_TEST_IMPORT_FIXTURE=<dir>` | Import 機能の全 source の参照先を fixture ディレクトリに差し替える。期待構造: `<dir>/conventional/`（`.git` 含むツリー）、`<dir>/cmux/session.json`、`<dir>/tmuxinator/*.yml`、`<dir>/vscode/storage.json`、`<dir>/cursor/storage.json`。各ファイル / ディレクトリは存在しなくて良い（無いものは静かにスキップ） |
+| `POLEPOLE_TEST_AUTO_QUICKSEARCH=<query>` | 起動時に Cmd+P の overlay を開き `<query>` を入力した状態にする |
+| `POLEPOLE_TEST_AUTO_FSEVENTS_PROBE=<filename>` | FileIndex (Cmd+P) の FSEvents 自動更新を検証する。active project に `<filename>` を作成 → debounce + rebuild 待ち → `FileIndex.search(<filename>)` の hit 数を Logger に出す。その後ファイルを削除して、削除後の hit 数も同様に出す。1 サイクル ~15 秒 |
 
 例:
 ```bash

@@ -854,9 +854,42 @@ rm -f "$HOME/Library/Application Support/polepole-dev/projects.json"*
 
 要件「fs watcher でツリー差分反映」は Phase 2.5 で導入予定。MVP では手動 reload で代替:
 - ターミナルで新規ファイル `touch newfile.txt` を作成
-- ツリーには即時反映されない（FSEvents 未統合）
+- ツリーには即時反映されない（FSEvents は **Cmd+P インデックスにのみ** 統合済み、ツリーは未対応）
 - ツリー右上の 🔄 ボタンを押す（またはツリーにフォーカスを当てて Cmd+R）と再スキャンされて新規ファイルが現れる
 - 新規ファイルなら `?` バッジが付く（次の git status polling サイクル後）
+
+### 24-bis. Cmd+P インデックスの FSEvents 自動更新（自動）
+
+Cmd+P (`FileIndex`) は project root を FSEvents で再帰監視しており、ファイル作成・削除・リネームが
+1〜3 秒以内に自動反映される。検証用の `POLEPOLE_TEST_AUTO_FSEVENTS_PROBE=<filename>` env で、
+起動後に当該ファイル名を active project に作成 → 待機 → `FileIndex.search()` の結果を Logger
+に出すまでを自動実行できる。
+
+`open -n` は env を引き継がない経路があるので、binary 直叩きで起動する。
+
+```bash
+pkill -x "PolePole Dev" 2>/dev/null; sleep 0.4
+rm -f /tmp/polepole-poc.log
+BIN="/tmp/polepole-build/Build/Products/Debug/PolePole Dev.app/Contents/MacOS/PolePole Dev"
+PROBE_NAME="probe_$(date +%s).md"
+POLEPOLE_TEST_AUTO_ACTIVATE_INDEX=0 \
+  POLEPOLE_TEST_AUTO_FSEVENTS_PROBE="$PROBE_NAME" \
+  "$BIN" >/dev/null 2>&1 &
+sleep 18
+grep -E "fsevents-probe|rebuild" /tmp/polepole-poc.log
+pkill -x "PolePole Dev" 2>/dev/null
+```
+
+期待:
+- `[fsevents-probe] initial rebuild done entries=<N>` (起動直後)
+- `[fsevents-probe] created <path>/<filename>`
+- `[fsevents] rebuild start reason=fsevents` (touch から 2 秒以内)
+- `[fsevents] rebuild end entries=<N+1>` (entries が増えている)
+- `[fsevents-probe] search(<filename>) hits=1` ← **新規作成が反映**
+- `[fsevents-probe] removed <path>/<filename>`
+- `[fsevents] rebuild start reason=fsevents` (rm から)
+- `[fsevents] rebuild end entries=<N>` (entries が元に戻る)
+- `[fsevents-probe] after-delete search(<filename>) hits=0` ← **削除が反映**
 
 ### 25. ファイルプレビュー（自動）
 
