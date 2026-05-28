@@ -109,6 +109,8 @@ ja/en は **意味の対応**であって逐語訳ではない。日本語で自
 7. **ペアの整合性**: `- ja:` と `- en:` は隣接 / カテゴリ配置一致 / bullet 数一致 を最後に確認
 
 ## [Unreleased]
+
+## [1.4.8] - 2026-05-28
 ### 📝 Changed
 - ja: Cmd+P のファイル一覧が、新規作成・削除されたファイルに自動で追従するように (FSEvents)
 - en: The Cmd+P file list now updates automatically as files are created or deleted
