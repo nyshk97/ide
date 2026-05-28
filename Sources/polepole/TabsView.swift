@@ -147,6 +147,7 @@ struct TabsView: View {
                     Image(systemName: workspace.paneLayout == .split
                           ? "rectangle.bottomhalf.filled"
                           : "rectangle.split.1x2")
+                        .imageScale(.small)
                         .frame(width: 22, height: 22)
                 }
                 .buttonStyle(.plain)
