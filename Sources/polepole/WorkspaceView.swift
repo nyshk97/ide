@@ -53,7 +53,6 @@ private struct SplitPane<Top: View, Bottom: View>: NSViewControllerRepresentable
         let svc = RatioSplitViewController()
         svc.initialTopRatio = initialTopRatio
         svc.splitView.isVertical = false
-        svc.splitView.dividerStyle = .thin
         // 自前で初期比率を制御するので autosave は無効
         svc.splitView.autosaveName = nil
 
@@ -108,12 +107,24 @@ private struct SplitPane<Top: View, Bottom: View>: NSViewControllerRepresentable
 /// `viewDidLayout` は中間サイズ (例: 500px) でも先に呼ばれるため、
 /// bounds.height が前回と同値になった (= ウィンドウサイズが安定した) 段階で
 /// 1 回だけ setPosition する。
+///
+/// `loadView()` で `splitView` を `WideHandleSplitView` に差し替える。
+/// 詳しい理由はそちらの doc コメント参照。
 private final class RatioSplitViewController: NSSplitViewController {
     var initialTopRatio: CGFloat = 0.3
     /// 初回 divider 設定が済んだか。`paneLayout == .singleBottom` で起動するときは
     /// 外部から true にして初回 setPosition を抑止する（collapsed 状態を上書きしないため）。
     var didSetInitial = false
     private var lastHeight: CGFloat = 0
+
+    override func loadView() {
+        let custom = WideHandleSplitView()
+        // NSSplitViewController が内部管理に使う識別子。Apple のサンプルコードに従う。
+        custom.identifier = NSUserInterfaceItemIdentifier("NSSplitViewControllerSplitView")
+        custom.dividerStyle = .thin
+        self.splitView = custom
+        super.loadView()
+    }
 
     override func viewDidLayout() {
         super.viewDidLayout()
@@ -124,5 +135,29 @@ private final class RatioSplitViewController: NSSplitViewController {
             didSetInitial = true
         }
         lastHeight = h
+    }
+}
+
+/// divider の drag ヒット領域を広げる NSSplitView。
+///
+/// `dividerStyle = .thin` のデフォルトでは divider hot region が 1px しかなく、ドラッグで
+/// 掴むのが難しい。`dividerThickness` を 11px に広げて掴みやすくしつつ、`drawDivider(in:)` で
+/// 中央 1px だけ separator 色を塗るので見た目は従来の細い線のまま。
+///
+/// **既知の制約**: ホバー時の resize cursor は出せていない。原因と試行錯誤の全記録は
+/// [docs/DEV.md](../../docs/DEV.md) の「上下 divider にホバーしても resize cursor が出ない」を参照。
+private final class WideHandleSplitView: NSSplitView {
+    override var dividerThickness: CGFloat { 11 }
+
+    override func drawDivider(in rect: NSRect) {
+        // 中央 1px だけ separatorColor で塗る。視覚的には従来の thin divider と同じ。
+        NSColor.separatorColor.setFill()
+        let line: NSRect
+        if isVertical {
+            line = NSRect(x: rect.midX - 0.5, y: rect.minY, width: 1, height: rect.height)
+        } else {
+            line = NSRect(x: rect.minX, y: rect.midY - 0.5, width: rect.width, height: 1)
+        }
+        line.fill()
     }
 }

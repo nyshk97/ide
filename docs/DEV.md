@@ -202,6 +202,64 @@ open -n "/tmp/polepole-build/Build/Products/Debug/PolePole Dev.app" \
 
 ---
 
+## 上下 divider にホバーしても resize cursor が出ない（未解決）
+
+WorkspaceView の上下分割 (`WideHandleSplitView`) で、divider にホバーしても
+`resizeUpDown` カーソルにならない。**ドラッグでの領域変更自体は可能**で、不具合はあくまで
+「ホバー時のカーソル形状」だけ。2026-05-28 に複数アプローチを試したが解決できず、
+`dividerThickness` を 11px に広げて drag を掴みやすくする改善だけ入れて撤退した。
+
+### なぜ難しいか（根本原因）
+
+1. **AppKit の cursor 解決は hitTest ベース**: マウス移動のたびに window が hitTest で
+   最前面 view を探し、その view の `cursorUpdate(_:)` / cursor rect を使う。
+2. **portal host (`TerminalsHostView`) が ZStack 最上層**: WorkspaceView は
+   `ZStack { SplitPane; TerminalsHostRepresentable }` で、host が divider 領域も視覚的に覆う
+   (host bounds = ZStack 全体)。host は terminal subview の frame 外では hitTest が nil を返す。
+3. **divider 領域は terminal subview の frame 外**: なので divider 上では host hitTest が nil →
+   AppKit は cursor 解決を下層 NSSplitView に回す。
+4. **だが NSSplitView も divider cursor を出さない**: `dividerStyle = .thin` / `.thick` は
+   AppKit が divider に cursor rect を一切登録しない。`.paneSplitter` にしても host が前面にいる
+   構造のせいか効かなかった。
+
+整理すると「host が前面 → host は divider 領域で hit を持たない → 下層 NSSplitView に回る →
+NSSplitView も cursor を出さない」の二段構えで、どの層も divider cursor を担当しない状態。
+
+### 試した手法と失敗理由（すべて未達）
+
+| 手法 | 結果 / 失敗理由 |
+|---|---|
+| `splitView(_:effectiveRect:forDrawnRect:ofDividerAt:)` で hot region を上下に拡張 | **drag は掴みやすくなった**が cursor は不変。effective rect は drag 判定にしか使われない |
+| `NSSplitView` subclass の `resetCursorRects()` で `addCursorRect(.resizeUpDown)` 明示登録 | 無効。`addCursorRect` は「その view が前面に覆われている領域では無効化」される AppKit 仕様で、ZStack 最上層の host が divider 領域を覆っているため潰される |
+| host 自身の `resetCursorRects()` でも同じ位置に `addCursorRect` | 無効（同上、aggregation で安定しない） |
+| host に `NSTrackingArea(.cursorUpdate)` を張り `cursorUpdate(with:)` で band 判定 → `NSCursor.resizeUpDown.set()` 強制 | **divider 本体では `cursorUpdate` が呼ばれない**。host hitTest が nil の領域では AppKit が host の cursorUpdate をスキップして下層に回すため。terminal frame 内 (divider のすぐ上) でだけ呼ばれて cursor が出るが、そこは hit が terminal に渡るので drag できずテキスト選択になる → 「少し上で cursor 出るのに drag できない」違和感の元 |
+| 上記 band を `dividerThickness` 起点に splitView から query (host の `observedSplitView`) | band 位置の計算自体は `sv.isFlipped=true` を考慮すれば正しくなった。が、結局上記「hitTest nil 領域で cursorUpdate が呼ばれない」制約に阻まれて divider 本体では出ない |
+| `dividerThickness` を 11px に拡張 (divider を実体ハンドル化、レビュー提案) + `.paneSplitter` | native cursor を期待したが出ず。host が前面にいる構造が変わらない限り native cursor aggregation は効かない |
+
+### 確定した制約
+
+- **`addCursorRect` は前面 view に覆われた領域では無効**。ZStack で重ねる構成では下層の
+  cursor rect は最前面 view に潰される。
+- **`NSTrackingArea(.cursorUpdate)` の `cursorUpdate(with:)` は hitTest と連動する**。
+  owner view が hitTest で nil を返す領域には飛んでこない (tracking area を張っていても)。
+- **`NSSplitView` は `.thin` / `.thick` で divider cursor rect を登録しない**。
+- **CGEvent.post でマウスを動かしても `NSCursor` 更新は再現しない**ので、cursor 形状の確認は
+  必ず手動マウス操作 + `screencapture -C` でやる (このため検証が遅く、試行のたびにユーザーへ
+  手動ホバーを依頼することになった)。
+
+### 残した改善と今後の方針
+
+- 残したもの: `WideHandleSplitView` で `dividerThickness = 11`、`drawDivider(in:)` で中央 1px
+  だけ描画。**見た目は従来の細い線のまま、drag のヒット領域だけ 11px に広がる**。cursor は未解決。
+- 長期的な本命案 (コードレビューでの提案): **full-window の単一 host をやめ「1 terminal =
+  1 stable lease host」を window root に置く**。realNSView は lease host に固定し、lease host
+  自体の frame だけ anchor に追従させる。こうすると host が画面全体を覆わなくなり、cursor
+  aggregation の面積が terminal 実体分だけになるので、divider 領域は素の NSSplitView が
+  担当できて native cursor が出る見込み。ただし libghostty の reparent 制約 ([Phase 3](./plans/2026-05-27-pane-layout-and-cross-pane-tabs.md)) と両立する設計が必要で工数大。
+  「divider cursor がどうしても欲しい」という強いシグナルが来たら着手する。
+
+---
+
 ## Ghostty のテーマ / リソースディレクトリ
 
 - **libghostty には標準テーマ集が同梱されていない**: スタンドアロン Ghostty.app は `Contents/Resources/ghostty/themes/` にテーマファイルを持つが、`GhosttyKit.xcframework` には無い。そのままだと `~/.config/ghostty/config` の `theme = "GitHub Dark"` 等が解決できず**デフォルト配色（明るめのグレー）にフォールバック**して「もやがかかったような薄い色」に見える
