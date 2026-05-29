@@ -252,6 +252,23 @@ agent-browser 等で test card を自動入力 + submit すると Stripe の **A
 
 Checkout Session には `locale` パラメータ (`auto` / `en` / `ja` ...) があるが、Payment Link は **常にブラウザ言語で auto 表示** される仕様で、Dashboard の編集画面にも per-link の言語設定項目が無い (確認: 2026-05-24 時点)。i18n 対応時に「Dashboard で locale を auto に設定する」タスクを積んでも N/A になる。Payment Link を使う限り、何もしなくても顧客のブラウザ言語で Checkout が表示される。
 
+### F. Coupon の `applies_to` (product scope) は API レスポンスに出ない
+
+`coupons create` で `applies_to[products][0]=prod_...` を渡すと、create 時には**確かに処理される** (偽 product ID を渡すと `error.param=applies_to[products][0]` / `No such product` でエラーになる)。ところが作成後の `applies_to` は **API レスポンスに serialize されない** — `coupons retrieve` しても `Stripe-Version` をどの版に振っても `applies_to` フィールド自体が出てこない (確認: 2026-05-29 時点)。
+
+このため「product scope が効いているか」は**読み戻しでは確認できない**。`applies_to: null` を見て「設定できていない」と早合点しないこと。実際に効いているかは redemption で検証する:
+
+```bash
+# 対象外の product の price を載せた Checkout Session に coupon を当てる → 弾かれれば scope が効いている
+curl -sS -u "$SK:" https://api.stripe.com/v1/checkout/sessions \
+  -d mode=payment -d "line_items[0][price]=<対象外product の price>" -d "line_items[0][quantity]=1" \
+  -d "discounts[0][coupon]=<coupon_id>" -d "success_url=https://example.com/ok"
+# => error.message: "This coupon cannot be redeemed because it does not apply to anything in this order."
+# 対象 product の price なら amount_total が 50% off (例: 11800 → 5900) になる
+```
+
+`backend/scripts/setup-stripe-coupon.sh` はこの前提で `PRODUCT_ID` を必須にしている (期限なしの 50%OFF が将来の別商品にも残るのを防ぐため)。
+
 ---
 
 ## ダウンロード計測の有効化 (2026-05-26 追加)
