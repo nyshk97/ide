@@ -10,6 +10,16 @@
   <meta property="og:description" content="PolePole release history. New features, improvements, and fixes.">
   <meta property="og:type" content="website">
   <meta property="og:url" content="https://polepole.dev/en/changelog">
+  <meta property="og:site_name" content="PolePole">
+  <meta property="og:image" content="https://polepole.dev/og-image.jpg">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:image:alt" content="PolePole — a macOS workspace for terminal-based AI coding CLIs">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:image" content="https://polepole.dev/og-image.jpg">
+  <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png">
+  <link rel="icon" type="image/png" sizes="256x256" href="/app-icon.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
   <link rel="canonical" href="https://polepole.dev/en/changelog">
   <link rel="stylesheet" href="/styles.css">
 </head>
@@ -38,6 +48,54 @@
       <p class="changelog-sparkle-note">Use "PolePole → Check for Updates…" in the app menu to receive auto-updates.</p>
 
       <div class="cl-timeline">
+      <article class="cl-release">
+        <header class="cl-release-header">
+          <span class="cl-version">v1.4.8</span>
+          <time class="cl-date">2026-05-28</time>
+        </header>
+        <div class="cl-category">
+          <h3 class="cl-cat-title">📝 Changed</h3>
+          <ul>
+            <li>The Cmd+P file list now updates automatically as files are created or deleted</li>
+          </ul>
+        </div>
+        <div class="cl-category">
+          <h3 class="cl-cat-title">🐛 Fixed</h3>
+          <ul>
+            <li>Made the divider between the top and bottom shells easier to grab</li>
+          </ul>
+        </div>
+      </article>
+      <article class="cl-release">
+        <header class="cl-release-header">
+          <span class="cl-version">v1.4.7</span>
+          <time class="cl-date">2026-05-27</time>
+        </header>
+        <div class="cl-category">
+          <h3 class="cl-cat-title">✨ Added</h3>
+          <ul>
+            <li>You can now move shell tabs between the top and bottom panes via drag-and-drop or <code>Cmd+Shift+Opt+↑/↓</code> — the shell session, history, and Claude session all stay alive across the move</li>
+          </ul>
+        </div>
+      </article>
+      <article class="cl-release">
+        <header class="cl-release-header">
+          <span class="cl-version">v1.4.6</span>
+          <time class="cl-date">2026-05-27</time>
+        </header>
+        <div class="cl-category">
+          <h3 class="cl-cat-title">✨ Added</h3>
+          <ul>
+            <li>Added <code>Cmd+/</code> (rebindable) to toggle the right shell area between 1-pane and 2-pane layouts; the choice persists per project</li>
+          </ul>
+        </div>
+        <div class="cl-category">
+          <h3 class="cl-cat-title">🐛 Fixed</h3>
+          <ul>
+            <li>Fixed an issue where rebinding a shortcut to an existing built-in (⌘P / ⌘T / ⌘W, etc.) silently triggered the built-in action instead of showing a conflict warning</li>
+          </ul>
+        </div>
+      </article>
       <article class="cl-release">
         <header class="cl-release-header">
           <span class="cl-version">v1.4.5</span>

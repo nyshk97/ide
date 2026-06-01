@@ -191,6 +191,16 @@ function renderPage(releases, lang) {
   <meta property="og:description" content="${escapeHtml(t.description)}">
   <meta property="og:type" content="website">
   <meta property="og:url" content="${canonical}">
+  <meta property="og:site_name" content="PolePole">
+  <meta property="og:image" content="https://polepole.dev/og-image.jpg">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:image:alt" content="${lang === "ja" ? "PolePole の画面 — ターミナル・ファイルプレビュー・プロジェクト切替をひとつのウィンドウで" : "PolePole — a macOS workspace for terminal-based AI coding CLIs"}">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:image" content="https://polepole.dev/og-image.jpg">
+  <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png">
+  <link rel="icon" type="image/png" sizes="256x256" href="/app-icon.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
   <link rel="canonical" href="${canonical}">
   <link rel="stylesheet" href="/styles.css">
 </head>

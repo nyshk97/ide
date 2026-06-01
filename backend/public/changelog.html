@@ -9,6 +9,16 @@
   <meta property="og:description" content="PolePole のリリース履歴。新機能・改善・修正の一覧。">
   <meta property="og:type" content="website">
   <meta property="og:url" content="https://polepole.dev/changelog">
+  <meta property="og:site_name" content="PolePole">
+  <meta property="og:image" content="https://polepole.dev/og-image.jpg">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:image:alt" content="PolePole の画面 — ターミナル・ファイルプレビュー・プロジェクト切替をひとつのウィンドウで">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:image" content="https://polepole.dev/og-image.jpg">
+  <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png">
+  <link rel="icon" type="image/png" sizes="256x256" href="/app-icon.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
   <link rel="canonical" href="https://polepole.dev/changelog">
   <link rel="stylesheet" href="/styles.css">
 </head>
@@ -37,6 +47,54 @@
       <p class="changelog-sparkle-note">アプリ内の「PolePole → Check for Updates…」から自動アップデートを受け取れます。</p>
 
       <div class="cl-timeline">
+      <article class="cl-release">
+        <header class="cl-release-header">
+          <span class="cl-version">v1.4.8</span>
+          <time class="cl-date">2026-05-28</time>
+        </header>
+        <div class="cl-category">
+          <h3 class="cl-cat-title">📝 Changed</h3>
+          <ul>
+            <li>Cmd+P のファイル一覧が、新規作成・削除されたファイルに自動で追従するように (FSEvents)</li>
+          </ul>
+        </div>
+        <div class="cl-category">
+          <h3 class="cl-cat-title">🐛 Fixed</h3>
+          <ul>
+            <li>上下シェルの境界をドラッグでつかみやすく (ヒット領域を拡張)</li>
+          </ul>
+        </div>
+      </article>
+      <article class="cl-release">
+        <header class="cl-release-header">
+          <span class="cl-version">v1.4.7</span>
+          <time class="cl-date">2026-05-27</time>
+        </header>
+        <div class="cl-category">
+          <h3 class="cl-cat-title">✨ Added</h3>
+          <ul>
+            <li>シェルタブを上下ペイン間でドラッグ&amp;ドロップ または <code>Cmd+Shift+Opt+↑/↓</code> で移動できるように。shell セッション・履歴・Claude セッションを保ったまま移動可能</li>
+          </ul>
+        </div>
+      </article>
+      <article class="cl-release">
+        <header class="cl-release-header">
+          <span class="cl-version">v1.4.6</span>
+          <time class="cl-date">2026-05-27</time>
+        </header>
+        <div class="cl-category">
+          <h3 class="cl-cat-title">✨ Added</h3>
+          <ul>
+            <li>右側シェルエリアを <code>Cmd+/</code> (リバインド可) で 1 ペイン / 2 ペインに切替できるように。設定はプロジェクトごとに永続化</li>
+          </ul>
+        </div>
+        <div class="cl-category">
+          <h3 class="cl-cat-title">🐛 Fixed</h3>
+          <ul>
+            <li>設定でショートカットを録音中、既存の固定ショートカット (⌘P / ⌘T / ⌘W 等) を割り当てようとしたとき衝突警告が出ず裏で実動作してしまう問題を修正</li>
+          </ul>
+        </div>
+      </article>
       <article class="cl-release">
         <header class="cl-release-header">
           <span class="cl-version">v1.4.5</span>
