@@ -24,6 +24,12 @@ struct PolePoleApp: App {
             return
         }
         Logger.shared.resetDebugMirror()
+        // ダウンロード場所 (DMG / Downloads / App Translocation) から起動されていたら
+        // /Applications へ移動して再起動する。Ghostty 等の重い初期化より前に判定して、
+        // 移動が必要なケースでは内部で exit する（無駄な surface 作成を避ける）。
+        MainActor.assumeIsolated {
+            AppRelocator.relocateIfNeeded()
+        }
         GhosttyManager.shared.start()
         MRUKeyMonitor.install()
         // ファイルプレビュー用 WKWebView を pre-warm。起動時に
