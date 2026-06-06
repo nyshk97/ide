@@ -110,6 +110,11 @@ ja/en は **意味の対応**であって逐語訳ではない。日本語で自
 
 ## [Unreleased]
 
+## [1.4.9] - 2026-06-06
+### ✨ Added
+- ja: レイアウト切替を4種類に拡張（上下2分割・左右2分割・2×2グリッド・1ペイン）— タブバーのボタンまたは `Cmd+Opt+1〜4` で切替可能
+- en: Four layout modes are now available (top/bottom split, left/right split, 2×2 grid, single pane) — switch via tab bar buttons or `Cmd+Opt+1〜4`
+
 ## [1.4.8] - 2026-05-28
 ### 📝 Changed
 - ja: Cmd+P のファイル一覧が、新規作成・削除されたファイルに自動で追従するように (FSEvents)
