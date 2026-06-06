@@ -108,13 +108,13 @@ enum MRUKeyMonitor {
             case 123:  // ←: 前のタブへ
                 ws.activePane.selectPreviousTab()
                 return true
-            case 126:  // ↑: 上ペインへ（1 ペイン中は no-op）
-                if ws.paneLayout == .split {
+            case 126:  // ↑: 上ペインへ（topPane か bottomPane にいるときだけ、singleBottom は no-op）
+                if ws.paneLayout != .singleBottom && (ws.activePane === ws.topPane || ws.activePane === ws.bottomPane) {
                     ws.focusPane(ws.topPane)
                 }
                 return true
-            case 125:  // ↓: 下ペインへ（1 ペイン中は no-op）
-                if ws.paneLayout == .split {
+            case 125:  // ↓: 下ペインへ（topPane か bottomPane にいるときだけ、singleBottom は no-op）
+                if ws.paneLayout != .singleBottom && (ws.activePane === ws.topPane || ws.activePane === ws.bottomPane) {
                     ws.focusPane(ws.bottomPane)
                 }
                 return true
@@ -123,16 +123,29 @@ enum MRUKeyMonitor {
             }
         }
 
-        // ペインレイアウト切替（default: Cmd+/、リバインド可能）。
-        if shortcuts.matches(event, .togglePaneLayout), overlaysClosed, let ws = model.activeWorkspace {
-            ws.togglePaneLayout()
-            return true
+        // ペインレイアウト切替（Cmd+Opt+1〜4、リバインド可能）。
+        if overlaysClosed, let ws = model.activeWorkspace {
+            if shortcuts.matches(event, .setPaneLayoutSingle) {
+                ws.setPaneLayout(.singleBottom); return true
+            }
+            if shortcuts.matches(event, .setPaneLayoutSplit) {
+                ws.setPaneLayout(.split); return true
+            }
+            if shortcuts.matches(event, .setPaneLayoutHorizontal) {
+                ws.setPaneLayout(.splitHorizontal); return true
+            }
+            if shortcuts.matches(event, .setPaneLayoutFour) {
+                ws.setPaneLayout(.splitFour); return true
+            }
         }
 
-        // Cmd+Shift+Opt+↑/↓: アクティブタブを上/下ペインへ移動。
-        // 1 ペイン中 (.singleBottom) は no-op (確定仕様)。
-        if primaryMods == [.command, .shift, .option], overlaysClosed, let ws = model.activeWorkspace,
-           ws.paneLayout == .split {
+        // Cmd+Shift+Opt+↑/↓: アクティブタブを topPane/bottomPane 間で移動。
+        // .singleBottom 中は no-op。topPane/bottomPane 以外の activePane からは no-op。
+        let canMoveBetweenTopBottom = overlaysClosed
+            && (model.activeWorkspace?.paneLayout != .singleBottom)
+            && ((model.activeWorkspace?.activePane === model.activeWorkspace?.topPane)
+                || (model.activeWorkspace?.activePane === model.activeWorkspace?.bottomPane))
+        if primaryMods == [.command, .shift, .option], canMoveBetweenTopBottom, let ws = model.activeWorkspace {
             if event.keyCode == 126 {  // ↑: 下ペインから上ペインへ
                 if ws.activePane === ws.bottomPane, let tab = ws.bottomPane.activeTab {
                     ws.moveTab(tab.id, from: ws.bottomPane, to: ws.topPane, before: nil)

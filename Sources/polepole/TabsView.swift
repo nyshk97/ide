@@ -37,11 +37,9 @@ struct TabsView: View {
         return (sourcePaneID, sourceTabID)
     }
 
-    /// source pane ID から workspace 内の対応 PaneState を引く。topPane / bottomPane のどちらか。
+    /// source pane ID から workspace 内の対応 PaneState を引く。
     private func paneByID(_ id: UUID) -> PaneState? {
-        if workspace.topPane.id == id { return workspace.topPane }
-        if workspace.bottomPane.id == id { return workspace.bottomPane }
-        return nil
+        workspace.allPanes.first { $0.id == id }
     }
 
     /// drop された payload を「同一ペイン並び替え」「別ペイン移動」に振り分けて実行する。
@@ -137,22 +135,33 @@ struct TabsView: View {
                 }
             }
 
-            // 下ペインのタブバーに、ペインレイアウト切替ボタンを常時表示する。
-            // - .split のとき: 上ペインを畳む（→ 1 ペイン化）
-            // - .singleBottom のとき: 上ペインを復活させる（→ 2 ペイン化）
-            // Cmd+Opt+\ のショートカットと同等。下ペインを「メイン作業領域」と位置付けているので
-            // 上ペイントグルのコントロールは下ペイン側に置く。
+            // 下ペインのタブバーにレイアウト切替ボタンを表示する（下ペインがメイン作業領域）。
+            // 各ボタンに対応する ShortcutAction のコンボを help に表示する。
             if pane === workspace.bottomPane {
-                Button(action: { workspace.togglePaneLayout() }) {
-                    Image(systemName: workspace.paneLayout == .split
-                          ? "rectangle.bottomhalf.filled"
-                          : "rectangle.split.1x2")
-                        .imageScale(.small)
-                        .frame(width: 22, height: 22)
-                }
-                .buttonStyle(.plain)
-                .help((workspace.paneLayout == .split ? "Hide top pane" : "Split pane")
-                      + " (\(shortcuts.combo(for: .togglePaneLayout).display))")
+                layoutButton(
+                    layout: .singleBottom,
+                    icon: "rectangle.fill",
+                    helpBase: "1 pane",
+                    action: .setPaneLayoutSingle
+                )
+                layoutButton(
+                    layout: .split,
+                    icon: "rectangle.split.1x2",
+                    helpBase: "Split vertically (top/bottom)",
+                    action: .setPaneLayoutSplit
+                )
+                layoutButton(
+                    layout: .splitHorizontal,
+                    icon: "rectangle.split.2x1",
+                    helpBase: "Split horizontally (left/right)",
+                    action: .setPaneLayoutHorizontal
+                )
+                layoutButton(
+                    layout: .splitFour,
+                    icon: "rectangle.split.2x2",
+                    helpBase: "4-pane grid",
+                    action: .setPaneLayoutFour
+                )
             }
 
             Spacer()
@@ -245,11 +254,35 @@ struct TabsView: View {
 
     private var paneIsActive: Bool { workspace.isActive(pane) }
 
-    /// このペイン自身が画面に表示されているか。`.singleBottom` モード中の `topPane` は collapsed なので
-    /// 非表示扱い。`TerminalAnchorView.isActive` の判定に使い、host が裏ペインの realNSView を
-    /// オフスクリーン化できるようにする (collapsed transition で古い frame が通知されても画面に出ない)。
+    /// このペイン自身が画面に表示されているか。
+    /// `TerminalAnchorView.isActive` の判定に使い、非表示ペインの realNSView をオフスクリーン化する。
     private var paneIsVisible: Bool {
-        workspace.paneLayout == .split || pane === workspace.bottomPane
+        switch workspace.paneLayout {
+        case .singleBottom:
+            return pane === workspace.bottomPane
+        case .split, .splitHorizontal:
+            return pane === workspace.topPane || pane === workspace.bottomPane
+        case .splitFour:
+            return true
+        }
+    }
+
+    /// レイアウト選択ボタン 1 個分。現在のレイアウトなら強調表示する。
+    private func layoutButton(
+        layout: PaneLayout,
+        icon: String,
+        helpBase: String,
+        action: ShortcutAction
+    ) -> some View {
+        let isCurrent = workspace.paneLayout == layout
+        return Button(action: { workspace.setPaneLayout(layout) }) {
+            Image(systemName: icon)
+                .imageScale(.small)
+                .frame(width: 22, height: 22)
+                .foregroundStyle(isCurrent ? Color.accentColor : Color.primary)
+        }
+        .buttonStyle(.plain)
+        .help("\(helpBase) (\(shortcuts.combo(for: action).display))")
     }
 
     private func programIcon(_ program: TerminalTab.ForegroundProgram) -> Text? {

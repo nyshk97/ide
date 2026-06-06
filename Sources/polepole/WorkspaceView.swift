@@ -1,24 +1,54 @@
 import AppKit
 import SwiftUI
 
-/// 上小ターミナル + 下大ターミナルの 2 ペイン構成。
-/// 初期比率は 3:7 で、ドラッグで自由にリサイズ可能。
-/// SwiftUI の `VSplitView` は子ビューの idealHeight を尊重せず初期均等分割になるため、
-/// `NSSplitViewController` を直接ラップして初回 layout で divider 位置を設定する。
+/// ペイン構成に応じてターミナルエリアを描画するビュー。
+/// paneLayout に応じて 1/2/4 ペインを切り替える。
 struct WorkspaceView: View {
     @ObservedObject var workspace: WorkspaceModel
 
     var body: some View {
         ZStack {
-            SplitPane(initialTopRatio: 0.3, paneLayout: workspace.paneLayout) {
-                TabsView(pane: workspace.topPane, workspace: workspace)
-            } bottom: {
-                TabsView(pane: workspace.bottomPane, workspace: workspace)
+            if workspace.paneLayout == .splitFour {
+                fourPaneLayout
+            } else {
+                twoPaneLayout
             }
             // Ghostty surface を抱える portal host を root ZStack の最上層に重ねる。
             // host の hitTest は subview のエリア外なら nil を返すので、空白部分のクリックは
             // 下の SwiftUI 階層 (タブバー / divider / ペイン背景) に通る (TerminalsHostView 参照)。
             TerminalsHostRepresentable(host: workspace.terminalsHost)
+        }
+    }
+
+    /// singleBottom / split / splitHorizontal の 3 ケース。
+    /// `.id(isVertical)` で方向変更時に NSSplitViewController を再生成する。
+    private var twoPaneLayout: some View {
+        let isVertical = workspace.paneLayout == .splitHorizontal
+        let isCollapsed = workspace.paneLayout == .singleBottom
+        return SplitPane(
+            initialRatio: isVertical ? 0.5 : 0.3,
+            isVertical: isVertical,
+            isCollapsed: isCollapsed
+        ) {
+            TabsView(pane: workspace.topPane, workspace: workspace)
+        } secondary: {
+            TabsView(pane: workspace.bottomPane, workspace: workspace)
+        }
+        .id(isVertical)
+    }
+
+    /// splitFour (2×2 グリッド) レイアウト。
+    /// SplitPane のネスト（NSViewControllerRepresentable のネスト）はクラッシュするため、
+    /// FourPaneSplit を使って純粋な AppKit で 3 つの NSSplitView を直接組み上げる。
+    private var fourPaneLayout: some View {
+        FourPaneSplit {
+            TabsView(pane: workspace.topPane, workspace: workspace)
+        } bottomLeft: {
+            TabsView(pane: workspace.bottomPane, workspace: workspace)
+        } topRight: {
+            TabsView(pane: workspace.topRightPane, workspace: workspace)
+        } bottomRight: {
+            TabsView(pane: workspace.bottomRightPane, workspace: workspace)
         }
     }
 }
@@ -32,64 +62,67 @@ private struct TerminalsHostRepresentable: NSViewRepresentable {
     func updateNSView(_ nsView: TerminalsHostView, context: Context) {}
 }
 
-/// 上下分割の SplitView。`initialTopRatio` で初期比率を指定し、
-/// その後はユーザーがドラッグで自由にリサイズできる。
-/// `paneLayout == .singleBottom` のときは上ペインを `isCollapsed = true` で畳む。
-/// NSView は tree に残るため、上ペインのタブが持つ Ghostty surface は collapse 中も生存する。
-private struct SplitPane<Top: View, Bottom: View>: NSViewControllerRepresentable {
-    let initialTopRatio: CGFloat
-    let paneLayout: PaneLayout
-    let top: () -> Top
-    let bottom: () -> Bottom
+/// 汎用 2 ペイン SplitView。`initialRatio` で初期比率を指定し、その後はユーザーがドラッグで
+/// 自由にリサイズできる。`isVertical=false` は上下分割（水平 divider）、
+/// `isVertical=true` は左右分割（垂直 divider）。
+/// `isCollapsed=true` のとき primary（上または左）を折り畳む。
+private struct SplitPane<Primary: View, Secondary: View>: NSViewControllerRepresentable {
+    let initialRatio: CGFloat
+    let isVertical: Bool
+    let isCollapsed: Bool
+    let primary: () -> Primary
+    let secondary: () -> Secondary
 
-    init(initialTopRatio: CGFloat, paneLayout: PaneLayout, @ViewBuilder top: @escaping () -> Top, @ViewBuilder bottom: @escaping () -> Bottom) {
-        self.initialTopRatio = initialTopRatio
-        self.paneLayout = paneLayout
-        self.top = top
-        self.bottom = bottom
+    init(
+        initialRatio: CGFloat,
+        isVertical: Bool,
+        isCollapsed: Bool,
+        @ViewBuilder primary: @escaping () -> Primary,
+        @ViewBuilder secondary: @escaping () -> Secondary
+    ) {
+        self.initialRatio = initialRatio
+        self.isVertical = isVertical
+        self.isCollapsed = isCollapsed
+        self.primary = primary
+        self.secondary = secondary
     }
 
-    func makeNSViewController(context: Context) -> NSSplitViewController {
+    func makeNSViewController(context: Context) -> RatioSplitViewController {
         let svc = RatioSplitViewController()
-        svc.initialTopRatio = initialTopRatio
-        svc.splitView.isVertical = false
-        // 自前で初期比率を制御するので autosave は無効
+        svc.initialRatio = initialRatio
+        svc.isVertical = isVertical
+        svc.splitView.isVertical = isVertical
         svc.splitView.autosaveName = nil
 
-        let topVC = NSHostingController(rootView: top())
-        let topItem = NSSplitViewItem(viewController: topVC)
-        topItem.minimumThickness = 80
-        topItem.isCollapsed = (paneLayout == .singleBottom)
-        // 初期状態が collapsed なら、RatioSplitViewController の初回 setPosition で
-        // divider 位置を 3:7 に戻されないよう「初期化済み」フラグを立てておく。
-        if paneLayout == .singleBottom {
-            svc.didSetInitial = true
-        }
-        svc.addSplitViewItem(topItem)
+        let primaryVC = NSHostingController(rootView: primary())
+        let primaryItem = NSSplitViewItem(viewController: primaryVC)
+        primaryItem.minimumThickness = isVertical ? 120 : 80
+        primaryItem.isCollapsed = isCollapsed
+        // 初期状態が collapsed なら、初回 setPosition で上書きしないよう済みフラグを立てる
+        if isCollapsed { svc.didSetInitial = true }
+        svc.addSplitViewItem(primaryItem)
 
-        let bottomVC = NSHostingController(rootView: bottom())
-        let bottomItem = NSSplitViewItem(viewController: bottomVC)
-        bottomItem.minimumThickness = 200
-        svc.addSplitViewItem(bottomItem)
+        let secondaryVC = NSHostingController(rootView: secondary())
+        let secondaryItem = NSSplitViewItem(viewController: secondaryVC)
+        secondaryItem.minimumThickness = isVertical ? 120 : 200
+        svc.addSplitViewItem(secondaryItem)
 
-        context.coordinator.topVC = topVC
-        context.coordinator.bottomVC = bottomVC
-        context.coordinator.topItem = topItem
+        context.coordinator.primaryVC = primaryVC
+        context.coordinator.secondaryVC = secondaryVC
+        context.coordinator.primaryItem = primaryItem
         return svc
     }
 
-    func updateNSViewController(_ svc: NSSplitViewController, context: Context) {
-        if let host = context.coordinator.topVC as? NSHostingController<Top> {
-            host.rootView = top()
+    func updateNSViewController(_ svc: RatioSplitViewController, context: Context) {
+        if let host = context.coordinator.primaryVC as? NSHostingController<Primary> {
+            host.rootView = primary()
         }
-        if let host = context.coordinator.bottomVC as? NSHostingController<Bottom> {
-            host.rootView = bottom()
+        if let host = context.coordinator.secondaryVC as? NSHostingController<Secondary> {
+            host.rootView = secondary()
         }
-        // paneLayout の変化を topItem.isCollapsed に反映する。animator を通すと滑らかに開閉する。
-        if let topItem = context.coordinator.topItem {
-            let shouldCollapse = (paneLayout == .singleBottom)
-            if topItem.isCollapsed != shouldCollapse {
-                topItem.animator().isCollapsed = shouldCollapse
+        if let item = context.coordinator.primaryItem {
+            if item.isCollapsed != isCollapsed {
+                item.animator().isCollapsed = isCollapsed
             }
         }
     }
@@ -97,31 +130,28 @@ private struct SplitPane<Top: View, Bottom: View>: NSViewControllerRepresentable
     func makeCoordinator() -> Coordinator { Coordinator() }
 
     final class Coordinator {
-        weak var topVC: NSViewController?
-        weak var bottomVC: NSViewController?
-        weak var topItem: NSSplitViewItem?
+        weak var primaryVC: NSViewController?
+        weak var secondaryVC: NSViewController?
+        weak var primaryItem: NSSplitViewItem?
     }
 }
 
-/// 初回 layout で divider 位置を `initialTopRatio` に設定する SplitViewController。
-/// `viewDidLayout` は中間サイズ (例: 500px) でも先に呼ばれるため、
-/// bounds.height が前回と同値になった (= ウィンドウサイズが安定した) 段階で
-/// 1 回だけ setPosition する。
+/// 初回 layout で divider 位置を `initialRatio` に設定する SplitViewController。
+/// `viewDidLayout` は中間サイズでも先に呼ばれるため、
+/// bounds のサイズが安定した（前回と同値になった）段階で 1 回だけ setPosition する。
 ///
 /// `loadView()` で `splitView` を `WideHandleSplitView` に差し替える。
-/// 詳しい理由はそちらの doc コメント参照。
 private final class RatioSplitViewController: NSSplitViewController {
-    var initialTopRatio: CGFloat = 0.3
-    /// 初回 divider 設定が済んだか。`paneLayout == .singleBottom` で起動するときは
-    /// 外部から true にして初回 setPosition を抑止する（collapsed 状態を上書きしないため）。
+    var initialRatio: CGFloat = 0.3
+    var isVertical: Bool = false
     var didSetInitial = false
-    private var lastHeight: CGFloat = 0
+    private var lastDimension: CGFloat = 0
 
     override func loadView() {
         let custom = WideHandleSplitView()
-        // NSSplitViewController が内部管理に使う識別子。Apple のサンプルコードに従う。
         custom.identifier = NSUserInterfaceItemIdentifier("NSSplitViewControllerSplitView")
         custom.dividerStyle = .thin
+        custom.isVertical = isVertical  // super.loadView() より前に設定しないと上書きされる
         self.splitView = custom
         super.loadView()
     }
@@ -129,12 +159,120 @@ private final class RatioSplitViewController: NSSplitViewController {
     override func viewDidLayout() {
         super.viewDidLayout()
         guard !didSetInitial else { return }
-        let h = splitView.bounds.height
-        if h > 0 && h == lastHeight {
-            splitView.setPosition(h * initialTopRatio, ofDividerAt: 0)
+        let dim = isVertical ? splitView.bounds.width : splitView.bounds.height
+        if dim > 0 && dim == lastDimension {
+            splitView.setPosition(dim * initialRatio, ofDividerAt: 0)
             didSetInitial = true
         }
-        lastHeight = h
+        lastDimension = dim
+    }
+}
+
+/// 2×2 グリッドレイアウト用 NSViewControllerRepresentable。
+/// NSSplitPane（NSViewControllerRepresentable）をネストすると SwiftUI の VC 親子ツリーが
+/// 壊れてクラッシュするため、外側・左列・右列の 3 つの WideHandleSplitView を直接 AppKit で
+/// 組み上げる単一 VC に実装する。
+private struct FourPaneSplit<TL: View, BL: View, TR: View, BR: View>: NSViewControllerRepresentable {
+    let topLeft: () -> TL
+    let bottomLeft: () -> BL
+    let topRight: () -> TR
+    let bottomRight: () -> BR
+
+    init(
+        @ViewBuilder topLeft: @escaping () -> TL,
+        @ViewBuilder bottomLeft: @escaping () -> BL,
+        @ViewBuilder topRight: @escaping () -> TR,
+        @ViewBuilder bottomRight: @escaping () -> BR
+    ) {
+        self.topLeft = topLeft
+        self.bottomLeft = bottomLeft
+        self.topRight = topRight
+        self.bottomRight = bottomRight
+    }
+
+    func makeNSViewController(context: Context) -> FourPaneViewController {
+        let svc = FourPaneViewController()
+        let tlVC = NSHostingController(rootView: topLeft())
+        let blVC = NSHostingController(rootView: bottomLeft())
+        let trVC = NSHostingController(rootView: topRight())
+        let brVC = NSHostingController(rootView: bottomRight())
+        svc.setupPanes(topLeft: tlVC, bottomLeft: blVC, topRight: trVC, bottomRight: brVC)
+        context.coordinator.update(tlVC: tlVC, blVC: blVC, trVC: trVC, brVC: brVC)
+        return svc
+    }
+
+    func updateNSViewController(_ svc: FourPaneViewController, context: Context) {
+        let c = context.coordinator
+        (c.tlVC as? NSHostingController<TL>)?.rootView = topLeft()
+        (c.blVC as? NSHostingController<BL>)?.rootView = bottomLeft()
+        (c.trVC as? NSHostingController<TR>)?.rootView = topRight()
+        (c.brVC as? NSHostingController<BR>)?.rootView = bottomRight()
+    }
+
+    func makeCoordinator() -> Coordinator { Coordinator() }
+    final class Coordinator {
+        var tlVC: NSViewController?
+        var blVC: NSViewController?
+        var trVC: NSViewController?
+        var brVC: NSViewController?
+        func update(tlVC: NSViewController, blVC: NSViewController, trVC: NSViewController, brVC: NSViewController) {
+            self.tlVC = tlVC; self.blVC = blVC; self.trVC = trVC; self.brVC = brVC
+        }
+    }
+}
+
+/// 2×2 レイアウトを管理する ViewController。
+/// 3 つの WideHandleSplitView（外側 left/right、左列 top/bottom、右列 top/bottom）を直接管理する。
+private final class FourPaneViewController: NSViewController {
+    private var outerSplit: WideHandleSplitView!
+    private var leftSplit: WideHandleSplitView!
+    private var rightSplit: WideHandleSplitView!
+    private var didSetInitial = false
+    private var lastSize: CGSize = .zero
+
+    func setupPanes(
+        topLeft: NSViewController,
+        bottomLeft: NSViewController,
+        topRight: NSViewController,
+        bottomRight: NSViewController
+    ) {
+        addChild(topLeft)
+        addChild(bottomLeft)
+        addChild(topRight)
+        addChild(bottomRight)
+
+        leftSplit = WideHandleSplitView()
+        leftSplit.isVertical = false
+        leftSplit.dividerStyle = .thin
+        leftSplit.addArrangedSubview(topLeft.view)
+        leftSplit.addArrangedSubview(bottomLeft.view)
+
+        rightSplit = WideHandleSplitView()
+        rightSplit.isVertical = false
+        rightSplit.dividerStyle = .thin
+        rightSplit.addArrangedSubview(topRight.view)
+        rightSplit.addArrangedSubview(bottomRight.view)
+
+        outerSplit = WideHandleSplitView()
+        outerSplit.isVertical = true
+        outerSplit.dividerStyle = .thin
+        outerSplit.addArrangedSubview(leftSplit)
+        outerSplit.addArrangedSubview(rightSplit)
+    }
+
+    override func loadView() {
+        view = outerSplit ?? NSView()
+    }
+
+    override func viewDidLayout() {
+        super.viewDidLayout()
+        guard !didSetInitial else { return }
+        let sz = view.bounds.size
+        guard sz.width > 0, sz.height > 0, sz == lastSize else { lastSize = sz; return }
+        outerSplit.setPosition(sz.width * 0.5, ofDividerAt: 0)
+        leftSplit.setPosition(sz.height * 0.5, ofDividerAt: 0)
+        rightSplit.setPosition(sz.height * 0.5, ofDividerAt: 0)
+        didSetInitial = true
     }
 }
 

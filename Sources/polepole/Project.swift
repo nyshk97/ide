@@ -1,10 +1,15 @@
 import Foundation
 
 /// 右側シェルエリアのペイン構成。プロジェクトごとに永続化する。
-/// `.split` は上小・下大の 2 ペイン、`.singleBottom` は下ペインだけを表示し上ペインは collapse する。
 enum PaneLayout: String, Codable, Hashable {
+    /// 上小・下大の 2 ペイン（上下分割）
     case split
+    /// 下ペインだけを表示し上ペインは collapse する（1 ペイン）
     case singleBottom
+    /// 左右 2 ペイン（topPane が左、bottomPane が右）
+    case splitHorizontal
+    /// 2×2 の 4 ペイングリッド（topRightPane / bottomRightPane を追加使用）
+    case splitFour
 }
 
 /// PolePole が扱うプロジェクト 1 つを表す値型。

@@ -214,19 +214,48 @@ exit 42
 ./scripts/polepole-launch.sh
 ```
 
-実機で:
-- 上下に2つのターミナルが分割表示されている（VSplitView）
-- 起動直後は **下ペインがアクティブ**（カーソルが塗りつぶし、上は中空）
-- 上下ペインの境界をドラッグして高さを変えられる
-- 上ペインをクリック → 上ペインがアクティブになる（カーソル塗り → 下が中空に）
-- 上ペインで `Cmd+T` → 上ペインのタブだけ追加される（下ペインは影響しない）
-- 同じく下ペインで `Cmd+T` → 下ペインのタブが追加される
+### 4レイアウトのスクリーンショット確認
 
-各ペインは独立した PTY なので別の `ttys*` が割り当てられる:
+```bash
+# split（上下2分割、デフォルト）
+osascript -e 'tell application "System Events" to key code 19 using {command down, option down}'
+sleep 0.5
+./scripts/polepole-screenshot.sh /tmp/v-split.png
+
+# splitHorizontal（左右2分割）
+osascript -e 'tell application "System Events" to key code 20 using {command down, option down}'
+sleep 0.5
+./scripts/polepole-screenshot.sh /tmp/v-splitH.png
+
+# splitFour（2×2グリッド）
+osascript -e 'tell application "System Events" to key code 21 using {command down, option down}'
+sleep 0.5
+./scripts/polepole-screenshot.sh /tmp/v-split4.png
+
+# singleBottom（1ペイン）
+osascript -e 'tell application "System Events" to key code 18 using {command down, option down}'
+sleep 0.5
+./scripts/polepole-screenshot.sh /tmp/v-single.png
+```
+
+- `v-split.png`: 水平 divider で上下2段
+- `v-splitH.png`: 垂直 divider で左右2列
+- `v-split4.png`: 外側水平 + 左右各垂直の 2×2 グリッド（4ペイン）
+- `v-single.png`: 下ペインのみ（上が collapsed）
+
+### ペイン共通の動作（手動）
+
+- 起動直後は **下ペインがアクティブ**（カーソルが塗りつぶし、上は中空）
+- 分割境界をドラッグして幅/高さを変えられる
+- 上ペインをクリック → 上ペインがアクティブになる
+- 各ペインで `Cmd+T` → そのペインのタブだけ追加される
+- `Cmd+Opt+↑/↓`: topPane / bottomPane 間フォーカス移動（split/splitHorizontal）
+
+各ペインは独立した PTY:
 ```bash
 ./scripts/polepole-keystroke.sh --enter "tty"
 ```
-を上下それぞれで打って異なる TTY が出ることを確認（手動でアクティブ切替後、各ペインで実行）。
+を上下（または左右）それぞれで打って異なる TTY が出ることを確認。
 
 ## 7. 複数タブ
 

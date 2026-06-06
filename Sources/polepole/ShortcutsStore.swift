@@ -7,24 +7,33 @@ enum ShortcutAction: String, CaseIterable, Codable {
     case mruOverlay
     case diffOverlay
     case toggleSidebar
-    case togglePaneLayout
+    case setPaneLayoutSingle
+    case setPaneLayoutSplit
+    case setPaneLayoutHorizontal
+    case setPaneLayoutFour
 
     var label: String {
         switch self {
-        case .mruOverlay:       return "MRU project switcher"
-        case .diffOverlay:      return "Diff overlay"
-        case .toggleSidebar:    return "Show/Hide Project Sidebar"
-        case .togglePaneLayout: return "Toggle pane layout (split / single)"
+        case .mruOverlay:            return "MRU project switcher"
+        case .diffOverlay:           return "Diff overlay"
+        case .toggleSidebar:         return "Show/Hide Project Sidebar"
+        case .setPaneLayoutSingle:   return "1 pane"
+        case .setPaneLayoutSplit:    return "Split vertically (top/bottom)"
+        case .setPaneLayoutHorizontal: return "Split horizontally (left/right)"
+        case .setPaneLayoutFour:     return "4-pane grid"
         }
     }
 
-    /// 初期値。Ctrl+M / Cmd+D / Cmd+S / Cmd+/。
+    /// 初期値。Ctrl+M / Cmd+D / Cmd+S / Cmd+Opt+1〜4。
     /// PolePole は編集機能を持たないので Cmd+S (save) が空いている。
     static let defaults: [ShortcutAction: KeyCombo] = [
-        .mruOverlay:       KeyCombo(keyCode: 46, modifiers: NSEvent.ModifierFlags.control.rawValue, keyLabel: "M"),
-        .diffOverlay:      KeyCombo(keyCode: 2,  modifiers: NSEvent.ModifierFlags.command.rawValue, keyLabel: "D"),
-        .toggleSidebar:    KeyCombo(keyCode: 1,  modifiers: NSEvent.ModifierFlags.command.rawValue, keyLabel: "S"),
-        .togglePaneLayout: KeyCombo(keyCode: 44, modifiers: NSEvent.ModifierFlags.command.rawValue, keyLabel: "/"),
+        .mruOverlay:              KeyCombo(keyCode: 46, modifiers: NSEvent.ModifierFlags.control.rawValue,                          keyLabel: "M"),
+        .diffOverlay:             KeyCombo(keyCode: 2,  modifiers: NSEvent.ModifierFlags.command.rawValue,                          keyLabel: "D"),
+        .toggleSidebar:           KeyCombo(keyCode: 1,  modifiers: NSEvent.ModifierFlags.command.rawValue,                          keyLabel: "S"),
+        .setPaneLayoutSingle:     KeyCombo(keyCode: 18, modifiers: NSEvent.ModifierFlags([.command, .option]).rawValue, keyLabel: "1"),
+        .setPaneLayoutSplit:      KeyCombo(keyCode: 19, modifiers: NSEvent.ModifierFlags([.command, .option]).rawValue, keyLabel: "2"),
+        .setPaneLayoutHorizontal: KeyCombo(keyCode: 20, modifiers: NSEvent.ModifierFlags([.command, .option]).rawValue, keyLabel: "3"),
+        .setPaneLayoutFour:       KeyCombo(keyCode: 21, modifiers: NSEvent.ModifierFlags([.command, .option]).rawValue, keyLabel: "4"),
     ]
 }
 
