@@ -140,23 +140,25 @@ enum MRUKeyMonitor {
         }
 
         // Cmd+Shift+Opt+↑/↓: アクティブタブを topPane/bottomPane 間で移動。
-        // .singleBottom 中は no-op。topPane/bottomPane 以外の activePane からは no-op。
-        let canMoveBetweenTopBottom = overlaysClosed
-            && (model.activeWorkspace?.paneLayout != .singleBottom)
-            && ((model.activeWorkspace?.activePane === model.activeWorkspace?.topPane)
-                || (model.activeWorkspace?.activePane === model.activeWorkspace?.bottomPane))
-        if primaryMods == [.command, .shift, .option], canMoveBetweenTopBottom, let ws = model.activeWorkspace {
-            if event.keyCode == 126 {  // ↑: 下ペインから上ペインへ
-                if ws.activePane === ws.bottomPane, let tab = ws.bottomPane.activeTab {
+        // .singleBottom 中・右列 active 時は no-op だが、常に consume して Ghostty に流さない。
+        if primaryMods == [.command, .shift, .option], overlaysClosed, let ws = model.activeWorkspace {
+            switch event.keyCode {
+            case 126:  // ↑: 下ペインから上ペインへ
+                if ws.paneLayout != .singleBottom,
+                   ws.activePane === ws.bottomPane,
+                   let tab = ws.bottomPane.activeTab {
                     ws.moveTab(tab.id, from: ws.bottomPane, to: ws.topPane, before: nil)
                 }
                 return true
-            }
-            if event.keyCode == 125 {  // ↓: 上ペインから下ペインへ
-                if ws.activePane === ws.topPane, let tab = ws.topPane.activeTab {
+            case 125:  // ↓: 上ペインから下ペインへ
+                if ws.paneLayout != .singleBottom,
+                   ws.activePane === ws.topPane,
+                   let tab = ws.topPane.activeTab {
                     ws.moveTab(tab.id, from: ws.topPane, to: ws.bottomPane, before: nil)
                 }
                 return true
+            default:
+                break
             }
         }
 
