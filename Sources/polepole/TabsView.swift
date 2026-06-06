@@ -135,9 +135,16 @@ struct TabsView: View {
                 }
             }
 
-            // 下ペインのタブバーにレイアウト切替ボタンを表示する（下ペインがメイン作業領域）。
-            // 各ボタンに対応する ShortcutAction のコンボを help に表示する。
-            if pane === workspace.bottomPane {
+            // レイアウト切替ボタンは「最初に見えるペイン」に表示する。
+            // singleBottom は topPane が collapsed で見えないため bottomPane に表示。
+            // それ以外は topPane（上 or 左上）に表示。
+            let showsLayoutButtons: Bool = {
+                switch workspace.paneLayout {
+                case .singleBottom:   return pane === workspace.bottomPane
+                case .split, .splitHorizontal, .splitFour: return pane === workspace.topPane
+                }
+            }()
+            if showsLayoutButtons {
                 layoutButton(
                     layout: .singleBottom,
                     icon: "rectangle.fill",
