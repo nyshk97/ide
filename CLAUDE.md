@@ -93,6 +93,7 @@ mv "$BACKUP_DIR/polepole-dev-backup" "$HOME/Library/Application Support/polepole
 - `Ctrl+M` の判定は `keyCode == 46`（characters は CR にマップされる）
 - `URL` の `==` は scheme/baseURL の差で一致しないことがある → `URL.standardizedFileURL.path` を String キーに
 - Debug ビルドは PRODUCT_NAME=`PolePole Dev` なので `.app` / プロセス / バイナリすべてに空白を含む。動作確認スクリプトでは `pkill -x "PolePole Dev"` / `pgrep -f "PolePole Dev.app/Contents/MacOS/PolePole Dev"` / AppleScript の `tell process "PolePole Dev"` のように毎回クオートする
+- `NSViewControllerRepresentable` を別の `NSViewControllerRepresentable` の中にネストするとクラッシュする（SwiftUI の VC 親子ツリーが壊れる）。複数ペインを AppKit で組み合わせるときは単一の `NSViewController` サブクラスの中で直接 `NSSplitView` を管理する
 
 ---
 
@@ -208,6 +209,8 @@ MRU の確定タイミング（修飾キーの release）は `ShortcutsStore.sho
 6. EdDSA 署名 → appcast.xml 生成 → `nyshk97/polepole-releases` に GitHub Release 作成
 
 `[Unreleased]` を事前に埋めておけば、`echo "" | bash scripts/release.sh <version>` で pause を即抜けて非対話で回せる（CHANGELOG 編集は AI が事前に済ませる前提）。**事前に `project.yml` の `MARKETING_VERSION` を bump してコミット**しておく必要がある（release.sh は project.yml をいじらない）。
+
+⚠️ **非対話実行時の落とし穴**: `[Unreleased]` セクションを埋めるとき、**`[Unreleased]` ヘッダー自体を `[x.y.z]` に書き換えてはいけない**。release.sh が同名ヘッダーを重複挿入し、最初の空ヘッダーから内容を抽出するため Sparkle description が空になる。`[Unreleased]` ヘッダーはそのままにして、その下にコンテンツだけ書いてコミットする。
 
 **release.sh が終わったあとの手動作業**: Homebrew cask (`nyshk97/homebrew-tap/Casks/polepole.rb`) の `version` / `sha256` 更新。release.sh 末尾の出力をそのまま `version "X.Y.Z"` / `sha256 "..."` に貼って、別 repo を clone → 編集 → commit `"polepole X.Y.Z"` → push する（`brew upgrade --cask polepole` の更新元なので、ここを忘れると Homebrew ユーザーは古いままになる）。
 
