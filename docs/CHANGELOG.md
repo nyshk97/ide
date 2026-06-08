@@ -109,6 +109,9 @@ ja/en は **意味の対応**であって逐語訳ではない。日本語で自
 7. **ペアの整合性**: `- ja:` と `- en:` は隣接 / カテゴリ配置一致 / bullet 数一致 を最後に確認
 
 ## [Unreleased]
+### 🐛 Fixed
+- ja: 端末で選択したテキストを、メニューバーの Copy action 経由でもコピーできるように修正
+- en: Fixed terminal selections not copying through the menu-bar Copy action
 
 ## [1.4.9] - 2026-06-06
 ### ✨ Added

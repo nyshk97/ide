@@ -96,6 +96,13 @@ private func pasteboard(for location: ghostty_clipboard_e) -> NSPasteboard {
     return .general
 }
 
+func pasteboardHasGhosttyPasteContent(_ pb: NSPasteboard = .general) -> Bool {
+    if let text = pb.string(forType: .string), !text.isEmpty {
+        return true
+    }
+    return hasImageData(in: pb)
+}
+
 // MARK: - 画像ペースト対応
 
 /// クリップボード画像の保存先。`~/Library/Caches/{polepole,polepole-dev}/clipboard/`。

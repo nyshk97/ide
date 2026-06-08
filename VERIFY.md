@@ -331,6 +331,7 @@ sleep 0.5
 - マウスホイールで上下スクロールができる
 - ドラッグでテキスト選択、選択範囲がハイライトされる
 - 選択後 `Cmd+C` でクリップボードへコピーされる（`pbpaste` で確認）
+- 選択後メニューバーの `Edit > Copy` でもクリップボードへコピーされる（外部アプリの AXPress Copy 経路も同じ action を使う）
 - `vim` 起動後、マウスホイールでバッファスクロールできる
 
 ## 7. クリップボードペースト
@@ -2122,5 +2123,4 @@ xcodebuild -project polepole.xcodeproj -scheme polepole \
 ```
 
 期待: `Executed 12 tests, with 0 failures`。
-
 

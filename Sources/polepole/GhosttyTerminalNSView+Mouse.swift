@@ -5,6 +5,7 @@ extension GhosttyTerminalNSView {
     // MARK: - ボタン
 
     override func mouseDown(with event: NSEvent) {
+        window?.makeFirstResponder(self)
         sendMouse(event, action: GHOSTTY_MOUSE_PRESS, button: GHOSTTY_MOUSE_LEFT)
     }
 
@@ -13,6 +14,7 @@ extension GhosttyTerminalNSView {
     }
 
     override func rightMouseDown(with event: NSEvent) {
+        window?.makeFirstResponder(self)
         sendMouse(event, action: GHOSTTY_MOUSE_PRESS, button: GHOSTTY_MOUSE_RIGHT)
     }
 
@@ -21,6 +23,7 @@ extension GhosttyTerminalNSView {
     }
 
     override func otherMouseDown(with event: NSEvent) {
+        window?.makeFirstResponder(self)
         sendMouse(event, action: GHOSTTY_MOUSE_PRESS, button: GHOSTTY_MOUSE_MIDDLE)
     }
 
