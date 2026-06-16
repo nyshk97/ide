@@ -51,6 +51,7 @@ mise run build                                        # ビルド（regen を含
 - **コードの確認**: `mise run build` が通る
 - **UI の確認**: `./scripts/polepole-launch.sh` + `./scripts/polepole-screenshot.sh` で画面を取って自分で確認する
 - **テスト用フラグを活用**: `POLEPOLE_TEST_AUTO_ACTIVATE_INDEX` `POLEPOLE_TEST_AUTO_PREVIEW` `POLEPOLE_TEST_AUTO_FULLSEARCH` `POLEPOLE_TEST_TOAST` で起動時に状態を仕込んで screenshot 取得まで自動化できる
+- **Debug 版へ `POLEPOLE_TEST_*` を渡す UI 検証は `open -n "$APP" --env KEY=value` を優先**: PolePole Release 内の Claude/Codex から Debug binary を直叩きすると、親プロセスの `GHOSTTY_RESOURCES_DIR` などを継承して Release 側 resource を参照し、window / screenshot 検証が不安定になることがある。環境変数依存そのものを検証したい場合だけ binary 直叩きを使う
 - **クリック / キーストロークが要る検証は PolePole 内 Claude Code からは自動化できない**: `polepole-screenshot.sh`（画面収録）は OK だが、`polepole-keystroke.sh` 系（osascript の補助アクセス）は `login` 介在で効かない。「読み込む」ボタン押下後の挙動・Markdown のローカルリンククリック・overlay 上の Cmd+C などはユーザーに目視依頼する
 - **Dock 検証では Release/Dev の取り違いに注意**: Brew 版 (`PolePole`) と Debug 版 (`PolePole Dev`) が両方 Dock にあるとき、AppleScript で `UI elements whose name contains "PolePole"` を使うと両方マッチして取り違える。Dev 版だけ欲しいときは `name is "PolePole Dev"` で完全一致させる。同様に `screencapture -R<x,y,w,h>` で Dock アイコン領域を撮る場合も、位置を取り違えると「Dev 側を変更したのに古い」と誤判定する
 
@@ -137,6 +138,12 @@ cmux 実装も同じ理解 (`.refs/cmux/Sources/GhosttyTerminalView.swift` 参�
 要点だけ:
 - `NSEvent.addLocalMonitorForEvents`（`MRUKeyMonitor`）が最優先で、vim/claude 等の TUI 内でも握る
 - Ctrl+M / Cmd+P / Cmd+Shift+F は PolePole 側で必ず握り切る（要件 3「逃がし手段なし」）
+
+---
+
+## Git repository boundary の扱い
+
+Cmd+P / Cmd+Shift+F / Cmd+D diff / diff badge など workspace 横断で Git repository boundary を扱う機能は `GitRepositoryDiscovery` を single source of truth にする。探索対象は active project root と直下 child repository のみで、再帰探索しない。親 repository 側の status / diff / file index / full-text search から child repository 配下を除外するときは `rel == childRel || rel.hasPrefix(childRel + "/")` に揃える。child repository 内は child repository 自身の `.gitignore` / status / diff を使う。active project root が非 Git でも、親直下の通常ファイルや non-repo directory は remainder として検索対象に残す。
 
 ---
 

@@ -131,6 +131,7 @@ VERIFY 用に起動時の状態を仕込めるフラグ。**本番ユーザー�
 |---|---|
 | `POLEPOLE_TEST_AUTO_ACTIVATE_INDEX=N` | 起動時に N 番目のピン留めをアクティブ化（要件「再起動時は active を復元しない」を VERIFY で迂回するため） |
 | `POLEPOLE_TEST_AUTO_PREVIEW=<rel-path>` | active project からの相対パスでプレビューを開く |
+| `POLEPOLE_TEST_AUTO_QUICKSEARCH=<query>` | 起動時に Cmd+P の overlay を開いてクエリを入力した状態にする |
 | `POLEPOLE_TEST_AUTO_FULLSEARCH=<query>` | 起動時に Cmd+Shift+F の overlay を開いて grep を実行（TextField.onSubmit が AppleScript の Enter で発火しないため） |
 | `POLEPOLE_TEST_PREVIEW_FIND=<query>` | `POLEPOLE_TEST_AUTO_PREVIEW` でプレビューを開いた状態で Cmd+F のファイル内検索バーを開き、`<query>` をハイライトする |
 | `POLEPOLE_TEST_TOAST=<message>` | 起動時に赤 toast を出す |
@@ -139,7 +140,6 @@ VERIFY 用に起動時の状態を仕込めるフラグ。**本番ユーザー�
 | `POLEPOLE_TEST_SIDEBAR_COLLAPSED=1` | 起動時に左サイドバー（プロジェクト一覧）を折りたたみ状態にする。値は `1` または `true` を受ける。`Cmd+S` で同等のトグル（リバインド可能） |
 | `POLEPOLE_TEST_AUTO_EMPTY_HUB=1` | プロジェクトが何件かあっても中央ペインを EmptyHubView (`Get started` 画面) に差し替える。実 `projects.json` を空にする破壊的検証を避けたいときに使う。値は `1` または `true` |
 | `POLEPOLE_TEST_IMPORT_FIXTURE=<dir>` | Import 機能の全 source の参照先を fixture ディレクトリに差し替える。期待構造: `<dir>/conventional/`（`.git` 含むツリー）、`<dir>/cmux/session.json`、`<dir>/tmuxinator/*.yml`、`<dir>/vscode/storage.json`、`<dir>/cursor/storage.json`。各ファイル / ディレクトリは存在しなくて良い（無いものは静かにスキップ） |
-| `POLEPOLE_TEST_AUTO_QUICKSEARCH=<query>` | 起動時に Cmd+P の overlay を開き `<query>` を入力した状態にする |
 | `POLEPOLE_TEST_AUTO_FSEVENTS_PROBE=<filename>` | FileIndex (Cmd+P) の FSEvents 自動更新を検証する。active project に `<filename>` を作成 → debounce + rebuild 待ち → `FileIndex.search(<filename>)` の hit 数を Logger に出す。その後ファイルを削除して、削除後の hit 数も同様に出す。1 サイクル ~15 秒 |
 
 例:

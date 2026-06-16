@@ -1383,6 +1383,93 @@ rm -f "$HOME/Library/Application Support/polepole-dev/projects.json"*
 - overlay 表示中の `Esc` で閉じる
 - overlay 表示中の `Cmd+R` で `git diff` を取り直す（ヘッダーの reload アイコンと同じ挙動）
 - バッジのクリックで overlay が開く
+
+## 34. Nested repo の Cmd+P / Cmd+Shift+F / Diff（自動）
+
+active project root の直下に child repository があり、親 `.gitignore` が child repository directory を ignore している fixture で確認する。Debug 版の `polepole-dev/projects.json` を一時的に差し替えるので、既存データは退避して最後に復元する。
+
+```bash
+APP="/tmp/polepole-build/Build/Products/Debug/PolePole Dev.app"
+WORKSPACE=$(mktemp -d /tmp/polepole-nested-verify.XXXXXX)
+BACKUP_DIR=$(mktemp -d /tmp/polepole-dev-backup.XXXXXX)
+APP_SUPPORT="$HOME/Library/Application Support/polepole-dev"
+ROOT="$WORKSPACE/root"
+CHILD="$ROOT/child-repo"
+ROOT_ONLY="$WORKSPACE/root-only"
+
+cleanup() {
+  pkill -x "PolePole Dev" 2>/dev/null || true
+  pkill -f "PolePole Dev.app/Contents/MacOS/PolePole Dev" 2>/dev/null || true
+  if [ -d "$BACKUP_DIR/polepole-dev" ]; then
+    rm -rf "$APP_SUPPORT" 2>/dev/null || true
+    mv "$BACKUP_DIR/polepole-dev" "$APP_SUPPORT"
+  else
+    rm -f "$APP_SUPPORT/projects.json" "$APP_SUPPORT/projects.json.tmp" 2>/dev/null || true
+  fi
+  rm -rf "$WORKSPACE" "$BACKUP_DIR" 2>/dev/null || true
+}
+trap cleanup EXIT
+
+mkdir -p "$ROOT" "$CHILD" "$ROOT_ONLY"
+git -C "$ROOT" init -q
+git -C "$ROOT" config user.email "verify@example.com"
+git -C "$ROOT" config user.name "Verify"
+printf 'child-repo\n' > "$ROOT/.gitignore"
+printf 'needle-root\n' > "$ROOT/root.txt"
+
+git -C "$CHILD" init -q
+git -C "$CHILD" config user.email "verify@example.com"
+git -C "$CHILD" config user.name "Verify"
+printf '*.ignored\n' > "$CHILD/.gitignore"
+printf 'needle-child\n' > "$CHILD/visible.txt"
+printf 'needle-hidden\n' > "$CHILD/hidden.ignored"
+
+git -C "$ROOT_ONLY" init -q
+git -C "$ROOT_ONLY" config user.email "verify@example.com"
+git -C "$ROOT_ONLY" config user.name "Verify"
+printf 'root-only\n' > "$ROOT_ONLY/root-only.txt"
+
+if [ -d "$APP_SUPPORT" ]; then cp -a "$APP_SUPPORT" "$BACKUP_DIR/polepole-dev"; fi
+mkdir -p "$APP_SUPPORT"
+cat > "$APP_SUPPORT/projects.json" <<JSON
+{"projects":[{"displayName":"nested-verify","id":"AAAAAAAA-1111-1111-1111-111111111111","isPinned":true,"lastOpenedAt":"2026-06-16T01:00:00Z","path":"$ROOT"}],"schemaVersion":1}
+JSON
+
+pkill -x "PolePole Dev" 2>/dev/null || true
+open -n "$APP" --env POLEPOLE_TEST_AUTO_ACTIVATE_INDEX=0 --env POLEPOLE_TEST_AUTO_QUICKSEARCH=visible
+sleep 5
+./scripts/polepole-screenshot.sh /tmp/nested-quick.png
+
+pkill -x "PolePole Dev" 2>/dev/null || true
+open -n "$APP" --env POLEPOLE_TEST_AUTO_ACTIVATE_INDEX=0 --env POLEPOLE_TEST_AUTO_FULLSEARCH=needle-child
+sleep 6
+./scripts/polepole-screenshot.sh /tmp/nested-fullsearch.png
+
+pkill -x "PolePole Dev" 2>/dev/null || true
+open -n "$APP" --env POLEPOLE_TEST_AUTO_ACTIVATE_INDEX=0
+sleep 5
+./scripts/polepole-screenshot.sh /tmp/nested-badge-plus.png
+
+pkill -x "PolePole Dev" 2>/dev/null || true
+open -n "$APP" --env POLEPOLE_TEST_AUTO_ACTIVATE_INDEX=0 --env POLEPOLE_TEST_AUTO_OPEN_DIFF=1
+sleep 6
+./scripts/polepole-screenshot.sh /tmp/nested-diff-overlay.png
+
+cat > "$APP_SUPPORT/projects.json" <<JSON
+{"projects":[{"displayName":"root-only","id":"BBBBBBBB-1111-1111-1111-111111111111","isPinned":true,"lastOpenedAt":"2026-06-16T01:00:00Z","path":"$ROOT_ONLY"}],"schemaVersion":1}
+JSON
+pkill -x "PolePole Dev" 2>/dev/null || true
+open -n "$APP" --env POLEPOLE_TEST_AUTO_ACTIVATE_INDEX=0
+sleep 5
+./scripts/polepole-screenshot.sh /tmp/root-only-badge.png
+```
+
+期待:
+- `/tmp/nested-quick.png`: Cmd+P に `child-repo/visible.txt` が出る
+- `/tmp/nested-fullsearch.png`: Cmd+Shift+F に `needle-child` の 1 hit が出る
+- `/tmp/nested-badge-plus.png`: child repository に変更があるため diff badge が `+` capsule になる
+- `/tmp/nested-diff-overlay.png`: diff overlay が root `.` section と `child-repo` section に分かれる
+- `/tmp/root-only-badge.png`: root repository だけに変更があるため diff badge が数字表示になる
 - ファイル名右の `±` アイコンで「ファイル全体表示 ↔ 差分のみ」がトグルできる
 
 ## 34. Sparkle "Check for Updates…"
@@ -2123,4 +2210,3 @@ xcodebuild -project polepole.xcodeproj -scheme polepole \
 ```
 
 期待: `Executed 12 tests, with 0 failures`。
-

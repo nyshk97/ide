@@ -120,7 +120,6 @@ struct RootLayoutView: View {
             } else if projects.diffOverlayVisible, let active = projects.activeProject {
                 DiffOverlayView(
                     viewModel: projects.diffViewModel,
-                    repoPath: active.path,
                     projectName: active.displayName,
                     onClose: { projects.closeDiffOverlay() }
                 )

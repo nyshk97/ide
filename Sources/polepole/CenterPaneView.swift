@@ -73,8 +73,9 @@ private struct FileTreeWrapper: View {
 
 /// 中央上部バーの diff バッジボタン。常時表示で、差分の有無で件数 Capsule の色を変える。
 ///
-/// - 差分なし（`gitStatus.statuses.count == 0`): アイコン薄め + "0" の Capsule（グレー背景 + secondary 文字）
-/// - 差分あり（`> 0`): アイコン通常色 + 件数 Capsule（accent 背景 + 白文字）
+/// - 差分なし: アイコン薄め + "0" の Capsule（グレー背景 + secondary 文字）
+/// - root repo のみ差分あり: 件数 Capsule（accent 背景 + 白文字）
+/// - nested repo に差分あり: "+" Capsule（accent 背景 + 白文字）
 struct DiffBadgeButton: View {
     @ObservedObject var gitStatus: GitStatusModel
     let onClick: () -> Void
@@ -82,23 +83,24 @@ struct DiffBadgeButton: View {
     @State private var hovered: Bool = false
 
     var body: some View {
-        let count = gitStatus.statuses.count
+        let state = gitStatus.diffBadgeState
+        let hasChanges = state != .none
         Button(action: onClick) {
             HStack(spacing: 4) {
                 Image("git-branch")
                     .renderingMode(.template)
                     .resizable()
                     .frame(width: 14, height: 14)
-                Text("\(count)")
+                Text(label(for: state))
                     .font(.system(size: 10, weight: .semibold, design: .monospaced))
-                    .foregroundStyle(count > 0 ? Color.white : Color.secondary)
+                    .foregroundStyle(hasChanges ? Color.white : Color.secondary)
                     .padding(.horizontal, 5)
                     .padding(.vertical, 1)
                     .background(
-                        Capsule().fill(count > 0 ? Color.accentColor : Color.secondary.opacity(0.2))
+                        Capsule().fill(hasChanges ? Color.accentColor : Color.secondary.opacity(0.2))
                     )
             }
-            .foregroundStyle(count > 0 ? Color.primary : Color.secondary)
+            .foregroundStyle(hasChanges ? Color.primary : Color.secondary)
             .padding(.horizontal, 6)
             .padding(.vertical, 2)
             .background(
@@ -109,6 +111,28 @@ struct DiffBadgeButton: View {
         }
         .buttonStyle(.plain)
         .onHover { hovered = $0 }
-        .help(count > 0 ? "Open Diff (\(count) files · Cmd+D)" : "No changes (Cmd+D to check)")
+        .help(helpText(for: state))
+    }
+
+    private func label(for state: DiffBadgeState) -> String {
+        switch state {
+        case .none:
+            return "0"
+        case .rootOnly(let count):
+            return "\(count)"
+        case .includesNestedRepo:
+            return "+"
+        }
+    }
+
+    private func helpText(for state: DiffBadgeState) -> String {
+        switch state {
+        case .none:
+            return "No changes (Cmd+D to check)"
+        case .rootOnly(let count):
+            return "Open Diff (\(count) files · Cmd+D)"
+        case .includesNestedRepo:
+            return "Open Diff (nested repository changes · Cmd+D)"
+        }
     }
 }

@@ -5,7 +5,6 @@ import SwiftUI
 /// `FullSearchView` と同じく `RootLayoutView` の `.overlay` に置く想定。
 struct DiffOverlayView: View {
     @ObservedObject var viewModel: DiffViewModel
-    let repoPath: URL
     let projectName: String
     let onClose: () -> Void
 
@@ -39,8 +38,8 @@ struct DiffOverlayView: View {
             Text(projectName)
                 .font(.system(size: 12, design: .monospaced))
                 .foregroundColor(GitHubDark.textSecondary)
-            if !viewModel.files.isEmpty {
-                Text("\(viewModel.files.count) files")
+            if viewModel.totalFileCount > 0 {
+                Text("\(viewModel.totalFileCount) files")
                     .font(.system(size: 11, design: .monospaced))
                     .foregroundColor(GitHubDark.textSecondary)
             }
@@ -74,7 +73,7 @@ struct DiffOverlayView: View {
 
     @ViewBuilder
     private var content: some View {
-        if viewModel.isLoading && viewModel.files.isEmpty {
+        if viewModel.isLoading && viewModel.repositories.isEmpty {
             VStack {
                 Spacer()
                 ProgressView().scaleEffect(1.2).tint(GitHubDark.textSecondary)
@@ -93,7 +92,7 @@ struct DiffOverlayView: View {
                 Spacer()
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
-        } else if viewModel.files.isEmpty {
+        } else if viewModel.repositories.isEmpty {
             VStack(spacing: 12) {
                 Spacer()
                 Image(systemName: "checkmark.circle")
@@ -108,11 +107,37 @@ struct DiffOverlayView: View {
         } else {
             ScrollView {
                 LazyVStack(spacing: 16) {
-                    ForEach(viewModel.files) { file in
-                        FileDiffCard(file: file, repoPath: repoPath)
+                    ForEach(viewModel.repositories) { repository in
+                        repositorySection(repository)
                     }
                 }
                 .padding(20)
+            }
+        }
+    }
+
+    private func repositorySection(_ repository: RepositoryDiff) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 8) {
+                Image("git-branch")
+                    .renderingMode(.template)
+                    .resizable()
+                    .frame(width: 13, height: 13)
+                    .foregroundColor(GitHubDark.textSecondary)
+                Text(repository.displayPath)
+                    .font(.system(size: 12, weight: .semibold, design: .monospaced))
+                    .foregroundColor(GitHubDark.text)
+                Text("\(repository.files.count) files")
+                    .font(.system(size: 11, design: .monospaced))
+                    .foregroundColor(GitHubDark.textSecondary)
+                Spacer()
+            }
+            .padding(.horizontal, 2)
+
+            LazyVStack(spacing: 12) {
+                ForEach(repository.files) { file in
+                    FileDiffCard(file: file, repoPath: repository.repoPath)
+                }
             }
         }
     }

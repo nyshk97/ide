@@ -6,6 +6,44 @@ import Foundation
 /// - 単一 repo 対象（`fetchDiffs(repoPath:)` が `[FileDiff]` を直接返す。`Config` / `RepositoryDiff` 経由ではない）
 /// - `Process` 直叩きから `ProcessRunner` + `BinaryLocator.git` 経由に差し替え（10 秒タイムアウト、stdout/stderr drain、SIGTERM → SIGKILL）
 enum DiffService {
+    /// Active project root and its direct child repositories, grouped by repository.
+    nonisolated static func fetchRepositoryDiffs(workspaceRoot: URL) -> [RepositoryDiff] {
+        let workspaceRoot = workspaceRoot.standardizedFileURL.resolvingSymlinksInPath()
+        let layout = GitRepositoryDiscovery.discover(in: workspaceRoot)
+        guard !layout.repositories.isEmpty else {
+            let files = fetchDiffs(repoPath: workspaceRoot)
+            guard !files.isEmpty else { return [] }
+            return [RepositoryDiff(repoPath: workspaceRoot, displayPath: ".", files: files)]
+        }
+
+        var sections: [RepositoryDiff] = []
+        if let rootRepository = layout.rootRepository {
+            let files = fetchDiffs(repoPath: rootRepository.rootURL).filter {
+                !isInsideChildRepository($0, layout: layout, repoRoot: rootRepository.rootURL)
+            }
+            if !files.isEmpty {
+                sections.append(RepositoryDiff(
+                    repoPath: rootRepository.rootURL,
+                    displayPath: rootRepository.displayPath,
+                    files: files
+                ))
+            }
+        }
+
+        for childRepository in layout.childRepositories {
+            let files = fetchDiffs(repoPath: childRepository.rootURL)
+            if !files.isEmpty {
+                sections.append(RepositoryDiff(
+                    repoPath: childRepository.rootURL,
+                    displayPath: childRepository.displayPath,
+                    files: files
+                ))
+            }
+        }
+
+        return sections
+    }
+
     /// 指定 repo の全 diff を 1 リストで返す。unstaged + staged + untracked + deleted + rename をマージ。
     nonisolated static func fetchDiffs(repoPath: URL) -> [FileDiff] {
         let path = repoPath
@@ -62,6 +100,28 @@ enum DiffService {
     }
 
     // MARK: - private
+
+    nonisolated private static func isInsideChildRepository(
+        _ file: FileDiff,
+        layout: GitWorkspaceLayout,
+        repoRoot: URL
+    ) -> Bool {
+        func workspaceRelativePath(_ repoRelativePath: String) -> String? {
+            let url = repoRoot.appendingPathComponent(repoRelativePath)
+            return layout.workspaceRelativePath(for: url)
+        }
+
+        if let relativePath = workspaceRelativePath(file.fileName),
+           layout.isInsideChildRepository(relativePath: relativePath) {
+            return true
+        }
+        if case .renamed(let from) = file.changeType,
+           let relativePath = workspaceRelativePath(from),
+           layout.isInsideChildRepository(relativePath: relativePath) {
+            return true
+        }
+        return false
+    }
 
     nonisolated private static func fetchUntrackedFiles(at repoPath: URL) -> [FileDiff] {
         let output = runGit(["ls-files", "--others", "--exclude-standard"], at: repoPath)

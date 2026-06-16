@@ -4,9 +4,13 @@ import SwiftUI
 /// Diff overlay 用の状態保持。`DiffOverlayView.onAppear` で `load(project:)` を呼ぶ。
 @MainActor
 final class DiffViewModel: ObservableObject {
-    @Published private(set) var files: [FileDiff] = []
+    @Published private(set) var repositories: [RepositoryDiff] = []
     @Published private(set) var isLoading = false
     @Published private(set) var errorMessage: String?
+
+    var totalFileCount: Int {
+        repositories.reduce(0) { $0 + $1.files.count }
+    }
 
     /// 最後にロードしたプロジェクト。reload 時に再利用する。
     private var lastProject: Project?
@@ -18,10 +22,10 @@ final class DiffViewModel: ObservableObject {
         errorMessage = nil
 
         Task.detached { [weak self] in
-            let diffs = DiffService.fetchDiffs(repoPath: path)
+            let diffs = DiffService.fetchRepositoryDiffs(workspaceRoot: path)
             await MainActor.run {
                 guard let self else { return }
-                self.files = diffs
+                self.repositories = diffs
                 self.isLoading = false
             }
         }
@@ -34,7 +38,7 @@ final class DiffViewModel: ObservableObject {
 
     /// overlay を閉じたとき。次回開いたときは再取得する想定なのでメモリ解放する。
     func clear() {
-        files = []
+        repositories = []
         isLoading = false
         errorMessage = nil
         lastProject = nil

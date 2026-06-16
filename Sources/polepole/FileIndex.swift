@@ -16,7 +16,7 @@ final class FileIndex: ObservableObject {
     /// 直近開いたファイルのパス → 開いた時刻。スコアリング上位に効かせる。
     var recents: [FilePathKey: Date] = [:]
 
-    struct Entry: Identifiable, Hashable {
+    struct Entry: Identifiable, Hashable, Sendable {
         let url: URL
         let isDirectory: Bool
         /// project root からの相対パス（小文字化済みは検索用に別保持）
@@ -199,12 +199,63 @@ final class FileIndex: ObservableObject {
     ///
     /// Git repo では `git ls-files` に寄せる（独自 BFS より `.gitignore` の再現性が高く、
     /// ファイル単位の ignore も効く）。非 git repo は BFS で `IgnoredDirectories` を当てる。
-    nonisolated private static func scan(root: URL) -> [Entry] {
-        let rootPath = root.standardizedFileURL.path
-        if let viaGit = scanViaGit(root: root, rootPath: rootPath) {
-            return viaGit
+    nonisolated static func scan(root: URL) -> [Entry] {
+        let root = root.standardizedFileURL.resolvingSymlinksInPath()
+        let rootPath = root.path
+        let layout = GitRepositoryDiscovery.discover(in: root)
+        guard !layout.repositories.isEmpty else {
+            if let viaGit = scanViaGit(
+                root: root,
+                rootPath: rootPath,
+                excludedRelativeRoots: [],
+                includeRootDirectory: false
+            ) {
+                return viaGit
+            }
+            return scanViaBFS(root: root, rootPath: rootPath)
         }
-        return scanViaBFS(root: root, rootPath: rootPath)
+
+        var result: [Entry] = []
+        var seen = Set<String>()
+        func appendUnique(_ entries: [Entry]) {
+            for entry in entries where seen.insert(entry.url.standardizedFileURL.resolvingSymlinksInPath().path).inserted {
+                result.append(entry)
+            }
+        }
+
+        let childRelativePaths = Set(layout.childRelativePaths)
+        if let rootRepository = layout.rootRepository {
+            if let viaGit = scanViaGit(
+                root: rootRepository.rootURL,
+                rootPath: rootPath,
+                excludedRelativeRoots: childRelativePaths,
+                includeRootDirectory: false
+            ) {
+                appendUnique(viaGit)
+            } else {
+                appendUnique(scanViaBFS(root: root, rootPath: rootPath, excludedRelativeRoots: childRelativePaths))
+            }
+        } else {
+            appendUnique(scanViaBFS(root: root, rootPath: rootPath, excludedRelativeRoots: childRelativePaths))
+        }
+
+        for childRepository in layout.childRepositories {
+            if let viaGit = scanViaGit(
+                root: childRepository.rootURL,
+                rootPath: rootPath,
+                excludedRelativeRoots: [],
+                includeRootDirectory: true
+            ) {
+                appendUnique(viaGit)
+            } else {
+                var fallback: [Entry] = []
+                appendEntry(&fallback, url: childRepository.rootURL, isDir: true, rootPath: rootPath)
+                fallback.append(contentsOf: scanViaBFS(root: childRepository.rootURL, rootPath: rootPath))
+                appendUnique(fallback)
+            }
+        }
+
+        return result
     }
 
     /// Git repo では `git ls-files -co --exclude-standard -z` でファイル一覧を取得し、
@@ -215,7 +266,12 @@ final class FileIndex: ObservableObject {
     /// `rm tracked.txt` した直後の (`git add` で削除を記録していない) ファイルも出る。
     /// FSEvents 経由の rebuild で「削除を反映」したいので、ここで
     /// `FileManager.fileExists` チェックを入れてディスクに無い path は捨てる。
-    nonisolated private static func scanViaGit(root: URL, rootPath: String) -> [Entry]? {
+    nonisolated private static func scanViaGit(
+        root: URL,
+        rootPath: String,
+        excludedRelativeRoots: Set<String>,
+        includeRootDirectory: Bool
+    ) -> [Entry]? {
         guard let git = BinaryLocator.git else { return nil }
         let result = ProcessRunner.run(
             executable: git,
@@ -229,6 +285,9 @@ final class FileIndex: ObservableObject {
         let fm = FileManager.default
         var entries: [Entry] = []
         var seenDirs = Set<String>()  // 合成済みディレクトリの相対パス
+        if includeRootDirectory {
+            appendEntry(&entries, url: root, isDir: true, rootPath: rootPath)
+        }
         for chunk in result.stdout.split(separator: 0) {
             let rel = String(decoding: chunk, as: UTF8.self)
             guard !rel.isEmpty else { continue }
@@ -236,6 +295,10 @@ final class FileIndex: ObservableObject {
             // ディスクに存在しない path (削除されたが git add していない tracked file) は捨てる
             let fileURL = root.appendingPathComponent(rel)
             guard fm.fileExists(atPath: fileURL.path) else { continue }
+            guard let workspaceRelativePath = relativePath(of: fileURL, rootPath: rootPath),
+                  !isExcluded(relativePath: workspaceRelativePath, by: excludedRelativeRoots) else {
+                continue
+            }
 
             // 親ディレクトリを root 直下まで合成 (存在するファイルの親のみ)
             let components = rel.split(separator: "/").map(String.init)
@@ -257,7 +320,11 @@ final class FileIndex: ObservableObject {
     /// 非 git repo / git ls-files 失敗時の BFS スキャン。
     /// [[IgnoredDirectories]] で事前定義した dir 名を捨てた上で、
     /// 残ったディレクトリ群を `git check-ignore` に一括投入する。
-    nonisolated private static func scanViaBFS(root: URL, rootPath: String) -> [Entry] {
+    nonisolated private static func scanViaBFS(
+        root: URL,
+        rootPath: String,
+        excludedRelativeRoots: Set<String> = []
+    ) -> [Entry] {
         let fm = FileManager.default
         let resourceKeys: [URLResourceKey] = [.isDirectoryKey, .isSymbolicLinkKey]
         let resourceKeySet = Set(resourceKeys)
@@ -283,6 +350,10 @@ final class FileIndex: ObservableObject {
                     let values = try? url.resourceValues(forKeys: resourceKeySet)
                     if values?.isSymbolicLink == true { continue }
                     let isDir = values?.isDirectory ?? false
+                    if let relativePath = relativePath(of: url, rootPath: rootPath),
+                       isExcluded(relativePath: relativePath, by: excludedRelativeRoots) {
+                        continue
+                    }
                     if isDir {
                         if IgnoredDirectories.nameSet.contains(url.lastPathComponent) { continue }
                         dirsForCheck.append(url)
@@ -310,13 +381,28 @@ final class FileIndex: ObservableObject {
         return result
     }
 
+    nonisolated private static func relativePath(of url: URL, rootPath: String) -> String? {
+        let absolute = url.standardizedFileURL.resolvingSymlinksInPath().path
+        if absolute == rootPath { return "" }
+        guard absolute.hasPrefix(rootPath + "/") else { return nil }
+        return String(absolute.dropFirst(rootPath.count + 1))
+    }
+
+    nonisolated private static func isExcluded(relativePath rawRelativePath: String, by excludedRoots: Set<String>) -> Bool {
+        let relativePath = GitWorkspaceLayout.normalizedRelativePath(rawRelativePath)
+        guard !relativePath.isEmpty else { return false }
+        return excludedRoots.contains { excludedRoot in
+            relativePath == excludedRoot || relativePath.hasPrefix(excludedRoot + "/")
+        }
+    }
+
     nonisolated private static func appendEntry(
         _ result: inout [Entry],
         url: URL,
         isDir: Bool,
         rootPath: String
     ) {
-        let absolute = url.standardizedFileURL.path
+        let absolute = url.standardizedFileURL.resolvingSymlinksInPath().path
         guard absolute.hasPrefix(rootPath + "/") else { return }
         let relative = String(absolute.dropFirst(rootPath.count + 1))
         result.append(Entry(

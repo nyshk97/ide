@@ -1,6 +1,12 @@
 import Foundation
 import SwiftUI
 
+enum DiffBadgeState: Equatable, Sendable {
+    case none
+    case rootOnly(count: Int)
+    case includesNestedRepo
+}
+
 /// `git status --porcelain=v1` の結果をファイル単位で保持。
 ///
 /// MVP として 3 秒間隔の Timer ベースで refresh する（FSEvents による即時反映は次フェーズ）。
@@ -12,17 +18,18 @@ final class GitStatusModel: ObservableObject {
     /// 絶対パス文字列 → ステータスバッジ。URL 比較は scheme/baseURL の差異で一致しないことが
     /// あるので、`URL.standardizedFileURL.path` を使った String キーで持つ。
     @Published private(set) var statuses: [String: Badge] = [:]
+    @Published private(set) var diffBadgeState: DiffBadgeState = .none
 
     /// 指定 URL に対するバッジを返す。FileTreeView の row から呼ぶ。
     func badge(for url: URL) -> Badge? {
-        statuses[url.standardizedFileURL.path]
+        statuses[url.standardizedFileURL.resolvingSymlinksInPath().path]
     }
 
     /// `git status` の `XY` 1〜2 文字を UI 用の 1 文字 + 色 にマップ。
     ///
     /// `--ignored` を渡していないので `!!`（ignored）は出力されない。ignored 表示は
     /// `GitIgnoreChecker` → `FileTreeModel.applyIgnored` の薄表示で行う。
-    enum Badge: Equatable {
+    enum Badge: Equatable, Sendable {
         case modified, added, deleted, untracked, renamed, unknown
 
         var letter: String {
@@ -48,6 +55,11 @@ final class GitStatusModel: ObservableObject {
 
     nonisolated(unsafe) private var pollTimer: Timer?
     nonisolated(unsafe) private var debounceTimer: Timer?
+
+    struct Snapshot: Sendable {
+        let statuses: [String: Badge]
+        let diffBadgeState: DiffBadgeState
+    }
 
     init(project: Project) {
         self.project = project
@@ -82,11 +94,57 @@ final class GitStatusModel: ObservableObject {
         let path = project.path
         // バックグラウンド queue で git を回し、結果は MainActor で反映
         Task.detached { [weak self] in
-            let result = Self.runGitStatus(in: path)
+            let result = Self.snapshot(in: path)
             await MainActor.run {
-                self?.statuses = result
+                self?.statuses = result.statuses
+                self?.diffBadgeState = result.diffBadgeState
             }
         }
+    }
+
+    nonisolated static func snapshot(in workspaceRoot: URL) -> Snapshot {
+        let workspaceRoot = workspaceRoot.standardizedFileURL.resolvingSymlinksInPath()
+        let layout = GitRepositoryDiscovery.discover(in: workspaceRoot)
+        guard !layout.repositories.isEmpty else {
+            let statuses = runGitStatus(in: workspaceRoot)
+            return Snapshot(
+                statuses: statuses,
+                diffBadgeState: statuses.isEmpty ? .none : .rootOnly(count: statuses.count)
+            )
+        }
+
+        var mergedStatuses: [String: Badge] = [:]
+        var rootStatusCount = 0
+        var hasNestedRepoChanges = false
+
+        if let rootRepository = layout.rootRepository {
+            let rootStatuses = runGitStatus(in: rootRepository.rootURL).filter { absolutePath, _ in
+                let url = URL(fileURLWithPath: absolutePath)
+                guard let relativePath = layout.workspaceRelativePath(for: url) else { return true }
+                return !layout.isInsideChildRepository(relativePath: relativePath)
+            }
+            rootStatusCount = rootStatuses.count
+            mergedStatuses.merge(rootStatuses) { current, _ in current }
+        }
+
+        for childRepository in layout.childRepositories {
+            let childStatuses = runGitStatus(in: childRepository.rootURL)
+            if !childStatuses.isEmpty {
+                hasNestedRepoChanges = true
+            }
+            mergedStatuses.merge(childStatuses) { current, _ in current }
+        }
+
+        let badgeState: DiffBadgeState
+        if hasNestedRepoChanges {
+            badgeState = .includesNestedRepo
+        } else if rootStatusCount > 0 {
+            badgeState = .rootOnly(count: rootStatusCount)
+        } else {
+            badgeState = .none
+        }
+
+        return Snapshot(statuses: mergedStatuses, diffBadgeState: badgeState)
     }
 
     /// `git status --porcelain=v1` を 10 秒タイムアウトで実行。
@@ -126,7 +184,7 @@ final class GitStatusModel: ObservableObject {
                 idx += 1
             }
 
-            let abs = repoRoot.appendingPathComponent(path).standardizedFileURL.path
+            let abs = repoRoot.appendingPathComponent(path).standardizedFileURL.resolvingSymlinksInPath().path
             result[abs] = badge
         }
         return result
