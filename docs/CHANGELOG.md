@@ -109,6 +109,13 @@ ja/en は **意味の対応**であって逐語訳ではない。日本語で自
 7. **ペアの整合性**: `- ja:` と `- en:` は隣接 / カテゴリ配置一致 / bullet 数一致 を最後に確認
 
 ## [Unreleased]
+### ✨ Added
+- ja: 親フォルダ直下の子 Git repository も Cmd+D の diff overlay と Cmd+P / Cmd+Shift+F の検索対象に含めるように追加
+- en: Added direct child Git repositories to the Cmd+D diff overlay and Cmd+P / Cmd+Shift+F search results
+
+### 📝 Changed
+- ja: 子 repository に変更があるとき、上部の diff badge を件数ではなく `+` 表示に変更
+- en: The top diff badge now shows `+` instead of a file count when child repositories have changes
 
 ## [1.4.10] - 2026-06-08
 ### 🐛 Fixed
