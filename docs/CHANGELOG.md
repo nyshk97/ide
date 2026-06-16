@@ -109,6 +109,8 @@ ja/en は **意味の対応**であって逐語訳ではない。日本語で自
 7. **ペアの整合性**: `- ja:` と `- en:` は隣接 / カテゴリ配置一致 / bullet 数一致 を最後に確認
 
 ## [Unreleased]
+
+## [1.4.11] - 2026-06-16
 ### ✨ Added
 - ja: 親フォルダ直下の子 Git repository も Cmd+D の diff overlay と Cmd+P / Cmd+Shift+F の検索対象に含めるように追加
 - en: Added direct child Git repositories to the Cmd+D diff overlay and Cmd+P / Cmd+Shift+F search results
