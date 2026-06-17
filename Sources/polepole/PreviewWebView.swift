@@ -136,6 +136,11 @@ final class PreviewWebController: NSObject, ObservableObject {
             if !s.hasSuffix("/") { s += "/" }
             dict["baseHref"] = s
         }
+        if let allowedRoot = payload.allowedRoot {
+            var s = allowedRoot.standardizedFileURL.absoluteString
+            if !s.hasSuffix("/") { s += "/" }
+            dict["allowedRootHref"] = s
+        }
         guard
             let data = try? JSONSerialization.data(withJSONObject: dict, options: []),
             let json = String(data: data, encoding: .utf8)

@@ -957,6 +957,7 @@ rm -f "$HOME/Library/Application Support/polepole-dev/projects.json"*
 期待:
 - 中央ペインがプレビューモードに切替（ツールバー左に `folder` アイコン + `/` + ファイル名のパンくず、続いて履歴ナビ ← →、右端に「Cursor で開く」）
 - Markdown はインラインレンダリング（リンク・強調が効く、見出しはプレーン）。`README.md` の `![]()` 画像（`docs/images/overview.png`）が壊れアイコンではなくちゃんと表示される（`ideres://` スキームハンドラ経由）
+- Markdown 内リンクは常時小さなアイコン付きで表示される。project root 配下の内部リンク（例: `./docs/DEV.md`）は `→`、外部リンク（例: `https://mise.jdx.dev/` や GitHub URL）は `⧉`
 - コード（.swift）はモノスペースで表示
 - XML はそのままプレーンテキスト
 - パンくずのファイル名にホバー → 右に小さいコピーアイコン (`doc.on.doc`) が現れる（ホバーを外すと消える）。クリック → アイコンが ✓（緑）に 1 秒だけ切り替わり、pasteboard に project root からの相対パスが入る（Markdown でも非 Markdown でも同じ）。右下のトーストは出ない

@@ -130,6 +130,21 @@ main.md a {
   color: var(--link);
   text-decoration: none;
 }
+main.md a[data-link-kind]::after {
+  display: inline-block;
+  margin-left: 0.18em;
+  font-size: 0.72em;
+  line-height: 1;
+  opacity: 0.72;
+  text-decoration: none;
+  vertical-align: 0.08em;
+}
+main.md a[data-link-kind="internal"]::after {
+  content: "→";
+}
+main.md a[data-link-kind="external"]::after {
+  content: "⧉";
+}
 main.md a:hover {
   text-decoration: underline;
 }

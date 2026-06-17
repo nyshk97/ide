@@ -4,6 +4,7 @@
   const root = document.getElementById("root");
   let pending = null;
   let ready = false;
+  let allowedRootHref = "";
   // ファイル内検索 (Cmd+F) の状態。{ query, marks: [HTMLElement], index } | null
   let findState = null;
 
@@ -109,6 +110,7 @@
     }
     root.innerHTML = html;
     rewriteLocalImageSrcs();
+    annotateMarkdownLinks();
     // marked v12 の highlight オプションは廃止予定なので、念のためフォールバックで再ハイライト
     if (window.hljs) {
       root.querySelectorAll("pre code").forEach(function (el) {
@@ -119,6 +121,70 @@
           el.dataset.highlighted = "yes";
         }
       });
+    }
+  }
+
+  function setAllowedRootHref(href) {
+    allowedRootHref = typeof href === "string" ? href : "";
+  }
+
+  function decodedFilePath(url) {
+    if (!url || url.protocol !== "file:") return "";
+    try {
+      return decodeURIComponent(url.pathname);
+    } catch (e) {
+      return url.pathname || "";
+    }
+  }
+
+  function normalizeRootPath(path) {
+    return (path || "").replace(/\/+$/, "");
+  }
+
+  function isFileURLWithinAllowedRoot(url) {
+    if (!url || url.protocol !== "file:") return false;
+    if (!allowedRootHref) return true;
+    var rootURL;
+    try {
+      rootURL = new URL(allowedRootHref);
+    } catch (e) {
+      return false;
+    }
+    if (rootURL.protocol !== "file:") return false;
+    var rootPath = normalizeRootPath(decodedFilePath(rootURL));
+    var targetPath = normalizeRootPath(decodedFilePath(url));
+    return targetPath === rootPath || targetPath.indexOf(rootPath + "/") === 0;
+  }
+
+  function classifyMarkdownLink(anchor) {
+    var raw = anchor.getAttribute("href") || "";
+    if (!raw) return "";
+    if (raw[0] === "#") return "internal";
+
+    var url;
+    try {
+      url = new URL(anchor.href || raw, document.baseURI);
+    } catch (e) {
+      return "external";
+    }
+
+    if (url.protocol === "file:") {
+      return isFileURLWithinAllowedRoot(url) ? "internal" : "external";
+    }
+    return "external";
+  }
+
+  function annotateMarkdownLinks() {
+    if (!root) return;
+    var anchors = root.querySelectorAll("a[href]");
+    for (var i = 0; i < anchors.length; i++) {
+      var anchor = anchors[i];
+      var kind = classifyMarkdownLink(anchor);
+      if (!kind) {
+        anchor.removeAttribute("data-link-kind");
+      } else {
+        anchor.setAttribute("data-link-kind", kind);
+      }
     }
   }
 
@@ -332,6 +398,7 @@
       : null;
     if (payload.theme) setTheme(payload.theme);
     setBaseHref(payload.kind === "markdown" ? payload.baseHref || "" : "");
+    setAllowedRootHref(payload.kind === "markdown" ? payload.allowedRootHref || "" : "");
     switch (payload.kind) {
       case "markdown":
         renderMarkdown(payload.text || "");
