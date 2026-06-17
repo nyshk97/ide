@@ -109,6 +109,7 @@
       html = "<pre>" + escapeHtml(text) + "</pre>";
     }
     root.innerHTML = html;
+    annotateMarkdownHeadings();
     rewriteLocalImageSrcs();
     annotateMarkdownLinks();
     // marked v12 の highlight オプションは廃止予定なので、念のためフォールバックで再ハイライト
@@ -121,6 +122,34 @@
           el.dataset.highlighted = "yes";
         }
       });
+    }
+  }
+
+  function slugifyHeadingText(text) {
+    var slug = (text || "").trim().toLowerCase();
+    // GitHub-style heading anchors are roughly: lowercase, remove punctuation,
+    // turn whitespace into hyphens. Keep non-ASCII letters such as Japanese.
+    slug = slug.replace(/[!"#$%&'()*+,./:;<=>?@[\\\]^`{|}~]/g, "");
+    slug = slug.replace(/\s+/g, "-");
+    slug = slug.replace(/-+/g, "-");
+    slug = slug.replace(/^-|-$/g, "");
+    return slug || "section";
+  }
+
+  function annotateMarkdownHeadings() {
+    if (!root) return;
+    var seen = {};
+    var headings = root.querySelectorAll("h1, h2, h3, h4, h5, h6");
+    for (var i = 0; i < headings.length; i++) {
+      var heading = headings[i];
+      if (heading.id) {
+        seen[heading.id] = (seen[heading.id] || 0) + 1;
+        continue;
+      }
+      var base = slugifyHeadingText(heading.textContent || "");
+      var next = seen[base] || 0;
+      heading.id = next === 0 ? base : base + "-" + next;
+      seen[base] = next + 1;
     }
   }
 
