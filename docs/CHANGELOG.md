@@ -109,6 +109,8 @@ ja/en は **意味の対応**であって逐語訳ではない。日本語で自
 7. **ペアの整合性**: `- ja:` と `- en:` は隣接 / カテゴリ配置一致 / bullet 数一致 を最後に確認
 
 ## [Unreleased]
+
+## [1.4.12] - 2026-06-17
 ### 🐛 Fixed
 - ja: Markdown プレビュー内の同じプロジェクトへのリンクをクリックしても開かないことがある問題を修正
 - en: Fixed Markdown preview links to files in the same project sometimes not opening when clicked
