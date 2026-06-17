@@ -109,6 +109,13 @@ ja/en は **意味の対応**であって逐語訳ではない。日本語で自
 7. **ペアの整合性**: `- ja:` と `- en:` は隣接 / カテゴリ配置一致 / bullet 数一致 を最後に確認
 
 ## [Unreleased]
+### ✨ Added
+- ja: Markdown プレビュー内の内部リンクと外部リンクを、クリック前に小さなアイコンで見分けられるように
+- en: Markdown preview links now show small icons that distinguish internal navigation links from external copy-only links before you click
+
+### 🐛 Fixed
+- ja: Markdown プレビュー内のページ内リンク（例: `#makefile`）で該当見出しへ移動できなかった問題を修正
+- en: Fixed Markdown preview in-page links such as `#makefile` not jumping to their target headings
 
 ## [1.4.12] - 2026-06-17
 ### 🐛 Fixed
