@@ -76,6 +76,7 @@ final class PreviewWebController: NSObject, ObservableObject {
         super.init()
 
         userController.add(MessageHandler(owner: self), name: "viewerReady")
+        userController.add(MessageHandler(owner: self), name: "linkActivated")
         view.navigationDelegate = self
 
         loadTemplate()
@@ -283,6 +284,8 @@ final class PreviewWebController: NSObject, ObservableObject {
         func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
             if message.name == "viewerReady" {
                 Task { @MainActor in self.owner?.handleReady() }
+            } else if message.name == "linkActivated", let href = message.body as? String, let url = URL(string: href) {
+                Task { @MainActor in _ = self.owner?.handleLinkActivation(url) }
             }
         }
     }

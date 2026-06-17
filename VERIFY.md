@@ -2201,7 +2201,7 @@ jq '.projects | length, [.[] | {path, isPinned, displayName}]' \
 
 期待: cmux 由来で `isPinned=true` だったエントリは PolePole 側でも `isPinned=true`、cmux の `customTitle` (`Pinned Repo A` など) が `displayName` に入る。
 
-### 40-E. Unit test (12 ケース)
+### 40-E. Unit test
 
 ```bash
 xcodebuild -project polepole.xcodeproj -scheme polepole \
@@ -2209,4 +2209,4 @@ xcodebuild -project polepole.xcodeproj -scheme polepole \
   -derivedDataPath /tmp/polepole-build test 2>&1 | grep -E "Test Case|Executed"
 ```
 
-期待: `Executed 12 tests, with 0 failures`。
+期待: `Executed ... tests, with 0 failures`。

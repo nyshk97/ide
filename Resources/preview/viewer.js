@@ -163,6 +163,56 @@
     }
   }
 
+  function scrollToFragment(fragment) {
+    if (!fragment) return;
+    var id = "";
+    try {
+      id = decodeURIComponent(fragment);
+    } catch (e) {
+      id = fragment;
+    }
+    var target = document.getElementById(id);
+    if (!target) {
+      try {
+        var escaped = window.CSS && CSS.escape ? CSS.escape(id) : id.replace(/["\\]/g, "\\$&");
+        target = document.querySelector('[name="' + escaped + '"]');
+      } catch (e) {}
+    }
+    if (!target) return;
+    try {
+      target.scrollIntoView({ block: "start", inline: "nearest" });
+    } catch (e) {
+      target.scrollIntoView();
+    }
+  }
+
+  function handleLinkClick(event) {
+    if (!root || event.defaultPrevented || event.button !== 0) return;
+    var target = event.target && event.target.nodeType === 3 ? event.target.parentElement : event.target;
+    var anchor = target && target.closest ? target.closest("a[href]") : null;
+    if (!anchor || !root.contains(anchor)) return;
+
+    var raw = anchor.getAttribute("href") || "";
+    if (!raw) return;
+
+    event.preventDefault();
+
+    // A pure fragment should stay inside the currently rendered document. With
+    // <base href="file://.../">, letting WebKit handle it would resolve to the
+    // source directory instead of viewer.html.
+    if (raw[0] === "#") {
+      scrollToFragment(raw.slice(1));
+      return;
+    }
+
+    var href = anchor.href || raw;
+    if (window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.linkActivated) {
+      try {
+        window.webkit.messageHandlers.linkActivated.postMessage(href);
+      } catch (e) {}
+    }
+  }
+
   // --- ファイル内検索 (Cmd+F) ---------------------------------------------
   // root 配下のテキストノードを走査してマッチを <mark class="ide-find"> でラップする。
   // hljs のトークン span 等、要素境界をまたぐマッチは拾わない（実用上は十分）。
@@ -332,6 +382,7 @@
   // marked / hljs は defer なので DOMContentLoaded を待つ
   document.addEventListener("DOMContentLoaded", function () {
     ready = true;
+    document.addEventListener("click", handleLinkClick, true);
     if (pending) {
       const p = pending;
       pending = null;
