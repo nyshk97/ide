@@ -1470,7 +1470,7 @@ sleep 5
 - `/tmp/nested-quick.png`: Cmd+P に `child-repo/visible.txt` が出る
 - `/tmp/nested-fullsearch.png`: Cmd+Shift+F に `needle-child` の 1 hit が出る
 - `/tmp/nested-badge-plus.png`: child repository に変更があるため diff badge が `+` capsule になる
-- `/tmp/nested-diff-overlay.png`: diff overlay が root `.` section と `child-repo` section に分かれる
+- `/tmp/nested-diff-overlay.png`: diff overlay が root `.` と `child-repo` のタブに分かれ、選択中タブの差分だけが表示される
 - `/tmp/root-only-badge.png`: root repository だけに変更があるため diff badge が数字表示になる
 - ファイル名右の `±` アイコンで「ファイル全体表示 ↔ 差分のみ」がトグルできる
 

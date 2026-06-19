@@ -22,7 +22,7 @@
 - Cmd+P では child repository のファイルを active project root からの相対パス（例: `child-repo/Sources/App.swift`）として出す。
 - Cmd+Shift+F は Cmd+P と同じ検索ポリシーにする。raw `grep -r` を workspace root に直接かけるのではなく、`git ls-files -co --exclude-standard -z` 由来の Git repo ファイル集合と、non-git remainder の BFS file set を検索対象にする。
 - `GitStatusModel.statuses` は FileTreeView の行バッジ用 absolute path map として維持する。diff badge 用の状態は `diffBadgeState` のような別 `@Published` に分け、`statuses` の意味を変えない。
-- Cmd+D overlay では repository ごとに section 表示する。既存の `FileDiffCard(file:repoPath:)` は repoPath 依存なので、子 repository の `repoPath` を渡せば full file / image preview も正しい repository で動く。
+- Cmd+D overlay では複数 repository のとき repository ごとにタブ表示する。既存の `FileDiffCard(file:repoPath:)` は repoPath 依存なので、子 repository の `repoPath` を渡せば full file / image preview も正しい repository で動く。
 
 ## 実装計画
 
@@ -140,3 +140,4 @@
 - 2026-06-16: スコープを Cmd+D diff だけでなく Cmd+P / Cmd+Shift+F まで拡張。親 `.gitignore` に child repo が入るとファイル検索にも出ないため、`GitRepositoryDiscovery` を共通基盤にして repo boundary ごとに検索・diff・status を扱う方針に変更。
 - 2026-06-16: レビュー反映。非 Git 親の通常ファイルが child repo 検出時に消えないよう non-git remainder を明記し、Cmd+Shift+F は Cmd+P と同じ file set を検索する必須方針に変更。`GitStatusModel.statuses` はツリー用に維持し、diff badge state は別 Published に分離する。
 - 2026-06-16: 実装時の注意を追記。Cmd+P は FSEvents を起動しない pure scan helper を切り出して unit test 可能にし、Cmd+Shift+F の grep batch は argv byte size でも分割して resultLimit 到達時に残り batch を止める。
+- 2026-06-19: Cmd+D の複数 repository 表示を、縦並び section から repository ごとのタブ表示に変更。単一 repository の表示は従来の section 表示を維持。

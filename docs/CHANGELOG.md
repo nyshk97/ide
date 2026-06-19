@@ -109,6 +109,9 @@ ja/en は **意味の対応**であって逐語訳ではない。日本語で自
 7. **ペアの整合性**: `- ja:` と `- en:` は隣接 / カテゴリ配置一致 / bullet 数一致 を最後に確認
 
 ## [Unreleased]
+### 📝 Changed
+- ja: 複数 repository の差分があるとき、Cmd+D の diff overlay を repository ごとのタブ表示に変更
+- en: The Cmd+D diff overlay now uses repository tabs when multiple repositories have changes
 
 ## [1.4.13] - 2026-06-17
 ### ✨ Added
