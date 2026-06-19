@@ -109,6 +109,8 @@ ja/en は **意味の対応**であって逐語訳ではない。日本語で自
 7. **ペアの整合性**: `- ja:` と `- en:` は隣接 / カテゴリ配置一致 / bullet 数一致 を最後に確認
 
 ## [Unreleased]
+
+## [1.4.15] - 2026-06-19
 ### 🐛 Fixed
 - ja: 子 repository がない Diff overlay の repository 見出しが `.` ではなく repository 名で表示されるように修正
 - en: Fixed the Diff overlay repository heading showing `.` instead of the repository name when there are no child repositories
