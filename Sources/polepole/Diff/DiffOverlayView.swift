@@ -149,13 +149,14 @@ struct DiffOverlayView: View {
 
     private func repositoryTab(_ repository: RepositoryDiff) -> some View {
         let isSelected = repository.id == selectedRepository?.id
+        let displayName = repositoryDisplayName(repository)
         return Button(action: { selectedRepositoryID = repository.id }) {
             HStack(spacing: 6) {
                 Image("git-branch")
                     .renderingMode(.template)
                     .resizable()
                     .frame(width: 12, height: 12)
-                Text(repository.displayPath)
+                Text(displayName)
                     .font(.system(size: 12, weight: .semibold, design: .monospaced))
                     .lineLimit(1)
                     .truncationMode(.middle)
@@ -183,7 +184,7 @@ struct DiffOverlayView: View {
             .contentShape(RoundedRectangle(cornerRadius: 6))
         }
         .buttonStyle(.plain)
-        .help("\(repository.displayPath) · \(repository.files.count) files")
+        .help("\(displayName) · \(repository.files.count) files")
     }
 
     private func repositorySection(_ repository: RepositoryDiff) -> some View {
@@ -194,7 +195,7 @@ struct DiffOverlayView: View {
                     .resizable()
                     .frame(width: 13, height: 13)
                     .foregroundColor(GitHubDark.textSecondary)
-                Text(repository.displayPath)
+                Text(repositoryDisplayName(repository))
                     .font(.system(size: 12, weight: .semibold, design: .monospaced))
                     .foregroundColor(GitHubDark.text)
                 Text("\(repository.files.count) files")
@@ -226,5 +227,9 @@ struct DiffOverlayView: View {
             return repository
         }
         return viewModel.repositories.first
+    }
+
+    private func repositoryDisplayName(_ repository: RepositoryDiff) -> String {
+        repository.displayPath == "." ? projectName : repository.displayPath
     }
 }
