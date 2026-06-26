@@ -110,6 +110,11 @@ ja/en は **意味の対応**であって逐語訳ではない。日本語で自
 
 ## [Unreleased]
 
+## [1.4.16] - 2026-06-26
+### 🐛 Fixed
+- ja: Git 差分表示や Cmd+P のファイル検索が、外部コマンドの出力待ちで更新されなくなることがある問題を修正
+- en: Fixed Git diffs and Cmd+P file search sometimes stopping updates while waiting for external command output
+
 ## [1.4.15] - 2026-06-19
 ### 🐛 Fixed
 - ja: 子 repository がない Diff overlay の repository 見出しが `.` ではなく repository 名で表示されるように修正
