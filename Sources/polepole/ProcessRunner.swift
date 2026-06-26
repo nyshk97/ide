@@ -58,6 +58,8 @@ struct ProcessResult {
 /// - timeout で `terminate()`（SIGTERM）、なお生きていれば数秒後に SIGKILL。
 /// - `maxStdoutBytes` を超えたら terminate（`grep` が上限を超えても出し続ける問題に対処）。
 enum ProcessRunner {
+    private static let ioQueue = DispatchQueue(label: "local.d0ne1s.polepole.process-runner.io", attributes: .concurrent)
+
     /// drain したバイト列とフラグを lock 付きで保持する箱。並行クロージャ間で共有するため参照型。
     private final class Sink: @unchecked Sendable {
         private let lock = NSLock()
@@ -100,10 +102,15 @@ enum ProcessRunner {
 
         let outPipe = Pipe()
         let errPipe = Pipe()
+        markCloseOnExec(outPipe)
+        markCloseOnExec(errPipe)
         process.standardOutput = outPipe
         process.standardError = errPipe
         let inPipe: Pipe? = (stdin != nil) ? Pipe() : nil
-        if let inPipe { process.standardInput = inPipe }
+        if let inPipe {
+            markCloseOnExec(inPipe)
+            process.standardInput = inPipe
+        }
 
         let outSink = Sink()
         let errSink = Sink()
@@ -113,7 +120,7 @@ enum ProcessRunner {
         // stdout drain
         let outHandle = outPipe.fileHandleForReading
         group.enter()
-        DispatchQueue.global().async {
+        ioQueue.async {
             while true {
                 let chunk = outHandle.availableData
                 if chunk.isEmpty { break }
@@ -129,7 +136,7 @@ enum ProcessRunner {
         // stderr drain
         let errHandle = errPipe.fileHandleForReading
         group.enter()
-        DispatchQueue.global().async {
+        ioQueue.async {
             while true {
                 let chunk = errHandle.availableData
                 if chunk.isEmpty { break }
@@ -141,15 +148,31 @@ enum ProcessRunner {
         do {
             try process.run()
         } catch {
+            closeIgnoringErrors(outPipe.fileHandleForWriting)
+            closeIgnoringErrors(errPipe.fileHandleForWriting)
+            closeIgnoringErrors(outPipe.fileHandleForReading)
+            closeIgnoringErrors(errPipe.fileHandleForReading)
+            if let inPipe {
+                closeIgnoringErrors(inPipe.fileHandleForReading)
+                closeIgnoringErrors(inPipe.fileHandleForWriting)
+            }
             return ProcessResult(exitCode: -1, timedOut: false, stdout: Data(), stderr: Data(), stdoutTruncated: false)
+        }
+
+        // The child has its own stdout/stderr file descriptors after launch. Keeping the
+        // parent's write ends open can prevent the drain readers from ever seeing EOF.
+        closeIgnoringErrors(outPipe.fileHandleForWriting)
+        closeIgnoringErrors(errPipe.fileHandleForWriting)
+        if let inPipe {
+            closeIgnoringErrors(inPipe.fileHandleForReading)
         }
 
         // stdin 供給（別 queue で stdout drain と並行）
         if let inPipe, let stdin {
-            DispatchQueue.global().async {
+            ioQueue.async {
                 let handle = inPipe.fileHandleForWriting
                 handle.write(stdin)
-                try? handle.close()
+                closeIgnoringErrors(handle)
             }
         }
 
@@ -157,15 +180,22 @@ enum ProcessRunner {
         let timeoutWork = DispatchWorkItem {
             timedOut.set()
             if process.isRunning { process.terminate() }
-            DispatchQueue.global().asyncAfter(deadline: .now() + 3) {
+            ioQueue.asyncAfter(deadline: .now() + 3) {
                 if process.isRunning { kill(process.processIdentifier, SIGKILL) }
             }
         }
-        DispatchQueue.global().asyncAfter(deadline: .now() + timeout, execute: timeoutWork)
+        ioQueue.asyncAfter(deadline: .now() + timeout, execute: timeoutWork)
 
         process.waitUntilExit()
         timeoutWork.cancel()
-        group.wait()
+        if group.wait(timeout: .now() + 2) == .timedOut {
+            Logger.shared.warn(
+                "[process] stdout/stderr drain timed out executable=\(URL(fileURLWithPath: executable).lastPathComponent) pid=\(process.processIdentifier) exit=\(process.terminationStatus) stdoutBytes=\(outSink.data.count) stderrBytes=\(errSink.data.count)"
+            )
+            closeIgnoringErrors(outPipe.fileHandleForReading)
+            closeIgnoringErrors(errPipe.fileHandleForReading)
+            _ = group.wait(timeout: .now() + 1)
+        }
 
         return ProcessResult(
             exitCode: process.terminationStatus,
@@ -174,5 +204,21 @@ enum ProcessRunner {
             stderr: errSink.data,
             stdoutTruncated: outSink.truncated
         )
+    }
+
+    private static func markCloseOnExec(_ pipe: Pipe) {
+        markCloseOnExec(pipe.fileHandleForReading)
+        markCloseOnExec(pipe.fileHandleForWriting)
+    }
+
+    private static func markCloseOnExec(_ handle: FileHandle) {
+        let fd = handle.fileDescriptor
+        let flags = fcntl(fd, F_GETFD)
+        guard flags >= 0 else { return }
+        _ = fcntl(fd, F_SETFD, flags | FD_CLOEXEC)
+    }
+
+    private static func closeIgnoringErrors(_ handle: FileHandle) {
+        try? handle.close()
     }
 }
