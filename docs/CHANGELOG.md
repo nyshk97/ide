@@ -109,6 +109,8 @@ ja/en は **意味の対応**であって逐語訳ではない。日本語で自
 7. **ペアの整合性**: `- ja:` と `- en:` は隣接 / カテゴリ配置一致 / bullet 数一致 を最後に確認
 
 ## [Unreleased]
+
+## [1.4.17] - 2026-07-16
 ### 🐛 Fixed
 - ja: ファイルツリーの再読み込みでアプリ全体がフリーズすることがある問題を修正
 - en: Fixed the whole app sometimes freezing when reloading the file tree
