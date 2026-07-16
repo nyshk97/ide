@@ -854,6 +854,32 @@ rm -f "$HOME/Library/Application Support/polepole-dev/projects.json"*
   - 相対パスをコピー: pasteboard に project root からの相対パスが入る
   - ターミナルで開く: 暫定実装（pasteboard に `cd <絶対パス>\n` が入る、step8 以降で active terminal に直接送る予定）
 
+### 21.5. ProcessRunner 劣化状態・ツリー ignore 後追い反映（自動）
+
+`.gitignore` の薄表示はツリー表示後にバックグラウンドで**後追い反映**される（メインスレッドを git にブロックさせない設計。2026-07 のフリーズ根治）。リロード直後の一瞬だけ薄表示が付いていないのは仕様。
+
+ProcessRunner（外部コマンド実行基盤）と FileTreeModel の回帰はユニットテストで確認する:
+
+```bash
+# EOF 不達 pipe の連発でもスレッド/ハンドラをリークしないこと、
+# stdin の EPIPE/SIGPIPE 安全性、ignore 後追い反映の世代破棄まで含む
+DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer \
+xcodebuild -project polepole.xcodeproj -scheme polepole -configuration Debug \
+  -destination 'platform=macOS' -derivedDataPath /tmp/polepole-build test \
+  -only-testing:polepoleTests/ProcessRunnerTests \
+  -only-testing:polepoleTests/FileTreeModelTests 2>&1 |
+  grep -E "Test Case.*(passed|failed)|Executed"
+```
+
+期待: 全テスト passed（スイート全体で 10 秒以内）。
+
+加えて実機ログで劣化状態が起きていないことを確認できる:
+
+```bash
+# 0 件（またはレート制限付きのごく少数）であること。連発していたら EOF 不達が慢性化している
+grep -c "drain timed out" /tmp/polepole-poc.log
+```
+
 ### 22. シンボリックリンクの扱い（手動）
 
 実機で確認:

@@ -47,41 +47,41 @@
 
 ### Phase 1: ProcessRunner のイベント駆動化 [AI🤖]
 
-- [ ] stdout/stderr drain を `availableData` ブロッキングループから `FileHandle.readabilityHandler` に置き換える（チャンク追記・`maxStdoutBytes` 超過時 terminate・EOF（空 Data）でハンドラ解除+完了通知、は現行と同等の挙動を維持）
-- [ ] **stream ごとに「完了を一度だけ」保証する状態機械（lock 付き）を置く**: EOF / drain timeout / `maxStdoutBytes` terminate / 起動失敗の4経路が競合しても、ハンドラ解除・handle close・`group.leave()` がちょうど1回だけ走る。完了後（結果返却後）に sink へ追記しない
-- [ ] 完了待ちは `DispatchGroup` を維持しつつ、タイムアウト時は状態機械経由で `readabilityHandler = nil` → close し、**スレッドを一切残さず**破棄する
-- [ ] drain の EOF 猶予（現行 `group.wait(.now() + 2)` の2秒）を内部で注入可能にする（テストから短縮できるように。デフォルトは2秒のまま）
-- [ ] stdin 供給を EPIPE で例外を出さない `write(2)` ベースの安全な書き込みにする（broken pipe = 子が先に exit / read 端 close で正常に打ち切り。ブロックしても process timeout の kill で read 端が閉じて解放される = 有界）。**stdin の write fd には `F_SETNOSIGPIPE` を設定する**（Darwin では read 端が閉じた pipe への素の `write(2)` は EPIPE を返す前に SIGPIPE でプロセスごと落ち得るため、EPIPE として処理させる）
-- [ ] **timeout 監視・SIGKILL を ioQueue から分離する**: stdin write のブロックが GCD ワーカープールを塞ぐと同一プール上の timeout work も発火せず「timeout kill で解放される」前提が崩れる。timeout は caller スレッド自身で執行する — `waitUntilExit()` を `terminationHandler` + semaphore に置き換え、`semaphore.wait(timeout:)` の期限切れで caller スレッドが terminate → SIGKILL を直接実行する（`run()` は同期 API なので caller スレッドは必ず存在し、プール枯渇の影響を受けない）
-- [ ] pipe 生成（`Pipe()` + `markCloseOnExec`）〜 `process.run()` を static lock で直列化（CLOEXEC レース**緩和**。Darwin には `pipe2(2)` が無く原子的な `O_CLOEXEC` 指定は不可能なため、根治ではないことを成功条件に反映済み）
-- [ ] drain timeout WARN にレート制限を実装: 同一 executable の連発は60秒窓で集約し「(直近60秒でN件抑制)」形式で出力
-- [ ] `mise run build` が通ることを確認
+- [x] stdout/stderr drain を `availableData` ブロッキングループから `FileHandle.readabilityHandler` に置き換える（チャンク追記・`maxStdoutBytes` 超過時 terminate・EOF（空 Data）でハンドラ解除+完了通知、は現行と同等の挙動を維持）
+- [x] **stream ごとに「完了を一度だけ」保証する状態機械（lock 付き）を置く**: EOF / drain timeout / `maxStdoutBytes` terminate / 起動失敗の4経路が競合しても、ハンドラ解除・handle close・`group.leave()` がちょうど1回だけ走る。完了後（結果返却後）に sink へ追記しない
+- [x] 完了待ちは `DispatchGroup` を維持しつつ、タイムアウト時は状態機械経由で `readabilityHandler = nil` → close し、**スレッドを一切残さず**破棄する
+- [x] drain の EOF 猶予（現行 `group.wait(.now() + 2)` の2秒）を内部で注入可能にする（テストから短縮できるように。デフォルトは2秒のまま）
+- [x] stdin 供給を EPIPE で例外を出さない `write(2)` ベースの安全な書き込みにする（broken pipe = 子が先に exit / read 端 close で正常に打ち切り。ブロックしても process timeout の kill で read 端が閉じて解放される = 有界）。**stdin の write fd には `F_SETNOSIGPIPE` を設定する**（Darwin では read 端が閉じた pipe への素の `write(2)` は EPIPE を返す前に SIGPIPE でプロセスごと落ち得るため、EPIPE として処理させる）
+- [x] **timeout 監視・SIGKILL を ioQueue から分離する**: stdin write のブロックが GCD ワーカープールを塞ぐと同一プール上の timeout work も発火せず「timeout kill で解放される」前提が崩れる。timeout は caller スレッド自身で執行する — `waitUntilExit()` を `terminationHandler` + semaphore に置き換え、`semaphore.wait(timeout:)` の期限切れで caller スレッドが terminate → SIGKILL を直接実行する（`run()` は同期 API なので caller スレッドは必ず存在し、プール枯渇の影響を受けない）
+- [x] pipe 生成（`Pipe()` + `markCloseOnExec`）〜 `process.run()` を static lock で直列化（CLOEXEC レース**緩和**。Darwin には `pipe2(2)` が無く原子的な `O_CLOEXEC` 指定は不可能なため、根治ではないことを成功条件に反映済み）
+- [x] drain timeout WARN にレート制限を実装: 同一 executable の連発は60秒窓で集約し「(直近60秒でN件抑制)」形式で出力
+- [x] `mise run build` が通ることを確認
 
 ### Phase 2: 劣化状態の再現テスト [AI🤖]
 
 fixture は既存 `ProcessRunnerTests.swift` の `(sleep N) &` 方式を流用する（FD 継承ヘルパは新設しない）。連続実行テストは Phase 1 で注入可能にした EOF 猶予を短く（例: 0.2秒）して回し、fixture の sleep も短く（例: 2〜3秒）してテスト終了時に自己回収させる。
 
-- [ ] テスト1: EOF 不達 pipe でも `run()` が猶予経過後に結果を返す（ハングしない）— 既存テストを注入 API 対応に更新
-- [ ] テスト2: EOF 不達タイムアウトを短い猶予で連続 20 回発生させても、直後の正常な `run()` が健全（stdout が正しく読める・所要時間が正常）= スレッド/ハンドラ非リークの回帰検証
-- [ ] テスト3: stdin を読まない子（`sh -c 'sleep 5'`、**`timeout: 0.2` を明示**して自然終了ではなく timeout kill 経路を通す）に 64KB 超の stdin を渡してもクラッシュせず解放される / 子が即 exit した後の stdin 書き込み（EPIPE/SIGPIPE）でも落ちない
-- [ ] テスト4: 正常系の回帰（stdout 大量出力・stdin 供給・`maxStdoutBytes` 打ち切り・timeout kill が現行どおり動く）
-- [ ] xcodebuild test で全テストが通る
+- [x] テスト1: EOF 不達 pipe でも `run()` が猶予経過後に結果を返す（ハングしない）— 既存テストを注入 API 対応に更新
+- [x] テスト2: EOF 不達タイムアウトを短い猶予で連続 20 回発生させても、直後の正常な `run()` が健全（stdout が正しく読める・所要時間が正常）= スレッド/ハンドラ非リークの回帰検証
+- [x] テスト3: stdin を読まない子（`sh -c 'sleep 5'`、**`timeout: 0.2` を明示**して自然終了ではなく timeout kill 経路を通す）に 64KB 超の stdin を渡してもクラッシュせず解放される / 子が即 exit した後の stdin 書き込み（EPIPE/SIGPIPE）でも落ちない
+- [x] テスト4: 正常系の回帰（stdout 大量出力・stdin 供給・`maxStdoutBytes` 打ち切り・timeout kill が現行どおり動く）
+- [x] xcodebuild test で全テストが通る
 
 ### Phase 3: FileTreeModel.reload の ignore 判定後追い化 [AI🤖]
 
-- [ ] `reload()` / `scanIfNeeded()` から `applyIgnored` の同期呼び出しを外し、ディレクトリスキャン結果は即時ツリー反映する
-- [ ] ignore 判定の後追い反映: **`Task.detached` には Sendable な値だけ渡す**（対象パスの `[URL]`（値型）+ 世代番号。`FileNode` は non-Sendable なので capture 禁止）。`GitIgnoreChecker.check` の結果 `Set<FilePathKey>` を受けて MainActor に復帰し、**現行ツリーからパスで node を検索し直して** `isIgnored` を更新する
-- [ ] 世代トークン（reload 世代カウンタ）を導入し、反映時に世代が変わっていたら結果を丸ごと捨てる（連打・展開操作との競合対策）
-- [ ] テスト seam を用意する: FileTreeModel の ignore 判定呼び出しを closure（例: `var ignoreChecker: @Sendable (URL, [URL]) -> Set<FilePathKey>`、デフォルトは `GitIgnoreChecker.check`）として注入可能にし、テストから遅延・結果を決定的に制御できるようにする
-- [ ] FileTreeModel のテストを追加: (a) reload 後に届いた古い世代の ignore 結果が新しいツリーに反映されないこと (b) 展開直後の ignore 結果が該当ディレクトリ配下の正しい node にだけ反映されること（`@MainActor` の XCTest + 一時ディレクトリ fixture + 上記 seam）
-- [ ] `mise run build` が通り、追加テストが通ることを確認
+- [x] `reload()` / `scanIfNeeded()` から `applyIgnored` の同期呼び出しを外し、ディレクトリスキャン結果は即時ツリー反映する
+- [x] ignore 判定の後追い反映: **`Task.detached` には Sendable な値だけ渡す**（対象パスの `[URL]`（値型）+ 世代番号。`FileNode` は non-Sendable なので capture 禁止）。`GitIgnoreChecker.check` の結果 `Set<FilePathKey>` を受けて MainActor に復帰し、**現行ツリーからパスで node を検索し直して** `isIgnored` を更新する
+- [x] 世代トークン（reload 世代カウンタ）を導入し、反映時に世代が変わっていたら結果を丸ごと捨てる（連打・展開操作との競合対策）
+- [x] テスト seam を用意する: FileTreeModel の ignore 判定呼び出しを closure（例: `var ignoreChecker: @Sendable (URL, [URL]) -> Set<FilePathKey>`、デフォルトは `GitIgnoreChecker.check`）として注入可能にし、テストから遅延・結果を決定的に制御できるようにする
+- [x] FileTreeModel のテストを追加: (a) reload 後に届いた古い世代の ignore 結果が新しいツリーに反映されないこと (b) 展開直後の ignore 結果が該当ディレクトリ配下の正しい node にだけ反映されること（`@MainActor` の XCTest + 一時ディレクトリ fixture + 上記 seam）
+- [x] `mise run build` が通り、追加テストが通ることを確認
 
 ### Phase 4: 動作確認 [AI🤖]
 
-- [ ] `./scripts/polepole-launch.sh` で起動し、ファイルツリー表示・ディレクトリ展開・リロードボタンで薄表示（ignored）が正しく付くことをスクリーンショットで確認
-- [ ] `/tmp/polepole-poc.log` で drain timeout WARN が出ていないこと、reload 後に git check-ignore が background で完走していることを確認
-- [ ] VERIFY.md のファイルツリー / git バッジ / Cmd+Shift+F / Cmd+D 関連セクションのうち今回の変更に関係する手順を実行
-- [ ] VERIFY.md に再利用可能な確認手順（劣化状態の再現テストの回し方等）が未記載なら追記
+- [x] `./scripts/polepole-launch.sh` で起動し、ファイルツリー表示・ディレクトリ展開・リロードボタンで薄表示（ignored）が正しく付くことをスクリーンショットで確認
+- [x] `/tmp/polepole-poc.log` で drain timeout WARN が出ていないこと、reload 後に git check-ignore が background で完走していることを確認
+- [x] VERIFY.md のファイルツリー / git バッジ / Cmd+Shift+F / Cmd+D 関連セクションのうち今回の変更に関係する手順を実行
+- [x] VERIFY.md に再利用可能な確認手順（劣化状態の再現テストの回し方等）が未記載なら追記
 
 ### 動作確認（目視） [人間👨‍💻]
 
@@ -99,7 +99,11 @@ fixture は既存 `ProcessRunnerTests.swift` の `(sleep N) &` 方式を流用�
 ## ログ
 
 ### 試したこと・わかったこと
-（実装中に随時追記）
+- 2026-07-16: Phase 1〜4 完了。ProcessRunnerTests 10件 + FileTreeModelTests 3件 全パス。
+  実機（Dev 版）でツリー表示・ignore 薄表示の後追い反映を確認、drain timeout 0件。
+- xcode-select が CLT を向いている環境では `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer` を付けて xcodebuild を叩く
+- テストファイル新規追加後は `mise run regen`（xcodegen）を挟まないと .xcodeproj に載らず「Executed 0 tests」になる
+- Dev 版はトライアル切れモーダルが出る場合、`POLEPOLE_TEST_LICENSE_FAKE_NOW=<unix秒>` で時計を偽装して回避できる（installDate は Application Support の trial.json）
 
 ### 方針変更
 （実装中に随時追記）
