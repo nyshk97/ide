@@ -85,16 +85,16 @@ fixture は既存 `ProcessRunnerTests.swift` の `(sleep N) &` 方式を流用�
 
 ### 動作確認（目視） [人間👨‍💻]
 
-- [ ] 普段のプロジェクトでツリーのリロード・展開の体感確認（引っかかりがないか）
-- [ ] hideIgnored ON でのちらつきが許容範囲か一応見る
+- [x] 普段のプロジェクトでツリーのリロード・展開の体感確認（引っかかりがないか）
+- [x] hideIgnored ON でのちらつきが許容範囲か一応見る
 
 ### Phase 5: リリース 1.4.17 [AI🤖 + 人間👨‍💻]
 
-- [ ] [AI🤖] `project.yml` の `MARKETING_VERSION` を 1.4.17 に bump してコミット
-- [ ] [AI🤖] `docs/CHANGELOG.md` の `[Unreleased]` にリリースノートを記載（ヘッダー自体は書き換えない）してコミット
-- [ ] [人間👨‍💻] 通常 Terminal で `echo "" | bash scripts/release.sh 1.4.17` を実行（notarytool 資格情報が Claude Code の Bash からは届かないため）
-- [ ] [AI🤖] Homebrew cask (`nyshk97/homebrew-tap/Casks/polepole.rb`) の version / sha256 更新 → commit → `pull --rebase` → push
-- [ ] [AI🤖] 公式サイト changelog 再生成・デプロイ（`wrangler deploy` の predeploy で自動）
+- [x] [AI🤖] `project.yml` の `MARKETING_VERSION` を 1.4.17 に bump してコミット
+- [x] [AI🤖] `docs/CHANGELOG.md` の `[Unreleased]` にリリースノートを記載（ヘッダー自体は書き換えない）してコミット
+- [x] [人間👨‍💻] 通常 Terminal で `echo "" | bash scripts/release.sh 1.4.17` を実行（notarytool 資格情報が Claude Code の Bash からは届かないため）
+- [x] [AI🤖] Homebrew cask (`nyshk97/homebrew-tap/Casks/polepole.rb`) の version / sha256 更新 → commit → `pull --rebase` → push
+- [x] [AI🤖] 公式サイト changelog 再生成・デプロイ（`wrangler deploy` の predeploy で自動）
 
 ## ログ
 
@@ -106,6 +106,10 @@ fixture は既存 `ProcessRunnerTests.swift` の `(sleep N) &` 方式を流用�
 - Dev 版はトライアル切れモーダルが出る場合、`POLEPOLE_TEST_LICENSE_FAKE_NOW=<unix秒>` で時計を偽装して回避できる（installDate は Application Support の trial.json）
 
 ### 方針変更
+- 2026-07-16 リリース時の想定外: `xcode-select` が CLT を向いていて release.sh の archive が失敗。
+  `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer` を付けて再実行で解決。
+  失敗した初回実行が CHANGELOG のリネーム commit まで進んでいたため、再実行前に
+  `git reset --soft HEAD~1` + restore で巻き戻してヘッダー重複（Sparkle description 空）を回避した
 - 2026-07-16 レビュー指摘対応: stdin 供給を同期 write(2) から **DispatchSourceWrite（writability 駆動 + non-blocking）** に変更。
   「子は exit 済みだが子孫が stdin read 端を継承して保持」のケースでは timeout kill が
   発火せず同期 write が永久ブロックしてワーカーがリークするため（plan 当初の
