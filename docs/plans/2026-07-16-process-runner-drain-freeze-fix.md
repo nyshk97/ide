@@ -106,4 +106,9 @@ fixture は既存 `ProcessRunnerTests.swift` の `(sleep N) &` 方式を流用�
 - Dev 版はトライアル切れモーダルが出る場合、`POLEPOLE_TEST_LICENSE_FAKE_NOW=<unix秒>` で時計を偽装して回避できる（installDate は Application Support の trial.json）
 
 ### 方針変更
-（実装中に随時追記）
+- 2026-07-16 レビュー指摘対応: stdin 供給を同期 write(2) から **DispatchSourceWrite（writability 駆動 + non-blocking）** に変更。
+  「子は exit 済みだが子孫が stdin read 端を継承して保持」のケースでは timeout kill が
+  発火せず同期 write が永久ブロックしてワーカーがリークするため（plan 当初の
+  「timeout 秒で有界」の前提が崩れる経路）。再現 fixture は `exec 3<&0; sleep 3 & exit 0`
+  （素の `sleep &` は POSIX 仕様で background job の stdin が /dev/null になり再現しない）。
+  20連発 + 後続健全性のテストを追加済み（72aef5a）
