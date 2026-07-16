@@ -123,6 +123,8 @@ cmux 実装も同じ理解 (`.refs/cmux/Sources/GhosttyTerminalView.swift` 参�
 
 エラー toast を出したいときは `ErrorBus.shared.notify(_:kind:)`。継続的な状態異常は各 View 内に常駐表示する（要件 8.3）。
 
+git 系機能全般（ツリー/バッジ/Cmd+P/Cmd+Shift+F/Cmd+D）が「遅い・固まる」という報告は、まず `grep -c "drain timed out" ~/Library/Logs/polepole/polepole-*.log` を確認する。件数が多ければ外部コマンド実行基盤の劣化（VERIFY.md §21.5 参照）で、個別機能のバグではない。
+
 ---
 
 ## アプリのデータパスは `AppPaths.subdirName` 経由で参照する
