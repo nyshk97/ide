@@ -154,6 +154,13 @@ open -n "/tmp/polepole-build/Build/Products/Debug/PolePole Dev.app" \
   --env POLEPOLE_TEST_AUTO_ACTIVATE_INDEX=1 --env POLEPOLE_TEST_UNREAD_INDICES=0,2
 ```
 
+### Dev ビルドのライセンスと POLEPOLE_BACKEND_URL
+
+- Debug ビルドのライセンス API はデフォルトで `http://127.0.0.1:8787`（ローカル wrangler dev）を向く（`LicenseClient.defaultBaseURL()`）。ローカル backend が起動していないと、アクティベートは「ネットワークエラー」、既存 token の再検証は失敗し続けて**オフライン猶予（30日）切れでトライアル/購入モーダルが復活する**
+- このため `scripts/polepole-launch.sh` と `mise run run` は `POLEPOLE_BACKEND_URL=https://polepole.dev` をデフォルトで渡す。ライセンスフローをローカル backend で検証するときだけ `POLEPOLE_BACKEND_URL=http://127.0.0.1:8787 ./scripts/polepole-launch.sh` のように明示上書きする
+- Dev のライセンス保存先は実 Keychain ではなく `~/Library/Application Support/polepole-dev/keychain-debug.json`（`#if DEBUG` の DebugStore）。Brew 版と完全分離されており、トライアル切れ画面を再検証したいときはこのファイルの `activation-token` を消せば戻せる（`trial.json` を消すとトライアル自体が最初から）
+- `POLEPOLE-ETERNAL-FREE-D0NE1S` は **Stripe Checkout の 100% OFF クーポン**であってライセンスキーではない。開発者自身のキーはこのクーポンで発行済みの `polepole-H4E5-…`（本番 D1 の `license` テーブルに active で登録済み）
+
 ---
 
 ## ログの見方
