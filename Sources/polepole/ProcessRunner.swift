@@ -57,8 +57,10 @@ struct ProcessResult {
 ///   ブロッキング read だと、EOF が届かない pipe（write 端 fd の漏洩等）が発生するたびに
 ///   GCD ワーカースレッドが永久リークし、プール枯渇 → 全外部コマンドがタイムアウトする
 ///   自己増殖状態に入る（2026-07 のファイルツリーリロードのフリーズの根本原因）。
-/// - stdin への供給も別 queue で行い stdout drain と並行させる → `git check-ignore --stdin` の
-///   stdin↔stdout 同時バッファ詰まりデッドロックを防ぐ。
+/// - stdin への供給も writability 駆動（`DispatchSourceWrite` + non-blocking write）で
+///   stdout drain と並行させる → `git check-ignore --stdin` の stdin↔stdout 同時バッファ詰まり
+///   デッドロックを防ぎつつ、子孫プロセスが read 端を握ったまま読まないケースでも
+///   スレッドをブロックしない。
 /// - timeout 監視は GCD queue に置かず **caller スレッド自身で執行**する。
 ///   ワーカープールが（stdin write のブロック等で）枯れていても SIGTERM/SIGKILL が必ず発火する。
 /// - `maxStdoutBytes` を超えたら terminate（`grep` が上限を超えても出し続ける問題に対処）。
@@ -162,6 +164,80 @@ enum ProcessRunner {
         }
     }
 
+    /// stdin 供給 1 本分。`DispatchSourceWrite`（writability 駆動）+ non-blocking `write(2)` で、
+    /// 待機中にスレッドを一切占有しない。
+    ///
+    /// 同期 write だと「子自身は exit 済みだが、その子孫が stdin の read 端を継承して保持し、
+    /// かつ読まない」ケースで永久にブロックする（親プロセスは終了済みなので timeout kill も
+    /// 発火せず、ワーカースレッドがリークする）。
+    /// 全量書き込み / EPIPE / `run()` 終了のどこから finish が来ても、source cancel と
+    /// fd close をちょうど 1 回だけ行う。fd close は cancel handler で行う
+    /// （dispatch source の保証により、実行中の event handler と close が競合しない）。
+    private final class StdinFeeder: @unchecked Sendable {
+        private let lock = NSLock()
+        private var finished = false
+        private var offset = 0
+        private let data: Data
+        private let fd: Int32
+        private let source: DispatchSourceWrite
+
+        init(handle: FileHandle, data: Data, queue: DispatchQueue) {
+            self.data = data
+            self.fd = handle.fileDescriptor
+            // read 端が全て閉じた pipe への write(2) は EPIPE を返す前に SIGPIPE で
+            // プロセスごと落ち得る（Darwin）。fd 単位で抑止して EPIPE として処理する。
+            _ = fcntl(fd, F_SETNOSIGPIPE, 1)
+            let flags = fcntl(fd, F_GETFL)
+            _ = fcntl(fd, F_SETFL, flags | O_NONBLOCK)
+            source = DispatchSource.makeWriteSource(fileDescriptor: fd, queue: queue)
+            source.setEventHandler { [weak self] in self?.writeAvailable() }
+            source.setCancelHandler { try? handle.close() }
+            source.resume()
+        }
+
+        private func writeAvailable() {
+            lock.lock()
+            if finished { lock.unlock(); return }
+            var currentOffset = offset
+            lock.unlock()
+
+            var shouldFinish = false
+            data.withUnsafeBytes { (buf: UnsafeRawBufferPointer) in
+                guard let base = buf.baseAddress else {
+                    shouldFinish = true
+                    return
+                }
+                while currentOffset < buf.count {
+                    let written = write(fd, base + currentOffset, buf.count - currentOffset)
+                    if written > 0 {
+                        currentOffset += written
+                    } else if written == -1 && errno == EINTR {
+                        continue
+                    } else if written == -1 && errno == EAGAIN {
+                        return  // 次の writability イベントを待つ（スレッドは手放す）
+                    } else {
+                        shouldFinish = true  // EPIPE 等: read 端が（子孫含め）全て閉じた
+                        return
+                    }
+                }
+                shouldFinish = true  // 全量書き込み完了
+            }
+
+            lock.lock()
+            offset = currentOffset
+            lock.unlock()
+            if shouldFinish { finish() }
+        }
+
+        func finish() {
+            lock.lock()
+            guard !finished else { lock.unlock(); return }
+            finished = true
+            lock.unlock()
+            source.cancel()
+        }
+    }
+
     /// 外部コマンドを同期実行する（バックグラウンド queue から呼ぶこと）。
     ///
     /// - Parameter drainGrace: 子プロセス exit 後、stdout/stderr の EOF（残バッファの配り切り）を
@@ -230,18 +306,11 @@ enum ProcessRunner {
 
         spawnLock.unlock()
 
-        // stdin 供給（別 queue で stdout drain と並行）。
-        // 子が stdin を読まずに 64KB 超で write がブロックしても、timeout kill →
-        // read 端 close → EPIPE で必ず解放される（上限 = timeout 秒で有界）。
+        // stdin 供給（writability 駆動で stdout drain と並行）。子が読まなくても
+        // スレッドをブロックしない。run() の最後に必ず finish() して fd を閉じる。
+        var stdinFeeder: StdinFeeder?
         if let inPipe, let stdin {
-            let writeHandle = inPipe.fileHandleForWriting
-            // read 端が全て閉じた pipe への write(2) は EPIPE を返す前に SIGPIPE で
-            // プロセスごと落ち得る（Darwin）。fd 単位で抑止して EPIPE として処理する。
-            _ = fcntl(writeHandle.fileDescriptor, F_SETNOSIGPIPE, 1)
-            ioQueue.async {
-                writeAllIgnoringErrors(stdin, to: writeHandle)
-                closeIgnoringErrors(writeHandle)
-            }
+            stdinFeeder = StdinFeeder(handle: inPipe.fileHandleForWriting, data: stdin, queue: ioQueue)
         }
 
         // timeout: SIGTERM → 3 秒後も生きていれば SIGKILL（caller スレッドで執行）
@@ -254,6 +323,10 @@ enum ProcessRunner {
             }
         }
         let exited = !process.isRunning
+
+        // 未完の stdin 書き込みはここで打ち切る（子孫が read 端を握ったまま読まない場合、
+        // source が待機し続けて write fd がリークするため）。
+        stdinFeeder?.finish()
 
         // drain の EOF 猶予: exit 後もバッファ残量を配り切るまで少し待つ。
         // EOF が来ない pipe はここで諦める（finish はハンドラ解除のみでスレッドは残らない）。
@@ -276,27 +349,6 @@ enum ProcessRunner {
             stderr: errDrain.data,
             stdoutTruncated: outDrain.truncated
         )
-    }
-
-    /// `FileHandle.write` は EPIPE で ObjC 例外を投げる（Swift から回復不能）ため使わず、
-    /// write(2) で全量書く。EPIPE 等のエラーは打ち切り（子が先に exit した場合の正常系）。
-    private static func writeAllIgnoringErrors(_ data: Data, to handle: FileHandle) {
-        let fd = handle.fileDescriptor
-        data.withUnsafeBytes { (buf: UnsafeRawBufferPointer) in
-            guard var base = buf.baseAddress else { return }
-            var remaining = buf.count
-            while remaining > 0 {
-                let written = write(fd, base, remaining)
-                if written > 0 {
-                    base += written
-                    remaining -= written
-                } else if written == -1 && errno == EINTR {
-                    continue
-                } else {
-                    return
-                }
-            }
-        }
     }
 
     private static func logDrainTimeout(executable: String, pid: Int32, exitCode: Int32, stdoutBytes: Int, stderrBytes: Int) {

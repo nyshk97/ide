@@ -70,6 +70,38 @@ final class ProcessRunnerTests: XCTestCase {
         XCTAssertLessThan(elapsed, 4.0)
     }
 
+    /// 子自身は即 exit するが、子孫が stdin の read 端を継承して保持し続け、読まないケース。
+    /// 同期 write だと「親は終了済み = timeout kill が発火しない」ため 64KB 超で永久ブロックし、
+    /// ワーカースレッドがリークしていた経路（writability 駆動化の回帰検証）。
+    /// 素の `sleep &` は POSIX 仕様でバックグラウンドジョブの stdin が /dev/null に
+    /// 差し替わり再現しないため、`exec 3<&0` で fd を明示継承させる。
+    func testStdinHeldByOrphanedDescendantDoesNotLeakWorkers() {
+        let bigInput = Data(repeating: UInt8(ascii: "d"), count: 128 * 1024)
+        for _ in 0..<20 {
+            let start = Date()
+            let result = ProcessRunner.run(
+                executable: "/bin/sh",
+                arguments: ["-c", "exec 3<&0; sleep 3 & exit 0"],
+                stdin: bigInput,
+                timeout: 5,
+                drainGrace: 0.2
+            )
+            XCTAssertEqual(result.exitCode, 0)
+            XCTAssertFalse(result.timedOut)
+            XCTAssertLessThan(Date().timeIntervalSince(start), 2.0, "stdin write がブロックしている")
+        }
+
+        // 直後の正常な呼び出しが速く正しく動けば、ワーカー非リークの証明になる
+        let start = Date()
+        let result = ProcessRunner.run(
+            executable: "/bin/sh",
+            arguments: ["-c", "printf ok"],
+            timeout: 5
+        )
+        XCTAssertEqual(result.stdoutString, "ok")
+        XCTAssertLessThan(Date().timeIntervalSince(start), 1.0)
+    }
+
     /// 子が stdin を読まずに即 exit した後の stdin 書き込み（EPIPE/SIGPIPE）でも落ちない。
     func testStdinWriteAfterChildExitDoesNotCrash() {
         let bigInput = Data(repeating: UInt8(ascii: "b"), count: 128 * 1024)
