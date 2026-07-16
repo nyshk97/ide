@@ -109,6 +109,13 @@ ja/en は **意味の対応**であって逐語訳ではない。日本語で自
 7. **ペアの整合性**: `- ja:` と `- en:` は隣接 / カテゴリ配置一致 / bullet 数一致 を最後に確認
 
 ## [Unreleased]
+### 🐛 Fixed
+- ja: ファイルツリーの再読み込みでアプリ全体がフリーズすることがある問題を修正
+- en: Fixed the whole app sometimes freezing when reloading the file tree
+- ja: 長時間の使用でファイル検索・Git バッジ・差分表示が徐々に遅くなり、再起動まで回復しない問題を修正
+- en: Fixed file search, Git badges, and diffs gradually slowing down over long sessions and never recovering until restart
+- ja: ファイルツリーの gitignore 薄表示を、ツリー表示を止めずに後から反映するように変更
+- en: The file tree now appears instantly, with gitignore dimming applied shortly after without blocking
 
 ## [1.4.16] - 2026-06-26
 ### 🐛 Fixed
