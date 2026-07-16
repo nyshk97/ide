@@ -42,6 +42,27 @@ RELEASE_NOTES_MD="$PROJECT_ROOT/build/release-notes-${VERSION}.md"
 SPARKLE_DESC_HTML="$PROJECT_ROOT/build/sparkle-description-${VERSION}.html"
 mkdir -p "$PROJECT_ROOT/build"
 
+# === Step 0: preflight (リポジトリを書き換える前に環境を検証する) ===
+# release.sh は Step 2 で CHANGELOG を commit するため、後半で死ぬ環境要因は
+# ここで先に落とす。1.4.17 リリースで xcode-select が CLT を向いたまま archive まで
+# 進んで失敗し、CHANGELOG commit の手動巻き戻しが必要になった実績あり。
+if ! xcodebuild -version >/dev/null 2>&1; then
+  if [ -d /Applications/Xcode.app ]; then
+    export DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer
+    echo "==> preflight: xcode-select が Xcode を向いていないため DEVELOPER_DIR=${DEVELOPER_DIR} で続行します"
+    echo "    (恒久修正: sudo xcode-select -s /Applications/Xcode.app/Contents/Developer)"
+  fi
+fi
+if ! xcodebuild -version >/dev/null 2>&1; then
+  echo "ERROR: xcodebuild が使えません (Xcode.app が見つからない)。"
+  echo "       sudo xcode-select -s /Applications/Xcode.app/Contents/Developer を実行してください"
+  exit 1
+fi
+if ! gh auth status >/dev/null 2>&1; then
+  echo "ERROR: gh が未認証です。gh auth login を実行してください (Release 作成は最終 step で必要)"
+  exit 1
+fi
+
 # === Step 1: changelog edit pause ===
 # release.sh は CHANGELOG.md の [Unreleased] section をリリースノートとして使う。
 # 起動時に直近 commit を出して「[Unreleased] を埋めてから Enter」で待つ。
@@ -85,13 +106,29 @@ import sys, re, pathlib
 path = pathlib.Path(sys.argv[1])
 version, date = sys.argv[2], sys.argv[3]
 text = path.read_text()
+
+# 再実行ガード: 途中失敗後の再実行では [Unreleased] が空で [version] が既に存在する。
+# その場合はリネーム済みとみなしてスキップする (無条件に挿入すると同名ヘッダーが
+# 重複し、Step 3 が最初の空セクションを抽出して Sparkle description が空になる)。
+unreleased = re.search(r"^## \[Unreleased\]\s*$(.*?)(?=^## \[|\Z)", text, flags=re.M | re.S)
+if not unreleased:
+    sys.exit("ERROR: [Unreleased] セクションが見つかりません")
+has_content = bool(unreleased.group(1).strip())
+already_renamed = re.search(rf"^## \[{re.escape(version)}\]", text, flags=re.M)
+
+if already_renamed and not has_content:
+    print(f"  CHANGELOG.md: [{version}] は既に存在し [Unreleased] は空 — リネーム済みとみなしてスキップ (再実行)")
+    sys.exit(0)
+if already_renamed and has_content:
+    sys.exit(f"ERROR: [{version}] が既に存在するのに [Unreleased] にも内容があります。CHANGELOG を手で整理してください")
+if not has_content:
+    sys.exit("ERROR: [Unreleased] が空です。リリースノートを書いてから再実行してください")
+
 new = re.sub(
     r"^## \[Unreleased\]\s*$",
     f"## [Unreleased]\n\n## [{version}] - {date}",
     text, count=1, flags=re.M,
 )
-if new == text:
-    sys.exit("ERROR: [Unreleased] を書き換えられませんでした")
 path.write_text(new)
 print(f"  CHANGELOG.md: [Unreleased] の下に [{version}] - {date} を挿入")
 PY
