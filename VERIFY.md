@@ -2238,3 +2238,29 @@ xcodebuild -project polepole.xcodeproj -scheme polepole \
 ```
 
 期待: `Executed ... tests, with 0 failures`。
+
+## 41. Cmd+Q 終了確認ダイアログ（自動）
+
+`applicationShouldTerminate` の NSAlert。quit Apple Event でも同じ経路を通るのでキーストローク不要で検証できる。
+
+```bash
+./scripts/polepole-launch.sh && sleep 3
+
+# quit を送る（ダイアログ表示中は osascript がブロックするので background で）
+osascript -e 'tell application "PolePole Dev" to quit' &
+sleep 2
+
+# ダイアログが別ウィンドウで出る（polepole-screenshot.sh はメインウィンドウしか撮らない点に注意）
+osascript -e 'tell application "System Events" to tell process "PolePole Dev" to get name of windows'
+# 期待: 空名の dialog ウィンドウ + "PolePole Dev"
+
+# キャンセル → 生存
+osascript -e 'tell application "System Events" to tell process "PolePole Dev" to click button "キャンセル" of window 1'
+sleep 2 && pgrep -f "PolePole Dev.app/Contents/MacOS/PolePole Dev" && echo "ALIVE: pass"
+
+# 再 quit → 終了ボタン → 死亡
+osascript -e 'tell application "PolePole Dev" to quit' &
+sleep 2
+osascript -e 'tell application "System Events" to tell process "PolePole Dev" to click button "終了" of window 1'
+sleep 2 && { pgrep -f "PolePole Dev.app/Contents/MacOS/PolePole Dev" || echo "TERMINATED: pass"; }
+```
