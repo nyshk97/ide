@@ -44,6 +44,19 @@ final class PolePoleAppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
+    /// Cmd+Q の誤爆対策。メニュー / Dock / Apple Event 経由の終了すべてで確認を挟む。
+    func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
+        let alert = NSAlert()
+        alert.alertStyle = .warning
+        alert.messageText = "PolePole を終了しますか?"
+        alert.informativeText = "すべてのターミナルセッションが終了します。"
+        alert.addButton(withTitle: "終了")
+        alert.addButton(withTitle: "キャンセル")
+        // Esc で閉じられるのはタイトルが "Cancel" のボタンだけなので、日本語では明示する。
+        alert.buttons[1].keyEquivalent = "\u{1b}"
+        return alert.runModal() == .alertFirstButtonReturn ? .terminateNow : .terminateCancel
+    }
+
     private func sanitizeMainMenu() {
         guard !isSanitizing else { return }
         guard let main = NSApp.mainMenu else { return }
