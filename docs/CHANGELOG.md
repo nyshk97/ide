@@ -109,6 +109,8 @@ ja/en は **意味の対応**であって逐語訳ではない。日本語で自
 7. **ペアの整合性**: `- ja:` と `- en:` は隣接 / カテゴリ配置一致 / bullet 数一致 を最後に確認
 
 ## [Unreleased]
+
+## [1.4.18] - 2026-08-06
 ### ✨ Added
 - ja: Cmd+Q での終了時に確認ダイアログを追加
 - en: Added a confirmation dialog when quitting with Cmd+Q
