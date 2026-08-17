@@ -9,10 +9,12 @@
 # 前提（一度だけ手作業で用意する）:
 #   1. キーチェーンに "Developer ID Application: ... (VYDUR99LAM)" 証明書がある
 #      （Xcode → Settings → Accounts → Manage Certificates → + → Developer ID Application）
-#   2. notarytool の認証情報を keychain profile "ide-notary" に保存済み:
-#        xcrun notarytool store-credentials "ide-notary" \
-#          --apple-id <Apple ID> --team-id VYDUR99LAM --password <App用パスワード>
-#      （ide → polepole にリネームしたが、keychain profile 名は流用するため "ide-notary" のまま）
+#   2. notarytool の認証情報を keychain profile "nyshk97-notary" に保存済み。
+#      App Store Connect の API キー（.p8 は Dropbox の secrets/）で登録する:
+#        xcrun notarytool store-credentials nyshk97-notary \
+#          --key ~/Library/CloudStorage/Dropbox/secrets/AuthKey_M4FG2B8JFX.p8 \
+#          --key-id M4FG2B8JFX --issuer 024fc873-10f9-49a4-8d6f-20fb5c7bd522
+#      （自作 Mac アプリ全体で共通のプロファイル名。App 用パスワードは使わない）
 #   3. create-dmg (Brewfile 経由でインストール済み)
 # NOTARY_PROFILE 環境変数で profile 名を上書きできる。
 set -euo pipefail
@@ -23,7 +25,7 @@ PROJECT="$PROJECT_ROOT/polepole.xcodeproj"
 ARCHIVE_PATH="/tmp/polepole.xcarchive"
 EXPORT_PATH="/tmp/polepole-export"
 OUTPUT_DIR="$PROJECT_ROOT/build"
-NOTARY_PROFILE="${NOTARY_PROFILE:-ide-notary}"
+NOTARY_PROFILE="${NOTARY_PROFILE:-nyshk97-notary}"
 # DerivedData を固定パスにしておく。release.sh が SwiftPM 経由でチェックアウト
 # された Sparkle の sign_update を `${DERIVED_DATA}/SourcePackages/artifacts/sparkle/...`
 # から呼ぶため、archive 後にパスが特定できる必要がある（既定の ~/Library/Developer/Xcode/DerivedData/<hash>/ だと毎回パスが変わる）。
