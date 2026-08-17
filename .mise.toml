@@ -27,6 +27,13 @@ rm -rf /tmp/polepole-build
 rm -rf polepole.xcodeproj
 """
 
+[tasks.release]
+description = "リリースする（fresh build → notarize → dmg → polepole-releases の GitHub Release + appcast）。引数: <version>。自分の Terminal で実行する（notarize が keychain を読む）"
+# release.sh は内部で build.sh を再実行する（fresh build の強制）。事前に build タスクや
+# build.sh を叩く必要は無く、叩くと archive→notarize→dmg を 2 回走らせて 10〜15 分無駄になる。
+usage = 'arg "<version>" help="リリースするバージョン（例: 1.0.0）。project.yml の MARKETING_VERSION を bump してコミット済みにしておく"'
+run = './scripts/release.sh "$usage_version"'
+
 [tasks.download-stats]
 description = "GitHub Releases から累積 download_count をバージョン別に表示"
 run = "./scripts/download-stats.sh"
