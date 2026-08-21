@@ -28,11 +28,31 @@ rm -rf polepole.xcodeproj
 """
 
 [tasks.release]
-description = "リリースする（CHANGELOG 確認 → bump commit → fresh build → notarize → dmg → polepole-releases の GitHub Release + appcast → cask 更新）。引数: <version>。叩く前に docs/CHANGELOG.md の [Unreleased] を埋めて commit しておく。Claude Code から叩いてよい"
+description = "リリースする（CHANGELOG 確認 → bump commit → fresh build → notarize → dmg → polepole-releases の GitHub Release + appcast → cask 更新）。引数: patch|minor|major|x.y.z（既定 patch）。叩く前に docs/CHANGELOG.md の [Unreleased] を埋めて commit しておく"
 # release.sh は内部で build.sh を再実行する（fresh build の強制）。事前に build タスクや
 # build.sh を叩く必要は無く、叩くと archive→notarize→dmg を 2 回走らせて 10〜15 分無駄になる。
-usage = 'arg "<version>" help="リリースするバージョン（例: 1.0.0）。project.yml の MARKETING_VERSION は release.sh が揃える"'
-run = './scripts/release.sh "$usage_version"'
+# バージョンは project.yml の MARKETING_VERSION から計算して release.sh に渡す（release.sh が
+# project.yml を揃えて CHANGELOG の切り出しと同じ commit にする）。
+usage = 'arg "<bump>" help="patch|minor|major|x.y.z" default="patch"'
+run = '''
+#!/usr/bin/env bash
+set -euo pipefail
+current=$(awk -F'"' '/MARKETING_VERSION:/ {print $2; exit}' project.yml)
+[ -n "$current" ] || { echo "ERROR: project.yml から MARKETING_VERSION を取れません"; exit 1; }
+IFS=. read -r maj min pat <<< "$current"
+case "$usage_bump" in
+  major) v="$((maj + 1)).0.0" ;;
+  minor) v="$maj.$((min + 1)).0" ;;
+  patch) v="$maj.$min.$((pat + 1))" ;;
+  *)
+    if ! [[ "$usage_bump" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+      echo "ERROR: patch|minor|major|x.y.z で指定してください: $usage_bump"; exit 1
+    fi
+    v="$usage_bump" ;;
+esac
+echo "==> $current → $v"
+exec ./scripts/release.sh "$v"
+'''
 
 [tasks.download-stats]
 description = "GitHub Releases から累積 download_count をバージョン別に表示"

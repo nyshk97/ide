@@ -33,7 +33,7 @@
 ## リリース
 
 1. `docs/CHANGELOG.md` の `[Unreleased]` を埋めてコミット（各項目は `- ja: ...` / `- en: ...` のペア。ユーザー目視で気づく変更だけ。書き方は CHANGELOG 冒頭）。`git log <前回タグ>..HEAD` を読んで Claude Code のセッションが書く。空のまま叩くと止まる
-2. `mise run release <version>` を実行（Claude Code のセッションから叩いてよい。対話は無い）
+2. `mise run release [patch|minor|major|x.y.z]`（既定 patch）を実行（Claude Code のセッションから叩いてよい。対話は無い）
    - preflight（gh 認証・clean worktree・origin/main と一致・Release 未作成・画面ロック・notary プロファイル・Sparkle 鍵）
    - `[Unreleased]` → `[<version>] - <date>` にリネームし、`project.yml` の `MARKETING_VERSION` を `<version>` に揃えて 1 commit（`CURRENT_PROJECT_VERSION` は `$(MARKETING_VERSION)` で連動）。push 前に失敗したら trap で巻き戻る
    - 該当 section を抜き出して GitHub Release notes (ja/en 両方の md) と Sparkle appcast の `<description>` (ja のみの HTML) を自動生成 → release/feed に投入

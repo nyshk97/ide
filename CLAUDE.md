@@ -196,7 +196,7 @@ MRU の確定タイミング（修飾キーの release）は `ShortcutsStore.sho
 
 ## リリースノート (CHANGELOG)
 
-ユーザー目視で気づくレベルの変更は `docs/CHANGELOG.md` の `[Unreleased]` セクションに残す。基本は **リリース時** に Claude Code のセッションが `git log <前回タグ>..HEAD` + `git diff` を見て一括で書き、commit してから `mise run release <version>` を叩く運用なので、日々のコミットでは追記しなくて良い（release.sh に pause は無く、`[Unreleased]` が空なら止まる）。
+ユーザー目視で気づくレベルの変更は `docs/CHANGELOG.md` の `[Unreleased]` セクションに残す。基本は **リリース時** に Claude Code のセッションが `git log <前回タグ>..HEAD` + `git diff` を見て一括で書き、commit してから `mise run release [patch|minor|major|x.y.z]` を叩く運用なので、日々のコミットでは追記しなくて良い（release.sh に pause は無く、`[Unreleased]` が空なら止まる）。
 
 **書き方の本体は [docs/CHANGELOG.md](./docs/CHANGELOG.md) 冒頭の「書き方」セクションに集約**してある。AI が自動生成するときはあそこだけ読めば自走できるレベルに整備済み (フォーマット制約・カテゴリ判定・ja/en の文体・粒度・書く / 書かない・自動生成チェックリスト)。
 
@@ -208,7 +208,7 @@ MRU の確定タイミング（修飾キーの release）は `ShortcutsStore.sho
 - **書かない**: 内部リファクタ / docs-only / CI / version bump 自体 / 内部ログ調整 / 依存 bump
 - **粒度**: 1 リリース 1〜5 bullet が目安。同じ機能の連続 commit は 1 bullet にまとめる
 
-`mise run release <version>`（= `scripts/release.sh <version>`）が走ると以下が自動で起きる:
+`mise run release [patch|minor|major|x.y.z]`（既定 patch。= `scripts/release.sh <計算した version>`）が走ると以下が自動で起きる:
 
 1. preflight: gh 認証・clean worktree・origin/main と一致・Release 未作成・画面ロック・notary プロファイル・Sparkle 鍵
 2. `[Unreleased]` → `[<version>] - <date>` にリネームし、`project.yml` の `MARKETING_VERSION` も `<version>` に揃えて 1 commit（push 前に失敗したら trap で巻き戻る）
