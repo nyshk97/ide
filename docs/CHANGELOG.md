@@ -8,7 +8,7 @@ PolePole の更新履歴。形式は [Keep a Changelog](https://keepachangelog.c
 
 ## 書き方
 
-このセクションは AI が release.sh の pause 中に `[Unreleased]` を埋めるときの判断基準でもある。ここを読んだだけで自走できる粒度で書いてある。
+このセクションは Claude Code のセッションが `mise run release` を叩く前に `[Unreleased]` を埋めるときの判断基準でもある（`git log <前回タグ>..HEAD` を読んで書き、commit してから叩く。release.sh に pause は無く、空なら止まる）。ここを読んだだけで自走できる粒度で書いてある。
 
 ### 1. フォーマット
 
@@ -98,7 +98,7 @@ ja/en は **意味の対応**であって逐語訳ではない。日本語で自
 
 ### 6. AI 自動生成のチェックリスト
 
-`release.sh` の pause 中に `[Unreleased]` を埋めるとき、AI は以下に従う:
+`mise run release` を叩く前に `[Unreleased]` を埋めるとき、AI は以下に従う:
 
 1. **直近のリリース commit 以降の `git log` と `git diff` の両方を見る**。commit message だけでは「ユーザーにどう見えるか」が分からないので、必ず diff で確認する
 2. **同じ機能の連続 commit は 1 bullet にまとめる**。「ボタンを追加 → 配置調整 → 文言調整」が 3 commit でも、結果として 1 つの新機能なら 1 bullet

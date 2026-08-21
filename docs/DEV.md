@@ -32,18 +32,16 @@
 
 ## リリース
 
-1. `project.yml` の `MARKETING_VERSION` を bump → コミット（`fix:` 系とは別に `chore: バージョンを X に bump`）。`CURRENT_PROJECT_VERSION` は `$(MARKETING_VERSION)` で連動するので bump 不要
-2. `scripts/release.sh <version>` を実行
-   - **CHANGELOG 編集の pause** が入る。直近 commit を出すので、それを参考に `docs/CHANGELOG.md` の `[Unreleased]` セクションを埋める（各項目は `- ja: ...` / `- en: ...` のペア。ユーザー目視で気づく変更だけ）
-   - Enter で続行すると release.sh が `[Unreleased]` → `[<version>] - <date>` にリネームして commit
+1. `docs/CHANGELOG.md` の `[Unreleased]` を埋めてコミット（各項目は `- ja: ...` / `- en: ...` のペア。ユーザー目視で気づく変更だけ。書き方は CHANGELOG 冒頭）。`git log <前回タグ>..HEAD` を読んで Claude Code のセッションが書く。空のまま叩くと止まる
+2. `mise run release <version>` を実行（Claude Code のセッションから叩いてよい。対話は無い）
+   - preflight（gh 認証・clean worktree・origin/main と一致・Release 未作成・画面ロック・notary プロファイル・Sparkle 鍵）
+   - `[Unreleased]` → `[<version>] - <date>` にリネームし、`project.yml` の `MARKETING_VERSION` を `<version>` に揃えて 1 commit（`CURRENT_PROJECT_VERSION` は `$(MARKETING_VERSION)` で連動）。push 前に失敗したら trap で巻き戻る
    - 該当 section を抜き出して GitHub Release notes (ja/en 両方の md) と Sparkle appcast の `<description>` (ja のみの HTML) を自動生成 → release/feed に投入
-   - 同時に Release ビルド（Developer ID 署名 + notarize + staple）→ `git push origin main` → **2 つの repo に release を作成**:
-   - `nyshk97/ide` — 既存どおり zip を asset として上げる（homebrew cask の URL 互換）
-   - `nyshk97/polepole-releases` — Sparkle 配信用。zip + `appcast.xml` を上げる
-3. release.sh が `sign_update` で zip を **EdDSA 署名** し、過去の `appcast.xml` を取得 → 新 `<item>` を `</channel>` 直前に挿入してアップロードする（累積）
-4. notarize / codesign の timestamp や `gh release upload` がネットワークを使うので **Bash サンドボックスを無効化して**走らせる（下の「`scripts/build.sh` はネットワークが要る」参照）
-5. release.sh が末尾に出す `version` / `sha256` で homebrew-tap の cask を更新する: `"$(brew --repository)/Library/Taps/nyshk97/homebrew-tap/Casks/ide.rb"`（このローカル clone がそのまま作業ツリー。origin = `github.com/nyshk97/homebrew-tap`）の `version` と `sha256` を書き換えて commit & push
-6. ローカルに最新版を入れる → **`scripts/install.sh`**（`/Applications/PolePole.app` をバンドルごと差し替え。`build/polepole.zip` が無ければ build から走る）
+   - Release ビルド（Developer ID 署名 + notarize + staple）→ `git push origin main` → `nyshk97/polepole-releases` に dmg + `appcast.xml` を上げる（本体 repo `nyshk97/ide` には release を作らない。旧 ide 配布の履歴は凍結）
+   - `sign_update` で dmg を **EdDSA 署名** し、過去の `appcast.xml` を取得 → 新 `<item>` を `</channel>` 直前に挿入してアップロードする（累積）
+   - `nyshk97/homebrew-tap/Casks/polepole.rb` の `version` / `sha256` を更新し、ローカル tap を pull
+3. notarize / codesign の timestamp や `gh release upload` がネットワークを使うので **Bash サンドボックスを無効化して**走らせる（下の「`scripts/build.sh` はネットワークが要る」参照）
+4. ローカルに最新版を入れる → **`scripts/install.sh`**（`/Applications/PolePole.app` をバンドルごと差し替え）
 
 **dogfooding 中（PolePole.app の中で Claude Code を回している）に `brew upgrade --cask ide` を打つと、cask が実行中の PolePole.app を quit してそのセッションごと死ぬ**。`scripts/install.sh` はバンドルを上書きするだけで実行中プロセスは生かしたまま（macOS は使用中の .app バンドルを unlink してもプロセスは動き続ける）なので、こちらを使う。どちらにしても修正の反映には PolePole.app の手動再起動が必要。`install.sh` 経由だと `brew` 側のバージョン表示はズレるが実害なし（次に `brew upgrade --cask ide` を打てば揃う）。
 

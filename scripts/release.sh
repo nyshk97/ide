@@ -14,8 +14,12 @@
 #     走らせて 10〜15 分無駄になる。release 作業は release.sh 1 発で十分。
 #
 # 前提:
-#   - `project.yml` の MARKETING_VERSION を <version> に bump してコミット済みであること
-#     （release.sh は project.yml をいじらない。タグ名と notes に <version> を使うだけ）
+#   - docs/CHANGELOG.md の [Unreleased] を埋めてコミット済みであること（空なら止まる。
+#     Claude Code のセッションが git log を読んで書く。対話の pause は無い）
+#   - `project.yml` の MARKETING_VERSION は release.sh が <version> に bump して CHANGELOG の
+#     切り出しと同じ commit にする（bump 済みならそのまま）
+#   - Claude Code のセッションから叩いてよい。push 前に失敗したらその commit は trap で巻き戻る。
+#     唯一の条件は notarize の数分間に画面がロックされないこと（preflight でロック中は止める）
 #   - macOS Keychain に Sparkle の EdDSA 秘密鍵が登録済みであること
 #     （`generate_keys` で作成。`sign_update` が暗黙的に参照する）
 #   - `gh` で nyshk97/polepole-releases に push 権限があること
@@ -62,11 +66,45 @@ if ! gh auth status >/dev/null 2>&1; then
   echo "ERROR: gh が未認証です。gh auth login を実行してください (Release 作成は最終 step で必要)"
   exit 1
 fi
+# 作業ツリーが clean で origin/main と一致していること。Step 2 の commit に無関係な変更を
+# 巻き込まない／別クローンからリリース済みの遅れた main で二重リリースしないため。
+if [ -n "$(git status --porcelain)" ]; then
+  echo "ERROR: 作業ツリーに未コミットの変更があります。CHANGELOG の [Unreleased] も含めて commit してから実行してください"
+  git status --short
+  exit 1
+fi
+git fetch -q origin --tags
+if [ "$(git rev-parse HEAD)" != "$(git rev-parse origin/main)" ]; then
+  echo "ERROR: HEAD が origin/main と一致しません（pull 忘れ / push 忘れ）"
+  echo "       local : $(git rev-parse --short HEAD) / origin: $(git rev-parse --short origin/main)"
+  exit 1
+fi
+if gh release view "$TAG" --repo "$RELEASES_REPO" >/dev/null 2>&1; then
+  echo "ERROR: ${RELEASES_REPO} に Release $TAG が既にあります"
+  exit 1
+fi
+# 画面ロック中は notarytool の資格情報（data-protection keychain）が読めない。
+# archive に数分かけてから落ちないよう先に見る
+CONSOLE_LOCKED=$(ioreg -n Root -d1 -a 2>/dev/null | plutil -extract IOConsoleLocked raw -o - - 2>/dev/null || true)
+if [ "$CONSOLE_LOCKED" = "true" ]; then
+  echo "ERROR: 画面がロックされています。解除してから実行してください"
+  exit 1
+fi
+NOTARY_PROFILE="${NOTARY_PROFILE:-nyshk97-notary}"
+if ! notary_out=$(xcrun notarytool history --keychain-profile "$NOTARY_PROFILE" 2>&1); then
+  echo "ERROR: notarize の keychain プロファイル '${NOTARY_PROFILE}' が使えません:"
+  echo "$notary_out" | head -3
+  exit 1
+fi
+if ! security find-generic-password -s "https://sparkle-project.org" >/dev/null 2>&1; then
+  echo "ERROR: Sparkle の EdDSA 秘密鍵が keychain にありません"
+  exit 1
+fi
 
-# === Step 1: changelog edit pause ===
+# === Step 1: CHANGELOG の確認 ===
 # release.sh は CHANGELOG.md の [Unreleased] section をリリースノートとして使う。
-# 起動時に直近 commit を出して「[Unreleased] を埋めてから Enter」で待つ。
-# 編集は AI に任せても手で書いてもよい。
+# 埋めるのは叩く前（Claude Code のセッションが git log を読んで書き、commit する）。
+# 空なら Step 2 で止まる。参考として前回リリース以降の commit を表示するだけ。
 if [ ! -f "$CHANGELOG" ]; then
   echo "ERROR: $CHANGELOG が見つかりません"
   exit 1
@@ -92,12 +130,6 @@ else
   echo ""
 fi
 echo ""
-echo "↑ これを参考に $CHANGELOG の [Unreleased] セクションを埋めてください:"
-echo "    - ユーザー目視で気づく変更だけ書く (内部リファクタ・ドキュメント変更は除く)"
-echo "    - 各項目は '- ja: ...' と '- en: ...' のペアで書く"
-echo "    - カテゴリは ✨ Added / 📝 Changed / 🐛 Fixed / 🗑️ Removed / 🔒 Security / ⚠️ Deprecated"
-echo ""
-read -r -p "  編集が終わったら Enter で続行 (Ctrl+C で中断): " _
 
 # === Step 2: [Unreleased] → [<version>] - <today> 書き換え + commit ===
 TODAY=$(date +%Y-%m-%d)
@@ -133,11 +165,29 @@ path.write_text(new)
 print(f"  CHANGELOG.md: [Unreleased] の下に [{version}] - {date} を挿入")
 PY
 
-if ! git diff --quiet "$CHANGELOG"; then
-  git add "$CHANGELOG"
-  git commit -m "docs(changelog): release ${VERSION}"
-  echo "  CHANGELOG.md を commit (release ${VERSION})"
+# project.yml の MARKETING_VERSION も <version> に揃える（CURRENT_PROJECT_VERSION は連動）
+CURRENT_MV=$(awk -F'"' '/MARKETING_VERSION:/ {print $2; exit}' "$PROJECT_ROOT/project.yml")
+if [ "$CURRENT_MV" != "$VERSION" ]; then
+  sed -i '' "s/MARKETING_VERSION: \".*\"/MARKETING_VERSION: \"$VERSION\"/" "$PROJECT_ROOT/project.yml"
+  echo "  project.yml: MARKETING_VERSION ${CURRENT_MV} → ${VERSION}"
 fi
+
+RELEASE_COMMITTED=0
+if ! git diff --quiet -- "$CHANGELOG" "$PROJECT_ROOT/project.yml"; then
+  git add "$CHANGELOG" "$PROJECT_ROOT/project.yml"
+  git commit -q -m "chore: release ${VERSION}"
+  RELEASE_COMMITTED=1
+  echo "  CHANGELOG.md と project.yml を commit (release ${VERSION})"
+fi
+# push までに失敗したらこの commit を巻き戻す（preflight で clean worktree を保証しているので
+# 消えるのはこの commit だけ）。以前は手動で巻き戻していた。
+rollback_release_commit() {
+  if [ "$RELEASE_COMMITTED" -eq 1 ]; then
+    echo "↩️  失敗したので release commit を巻き戻します（remote は未変更）"
+    git reset -q --hard HEAD~1
+  fi
+}
+trap 'rollback_release_commit' ERR
 
 # === Step 3: 該当 section から release notes (md) と Sparkle description (HTML) を生成 ===
 python3 - "$CHANGELOG" "$VERSION" "$RELEASE_NOTES_MD" "$SPARKLE_DESC_HTML" <<'PY'
@@ -196,6 +246,8 @@ echo "==> Running fresh build (always rebuild to avoid uploading stale dmg)..."
 
 echo "==> Pushing main to origin (so the tag references the released commit)..."
 git push origin main
+RELEASE_COMMITTED=0
+trap - ERR
 
 # sign_update は SwiftPM が落としてきた Sparkle artifacts の中にある。
 # build.sh が -derivedDataPath を固定しているので、パスが特定できる。
@@ -318,7 +370,39 @@ echo "==> Download URL:    ${DOWNLOAD_URL}"
 echo "==> SHA256:          $SHA256"
 echo "==> EdDSA signed:    ${ED_SIG:0:24}..."
 echo ""
-echo "Homebrew cask 更新時（nyshk97/homebrew-tap/Casks/polepole.rb）:"
-echo "  version \"$VERSION\""
-echo "  sha256 \"$SHA256\""
-echo "  # url の末尾は .dmg（1.1.5 で .zip → .dmg に切り替えた。初回の切替時は cask 側の url も書き換える）"
+# === Cask 更新（nyshk97/homebrew-tap/Casks/polepole.rb）===
+TAP_REPO="nyshk97/homebrew-tap"
+CASK_PATH="Casks/polepole.rb"
+echo "==> Updating Homebrew cask ${TAP_REPO}/${CASK_PATH}..."
+CASK_CONTENT="$(cat <<CASK
+cask "polepole" do
+  version "$VERSION"
+  sha256 "$SHA256"
+
+  url "https://github.com/${RELEASES_REPO}/releases/download/v#{version}/polepole.dmg"
+  name "PolePole"
+  desc "Self-hosted IDE that integrates Ghostty terminal and Claude Code"
+  homepage "https://github.com/nyshk97/ide"
+
+  auto_updates true
+  depends_on macos: :sonoma
+
+  app "PolePole.app"
+end
+CASK
+)"
+ENCODED=$(printf '%s' "$CASK_CONTENT" | base64)
+EXISTING_SHA=$(gh api "repos/$TAP_REPO/contents/$CASK_PATH" --jq '.sha' 2>/dev/null || true)
+if [ -n "$EXISTING_SHA" ]; then
+  gh api "repos/$TAP_REPO/contents/$CASK_PATH" --method PUT \
+    --field message="chore: polepole $VERSION" --field content="$ENCODED" --field sha="$EXISTING_SHA" --silent
+else
+  gh api "repos/$TAP_REPO/contents/$CASK_PATH" --method PUT \
+    --field message="feat: add polepole $VERSION" --field content="$ENCODED" --silent
+fi
+# brew のローカル tap クローンは自動更新されないので pull しておく
+TAP_DIR=$(brew --repository "$TAP_REPO" 2>/dev/null || true)
+if [ -n "$TAP_DIR" ] && [ -d "$TAP_DIR/.git" ]; then
+  git -C "$TAP_DIR" pull --ff-only --quiet origin main || true
+fi
+echo "==> Cask updated:    ${TAP_REPO}/${CASK_PATH} → ${VERSION}"

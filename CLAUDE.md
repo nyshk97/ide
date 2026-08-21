@@ -196,7 +196,7 @@ MRU の確定タイミング（修飾キーの release）は `ShortcutsStore.sho
 
 ## リリースノート (CHANGELOG)
 
-ユーザー目視で気づくレベルの変更は `docs/CHANGELOG.md` の `[Unreleased]` セクションに残す。基本は **リリース時** に AI が `release.sh` の pause 中に `git log` + `git diff` を見て一括で書く運用なので、日々のコミットでは追記しなくて良い。
+ユーザー目視で気づくレベルの変更は `docs/CHANGELOG.md` の `[Unreleased]` セクションに残す。基本は **リリース時** に Claude Code のセッションが `git log <前回タグ>..HEAD` + `git diff` を見て一括で書き、commit してから `mise run release <version>` を叩く運用なので、日々のコミットでは追記しなくて良い（release.sh に pause は無く、`[Unreleased]` が空なら止まる）。
 
 **書き方の本体は [docs/CHANGELOG.md](./docs/CHANGELOG.md) 冒頭の「書き方」セクションに集約**してある。AI が自動生成するときはあそこだけ読めば自走できるレベルに整備済み (フォーマット制約・カテゴリ判定・ja/en の文体・粒度・書く / 書かない・自動生成チェックリスト)。
 
@@ -208,20 +208,21 @@ MRU の確定タイミング（修飾キーの release）は `ShortcutsStore.sho
 - **書かない**: 内部リファクタ / docs-only / CI / version bump 自体 / 内部ログ調整 / 依存 bump
 - **粒度**: 1 リリース 1〜5 bullet が目安。同じ機能の連続 commit は 1 bullet にまとめる
 
-`scripts/release.sh <version>` が走ると以下が自動で起きる:
+`mise run release <version>`（= `scripts/release.sh <version>`）が走ると以下が自動で起きる:
 
-1. 直近 commit を表示して pause → AI/人間が `[Unreleased]` を埋める
-2. `[Unreleased]` → `[<version>] - <date>` にリネーム + commit
+1. preflight: gh 認証・clean worktree・origin/main と一致・Release 未作成・画面ロック・notary プロファイル・Sparkle 鍵
+2. `[Unreleased]` → `[<version>] - <date>` にリネームし、`project.yml` の `MARKETING_VERSION` も `<version>` に揃えて 1 commit（push 前に失敗したら trap で巻き戻る）
 3. 該当 section を抜き出して GitHub Release notes (md, ja/en 両方) と Sparkle appcast の `<description>` (HTML, ja のみ) を生成
-4. build → notarize → staple → zip
+4. build → notarize → staple → dmg
 5. `git push origin main`（**release.sh が内部で実施するので事前 push は不要**）
 6. EdDSA 署名 → appcast.xml 生成 → `nyshk97/polepole-releases` に GitHub Release 作成
+7. `nyshk97/homebrew-tap/Casks/polepole.rb` の version / sha256 を更新してローカル tap を同期
 
-`[Unreleased]` を事前に埋めておけば、`echo "" | bash scripts/release.sh <version>` で pause を即抜けて非対話で回せる（CHANGELOG 編集は AI が事前に済ませる前提）。**事前に `project.yml` の `MARKETING_VERSION` を bump してコミット**しておく必要がある（release.sh は project.yml をいじらない）。
+**Claude Code のセッションから直接叩いてよい**（対話は無い。唯一の条件は notarize の数分間に画面がロックされないことで、ロック中は preflight で止まる）。
 
 ⚠️ **非対話実行時の落とし穴**: `[Unreleased]` セクションを埋めるとき、**`[Unreleased]` ヘッダー自体を `[x.y.z]` に書き換えてはいけない**。release.sh が同名ヘッダーを重複挿入し、最初の空ヘッダーから内容を抽出するため Sparkle description が空になる。`[Unreleased]` ヘッダーはそのままにして、その下にコンテンツだけ書いてコミットする。
 
-**release.sh が終わったあとの手動作業**: Homebrew cask (`nyshk97/homebrew-tap/Casks/polepole.rb`) の `version` / `sha256` 更新。release.sh 末尾の出力をそのまま `version "X.Y.Z"` / `sha256 "..."` に貼って、別 repo を clone → 編集 → commit `"polepole X.Y.Z"` → push する（`brew upgrade --cask polepole` の更新元なので、ここを忘れると Homebrew ユーザーは古いままになる）。
+**release.sh が終わったあとの手動作業は無い**（cask 更新も release.sh が行う）。ローカルの PolePole を更新するなら `scripts/install.sh`（dogfooding 中に `brew upgrade` すると実行中のセッションごと死ぬ。下の DEV.md 参照）。
 
 cask は `/opt/homebrew/Library/Taps/nyshk97/homebrew-tap/` にある (`brew --repository nyshk97/tap` で取れる)。**push 順序**: brew tap 更新で remote が先行している可能性があるので **commit → `pull --rebase origin main` → push** の順で。`pull --rebase` は dirty tree だと拒否されるので必ず commit が先。conflict が出たら新版 (1.4.X) を採用して `git add` → `git rebase --continue` → push。
 
