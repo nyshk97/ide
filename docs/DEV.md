@@ -157,7 +157,7 @@ open -n "/tmp/polepole-build/Build/Products/Debug/PolePole Dev.app" \
 - Debug ビルドのライセンス API はデフォルトで `http://127.0.0.1:8787`（ローカル wrangler dev）を向く（`LicenseClient.defaultBaseURL()`）。ローカル backend が起動していないと、アクティベートは「ネットワークエラー」、既存 token の再検証は失敗し続けて**オフライン猶予（30日）切れでトライアル/購入モーダルが復活する**
 - このため `scripts/polepole-launch.sh` と `mise run run` は `POLEPOLE_BACKEND_URL=https://polepole.dev` をデフォルトで渡す。ライセンスフローをローカル backend で検証するときだけ `POLEPOLE_BACKEND_URL=http://127.0.0.1:8787 ./scripts/polepole-launch.sh` のように明示上書きする
 - Dev のライセンス保存先は実 Keychain ではなく `~/Library/Application Support/polepole-dev/keychain-debug.json`（`#if DEBUG` の DebugStore）。Brew 版と完全分離されており、トライアル切れ画面を再検証したいときはこのファイルの `activation-token` を消せば戻せる（`trial.json` を消すとトライアル自体が最初から）
-- `POLEPOLE-ETERNAL-FREE-D0NE1S` は **Stripe Checkout の 100% OFF クーポン**であってライセンスキーではない。開発者自身のキーはこのクーポンで発行済みの `polepole-H4E5-…`（本番 D1 の `license` テーブルに active で登録済み）
+- 自分用の無料クーポン（コードは非公開）は **Stripe Checkout の 100% OFF クーポン**であってライセンスキーではない。開発者自身のキーはこのクーポンで発行済み（本番 D1 の `license` テーブルに active で登録済み）
 - **grace 切れで「ライセンスが無効化されました」にロックされたら CLI で再アクティベートできる**（2026-08-06 に発生・復旧済み。ロック後は `verifyIfNeeded()` が `state == .activated` 前提のため本番 API に繋がっても自己回復しない = 仕様）。手順: ① 旧 token（`token.json` の `.` 区切り前半を base64url decode）から `key` / `device_hash` を取り出す → ② `curl -X POST https://polepole.dev/v1/license/activate -H "Content-Type: application/json" -d '{"key":"...","email":"...","device_hash":"...","device_name":"dev-reactivate","os_version":"...","app_version":"dev"}'` → ③ レスポンスの `token` を `token.json`（`{"token":"..."}`）と `keychain-debug.json` の `activation-token` の両方に書いて再起動。同一 `device_hash` なら `created: false` でデバイススロットは消費されない
 
 ---

@@ -366,7 +366,7 @@ Phase 3 終了後の review で High 2 件 + Medium 2 件の指摘を受けた�
 - [x] [AI🤖] `./scripts/release.sh 1.1.0` で archive + notarize (Accepted) + staple + zip + Sparkle EdDSA 署名 + GitHub Release 作成 → https://github.com/nyshk97/polepole-releases/releases/tag/v1.1.0 / SHA256 `7d7d4658383df75d7e4825105015b81bbc8a3e00006c06686f8ed192eb5d6ca7` / appcast.xml 自動更新
 - [x] [AI🤖] `nyshk97/homebrew-tap/Casks/polepole.rb` の version / sha256 を bump して push (commit `0603e9d`)、`brew info` で 1.1.0 認識を確認
 - [x] [人間👨‍💻 + AI🤖] **本番 Stripe Live で自己購入 → /thanks → メール → アクティベート まで一気通貫成功**
-  - 本番 LP の購入ボタン → Stripe Checkout (Live) → クーポン `POLEPOLE-ETERNAL-FREE-D0NE1S` 適用で ¥0 → 支払う → `/thanks` で license key `polepole-H4E5-3P2N-YG8B-AJ2R` 表示
+  - 本番 LP の購入ボタン → Stripe Checkout (Live) → 自分用 100% OFF クーポン（コード非公開）適用で ¥0 → 支払う → `/thanks` で license key（非公開）表示
   - `nyshk97@gmail.com` に Resend 経由で「【PolePole】ご購入ありがとうございます…」メール到着 (購入直後テンプレ Phase 8、Amazon SES Tokyo → Gmail)
   - PolePole.app 1.1.0 (brew で `brew upgrade --cask polepole` で更新) → Settings → ライセンスタブ → メアドとキー入力 → 「アクティベート済み」緑チェック表示、`state = activated (expires in 30 days)`、device hash (`a51630de41dd...`) と最終認証時刻が表示
   - D1 license レコード: amount=0, status=active, email_sent_at 入り。クーポン適用ケースが本番 Live で正常完了
@@ -378,7 +378,7 @@ Phase 3 終了後の review で High 2 件 + Medium 2 件の指摘を受けた�
 - [x] [AI🤖] **Stripe Coupon + Promotion Code 2 種類を Live で発行**
   - Coupon `6JQCJFNY` (100% off, one-time, applies_to=prod_UZagDRsLsyDxK2)
   - Coupon `8F1u0f4Q` (50% off, one-time, applies_to 同上)
-  - Promotion Code `POLEPOLE-ETERNAL-FREE-D0NE1S` (100% off, max 10, 無期限, first_time_transaction=true)
+  - Promotion Code（自分用・コード非公開）(100% off, max 10, 無期限, first_time_transaction=true)
   - Promotion Code `LAUNCH50` (50% off, max 100, 90 日, first_time_transaction=true)
   - Payment Link を `allow_promotion_codes=true` に update
   - LP `index.html`: hero の二重 CTA を「14 日間 無料で試す」+「価格を見る」に整理 + pricing カードのボタンを「ライセンスを購入する」に
