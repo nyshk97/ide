@@ -1,14 +1,41 @@
 # PolePole
 
-macOS 用の自作 IDE。Ghostty + Claude Code を中心に統合した開発環境。
+ターミナルで動く AI コーディング CLI（Claude Code / Codex CLI など）を、複数プロジェクト並列で走らせるための macOS ワークスペース。cmux + Ghostty + yazi + git-watch を 1 つのアプリに統合した、**編集しない IDE** です。
 
 ![PolePole の画面](./docs/images/overview.png)
 
-左から **プロジェクトサイドバー** / **ファイルツリー + プレビュー** / **Ghostty 統合ターミナル**（上下 2 ペイン × 複数タブ）の 3 カラム構成。
+**[公式サイト](https://polepole.dev)** · **[ガイド](https://polepole.dev/guide)** · **[チェンジログ](https://polepole.dev/changelog)**
 
 ---
 
-## ビルド・起動
+## コンセプト
+
+コードを書くのは AI、人間はレビューと指示 — そうなってみると、必要なのは編集機能ではなく、**複数プロジェクト × 複数ターミナルを最短の手数で行き来して、AI の出力を確認する**ための道具でした。PolePole は閲覧 + ターミナル + プロジェクト管理に特化し、編集は各自のエディタに逃がします。特定の AI ツールに依存しない、ただのターミナルとして作ってあります。
+
+画面は左から **プロジェクトサイドバー** / **ファイルツリー + プレビュー** / **Ghostty 統合ターミナル**（上下 2 ペイン × 複数タブ）の 3 カラム構成。
+
+## 主な機能
+
+- **libghostty 組み込みターミナル** — Ghostty と同じ Metal レンダラを SwiftUI の中に埋め込み
+- **Ctrl+M プロジェクト切替** — MRU 順のオーバーレイ。vim や claude の TUI 中でも必ず効く
+- **AI 完了通知** — Claude Code / Codex の進捗通知（OSC 9;4）を検知し、ターン完了でサウンド + 非アクティブタブに赤丸バッジ。タブには AI 種別バッジも出る
+- **git ウォッチ** — ファイルツリーに status バッジ、Cmd+D で diff、Cmd+P ファイル名検索、Cmd+Shift+F 全文検索。子リポジトリの境界も正しく扱う
+- **閲覧専用のファイルツリー + プレビュー** — Markdown レンダリング等。編集機能は意図的に持たない
+- **Sparkle 自動アップデート / ショートカットのリバインド**
+
+## インストール
+
+公式ビルド（署名・公証・自動アップデート付き）:
+
+```bash
+brew install --cask nyshk97/tap/polepole
+```
+
+または [polepole.dev](https://polepole.dev) からダウンロード。14 日間の無料トライアル付きの買い切り有料アプリです。ソースは MIT ライセンスなので、自分でビルドして使うのも自由です。
+
+要件: macOS 14+ / Apple Silicon
+
+## ソースからビルド
 
 ```bash
 mise run build                # XcodeGen で project 再生成 → Debug ビルド
@@ -16,48 +43,43 @@ mise run run                  # ビルド + 起動
 ./scripts/polepole-launch.sh  # 既存プロセスを kill して起動だけ
 ```
 
-Debug ビルドの成果物は `/tmp/polepole-build/Build/Products/Debug/PolePole Dev.app`。
-
 前提:
+
 - macOS 14+ / Apple Silicon
 - Xcode（Swift 6 strict concurrency が通るバージョン）
 - [mise](https://mise.jdx.dev/)
-- `GhosttyKit.xcframework`（536MB、リポジトリには含まれない）をプロジェクトルートに配置
+- `GhosttyKit.xcframework` をプロジェクトルートに配置（リポジトリには含まれない。[Ghostty](https://github.com/ghostty-org/ghostty) のソースからビルドする。使用 commit は `GhosttyKit.xcframework/.ghostty_sha` に pin）
 
-詳細は [docs/DEV.md](./docs/DEV.md)。
+Debug ビルドは Bundle ID・表示名・データディレクトリが Release と分離されており（`PolePole Dev`）、常用版を壊さずに開発できます。詳細は [docs/DEV.md](./docs/DEV.md)。
 
----
+## 技術的な見どころ
 
-## Release 配布
-
-```bash
-./scripts/release.sh 1.0.0    # build → notarize → polepole-releases に release を作る
-```
-
-事前に `project.yml` の `MARKETING_VERSION` を bump してコミットしておく。配信は `nyshk97/polepole-releases`（Sparkle feed + cask zip）。cask は `nyshk97/homebrew-tap/Casks/polepole.rb` を別途更新する。
-
----
+- **libghostty の SwiftUI 統合** — libghostty は surface を渡した NSView を内部で握り続けるため、素朴に reparent すると Metal binding が壊れます。surface を持つ NSView は固定の host に置いたまま、SwiftUI ツリーには透明なアンカーだけを置いて frame を追従させる portal パターンで解決（[docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md)）
+- **AI の foreground 判別** — npm 経由の claude は p_comm が `node` になるため、`KERN_PROCARGS2` で argv を取って識別
+- **Swift 6 strict concurrency** を全面採用。踏んだ罠は [docs/DEV.md](./docs/DEV.md) に蓄積
+- **リリース全自動** — `mise run release` 一発で build → notarize → Sparkle 署名 → GitHub Release → Homebrew cask 更新まで
+- 実装は Claude Code との共同作業で、AI が自走できるようにドキュメント（CLAUDE.md / VERIFY.md / docs/plans）を整備しながら進めています
 
 ## ドキュメント
 
 | ファイル | 用途 |
 |---|---|
-| [CLAUDE.md](./CLAUDE.md) | Claude Code（AI）向けの作業ガイド。最初に読む |
 | [REQUIREMENTS.md](./REQUIREMENTS.md) | 要件（仕様の正） |
 | [docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md) | モジュール構成・データフロー |
 | [docs/DEV.md](./docs/DEV.md) | 開発手順・テスト用環境変数・落とし穴 |
 | [VERIFY.md](./VERIFY.md) | 動作確認手順（自動 + 手動） |
+| [docs/CHANGELOG.md](./docs/CHANGELOG.md) | リリースノート（ja/en） |
 | [docs/BACKLOG.md](./docs/BACKLOG.md) | 残タスク・将来アイデア |
-| [docs/COMMERCIALIZATION.md](./docs/COMMERCIALIZATION.md) | 商用化に向けた論点 |
 | [docs/plans/](./docs/plans) | フェーズ単位の実装計画 |
+| [CLAUDE.md](./CLAUDE.md) | Claude Code（AI）向けの作業ガイド |
 
----
+## 関連リポジトリ
 
-## リポジトリ
-
-- 本体（private）: <https://github.com/nyshk97/ide>
-- Sparkle 配信: <https://github.com/nyshk97/polepole-releases>
+- Sparkle 配信 + リリース: <https://github.com/nyshk97/polepole-releases>
 - Homebrew tap: <https://github.com/nyshk97/homebrew-tap>
-- 旧 Sparkle 配信（凍結）: <https://github.com/nyshk97/ide-releases>
 
-リポジトリ名は歴史的事情で `ide` のまま（2026-05-23 にプロジェクト名は `PolePole` にリネーム済み）。
+リポジトリ名は歴史的事情で `ide` のままです（2026-05-23 にプロジェクト名を `PolePole` にリネーム）。
+
+## ライセンス
+
+[MIT](./LICENSE)
