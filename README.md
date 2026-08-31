@@ -23,18 +23,6 @@
 - **閲覧専用のファイルツリー + プレビュー** — Markdown レンダリング等。編集機能は意図的に持たない
 - **Sparkle 自動アップデート / ショートカットのリバインド**
 
-## インストール
-
-公式ビルド（署名・公証・自動アップデート付き）:
-
-```bash
-brew install --cask nyshk97/tap/polepole
-```
-
-または [polepole.dev](https://polepole.dev) からダウンロード。14 日間の無料トライアル付きの買い切り有料アプリです。ソースは MIT ライセンスなので、自分でビルドして使うのも自由です。
-
-要件: macOS 14+ / Apple Silicon
-
 ## ソースからビルド
 
 ```bash
@@ -52,13 +40,11 @@ mise run run                  # ビルド + 起動
 
 Debug ビルドは Bundle ID・表示名・データディレクトリが Release と分離されており（`PolePole Dev`）、常用版を壊さずに開発できます。詳細は [docs/DEV.md](./docs/DEV.md)。
 
-## 技術的な見どころ
+## Highlights
 
 - **libghostty の SwiftUI 統合** — libghostty は surface を渡した NSView を内部で握り続けるため、素朴に reparent すると Metal binding が壊れます。surface を持つ NSView は固定の host に置いたまま、SwiftUI ツリーには透明なアンカーだけを置いて frame を追従させる portal パターンで解決（[docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md)）
 - **AI の foreground 判別** — npm 経由の claude は p_comm が `node` になるため、`KERN_PROCARGS2` で argv を取って識別
 - **Swift 6 strict concurrency** を全面採用。踏んだ罠は [docs/DEV.md](./docs/DEV.md) に蓄積
-- **リリース全自動** — `mise run release` 一発で build → notarize → Sparkle 署名 → GitHub Release → Homebrew cask 更新まで
-- 実装は Claude Code との共同作業で、AI が自走できるようにドキュメント（CLAUDE.md / VERIFY.md / docs/plans）を整備しながら進めています
 
 ## ドキュメント
 
@@ -77,8 +63,6 @@ Debug ビルドは Bundle ID・表示名・データディレクトリが Releas
 
 - Sparkle 配信 + リリース: <https://github.com/nyshk97/polepole-releases>
 - Homebrew tap: <https://github.com/nyshk97/homebrew-tap>
-
-リポジトリ名は歴史的事情で `ide` のままです（2026-05-23 にプロジェクト名を `PolePole` にリネーム）。
 
 ## ライセンス
 
