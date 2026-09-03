@@ -53,6 +53,7 @@ ide の今後の着手候補。基本機能は一通り揃っているので、�
 - `POLEPOLE_TEST_*` 環境変数が複数（`AUTO_ACTIVATE_INDEX` `AUTO_PREVIEW` `AUTO_FULLSEARCH` `TOAST`）— docs/DEV.md にまとめてある。今後増やすなら命名規約を `POLEPOLE_TEST_<feature>_<param>` に統一する、という指針だけ。
 - SwiftUI の `onTapGesture` が AppleScript の `click at` に届かない — 動作確認は `POLEPOLE_TEST_*` で迂回済み。完全自動化は難しいので手動確認を VERIFY.md に残す方針で確定。
 - HSplitView は `idealWidth` を尊重しない — maxWidth で抑える workaround 済み（step1）。
+- Claude Code のバックグラウンドサブエージェント完了でも AI 完了通知音が鳴る（2026-08-31 調査済み）— Claude Code の OSC 9;4 は `isLoading || hasToolsInProgress` の 2 値だけで、保留中のバックグラウンドタスクは progress を保持しない。委譲ターン終了と task-notification 起点の wake ターン終了のどちらも REMOVE を吐き、状態番号以外の情報が乗らないため PolePole 側では「本当の完了」と区別できない（v2.1.251 のバイナリと `[progress]` ログの突き合わせで確定）。クールダウン等のヒューリスティックは誤爆するので実装しない方針。根治は Claude Code 側の改善待ち。Claude Code 更新時に挙動が変わったら再確認。
 
 ---
 
