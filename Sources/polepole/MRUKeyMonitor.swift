@@ -258,8 +258,13 @@ enum MRUKeyMonitor {
         }
 
         // プレビュー内検索バー表示中のキー操作（モーダルなオーバーレイが出ていないときだけ）。
+        // バーが「見えている」だけでは握らず、first responder がプレビュー配下（入力欄・本文）に
+        // あるときに限る。ターミナルをクリックして作業中の Return / Esc / Cmd+G まで横取りすると、
+        // コマンドが実行できず vim / claude の Esc も効かなくなる（バーを ✕ で閉じるまで詰む）。
+        // バー自体は表示とハイライトを維持し、Cmd+F で入力欄へ戻れる。
         if model.mruOverlay == nil, !model.quickSearchVisible, !model.fullSearchVisible,
-           let preview = model.activePreview, preview.findBarVisible {
+           let preview = model.activePreview, preview.findBarVisible,
+           PreviewFocus.isFirstResponderWithinPreview() {
             // IME で日本語を変換中（marked text あり）のときは Return/Esc を横取りしない。
             // 横取りすると変換確定（Return）や変換キャンセル（Esc）が効かなくなる。
             let composing = isComposingInTextField()

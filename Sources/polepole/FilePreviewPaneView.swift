@@ -74,9 +74,32 @@ private struct PreviewFocusHost: NSViewRepresentable {
     }
 }
 
+/// `PreviewFocusHostingView` の非ジェネリックなマーカー。
+/// `MRUKeyMonitor` が「first responder がプレビュー配下か」を superview を辿って判定するのに使う
+/// （ジェネリッククラスは外から `is PreviewFocusHostingView<...>` で型判定できないため）。
+protocol PreviewFocusHostingMarker: AnyObject {}
+
+/// プレビューペインのフォーカス判定。
+enum PreviewFocus {
+    /// `window`（既定は key window）の first responder がプレビューペイン
+    /// （検索バーの入力欄・WKWebView 等を含む）配下か。ターミナルやファイルツリーにフォーカスがあるときは false。
+    /// 検索バーの TextField は NSTextField 由来で、フォーカス時の first responder は field editor
+    /// (NSTextView) になるが、これは NSTextField の subview なので superview を辿れば届く。
+    @MainActor
+    static func isFirstResponderWithinPreview(in window: NSWindow? = NSApp.keyWindow) -> Bool {
+        guard let responder = window?.firstResponder as? NSView else { return false }
+        var view: NSView? = responder
+        while let current = view {
+            if current is PreviewFocusHostingMarker { return true }
+            view = current.superview
+        }
+        return false
+    }
+}
+
 /// NSHostingView を継承して Cmd+W / Esc をフォーカスゲート付きで捕捉する。
 /// 「self または配下 descendant が first responder のときだけ」発火する。
-final class PreviewFocusHostingView<Content: View>: NSHostingView<Content> {
+final class PreviewFocusHostingView<Content: View>: NSHostingView<Content>, PreviewFocusHostingMarker {
     var onClose: () -> Void = {}
 
     required init(rootView: Content) {
