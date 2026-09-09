@@ -109,6 +109,9 @@ ja/en は **意味の対応**であって逐語訳ではない。日本語で自
 7. **ペアの整合性**: `- ja:` と `- en:` は隣接 / カテゴリ配置一致 / bullet 数一致 を最後に確認
 
 ## [Unreleased]
+### 🐛 Fixed
+- ja: ファイル内検索 (Cmd+F) のバーを開いたままターミナルをクリックしても Return / Esc / Cmd+G がバーに横取りされ、バーを閉じるまで入力できなかった問題を修正
+- en: Fixed the in-file search bar (Cmd+F) swallowing Return / Esc / Cmd+G after clicking into the terminal, which blocked input until the bar was closed
 
 ## [1.4.18] - 2026-08-06
 ### ✨ Added
