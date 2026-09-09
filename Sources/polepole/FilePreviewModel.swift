@@ -68,6 +68,7 @@ final class FilePreviewModel: ObservableObject {
     func hideFindBar() {
         guard findBarVisible else { return }
         findBarVisible = false
+        Logger.shared.debug("[find] hide")
         findDebounceTask?.cancel()
         findMatchCount = 0
         findMatchIndex = 0
@@ -77,6 +78,7 @@ final class FilePreviewModel: ObservableObject {
     /// 次（forward=true）/ 前のマッチへ移動する。
     func findNext(forward: Bool) {
         guard findBarVisible, !findQuery.isEmpty else { return }
+        Logger.shared.debug("[find] next forward=\(forward)")
         Task { [weak self] in
             let r = await PreviewWebController.shared.findNext(forward: forward)
             guard let self, self.findBarVisible else { return }

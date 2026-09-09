@@ -1114,9 +1114,17 @@ xcodebuild -project polepole.xcodeproj -scheme polepole -configuration Debug \
 
 期待: 4 テスト passed（入力欄の field editor がフォーカス → 配下、ターミナル相当の NSView がフォーカス → 配下でない、など）。
 
-手動で確認（PolePole 内 Claude Code からは osascript の補助アクセスが効かず自動化不可）:
+「検索バーを開いたままターミナルへフォーカス → Return / Esc が端末に届く」は `POLEPOLE_TEST_EVENT_FILE` の注入フック（osascript 不要、DEV.md「テスト用環境変数」）で e2e 自動確認する:
+
+```bash
+./scripts/verify-find-bar-focus.sh
+```
+
+期待: 全行 `PASS:` で `--- failures: 0`（起動 → 端末へフォーカス → `touch <marker>` + Return でマーカーが作られる / findNext が発火しない / Esc でバーが閉じない / 入力欄に戻せば Return で findNext）。`polepole-dev/` は退避・復元、split の autosave キーはリセットされる。修正前の `MRUKeyMonitor.swift`（`git show dbc6481~1:...`）だと Return / Esc の 3 行が FAIL になることを確認済み。
+
+手動で確認（Cmd+F 自体の発火は注入フックでは撃っていない）:
 - プレビュー表示中に **Cmd+F** で検索バーが開き、入力欄にフォーカスが入る（ターミナル/WebView がフォーカスを握っていても奪える）。開いている状態でもう一度 Cmd+F で入力欄に再フォーカス
-- **検索バーを開いたままターミナルをクリック** → 端末で `echo hi` + **Enter** がそのまま実行される（次のマッチへ移らない）。**Esc** も端末に届く（vim / claude の Esc が効く。バーは閉じない）。**Cmd+G** も端末側に流れる。検索バーとハイライトは表示されたまま残り、**Cmd+F** で入力欄に戻れる
+- 検索バーを開いたままターミナルをクリック → **Cmd+G** も端末側に流れる。検索バーとハイライトは表示されたまま残り、**Cmd+F** で入力欄に戻れる
 - 入力するたびにハイライトが更新される（120ms デバウンス）
 - **Enter** / **Cmd+G** で次のマッチ、**Shift+Enter** / **Cmd+Shift+G** で前のマッチへ。↑↓ ボタンも同じ
 - **Esc** で検索バーが閉じてハイライトが消える（プレビュー自体は閉じない）。もう一度 Esc でツリーに戻る

@@ -14,8 +14,8 @@ run = "xcodebuild -project polepole.xcodeproj -scheme polepole -configuration De
 description = "ビルド済みアプリを再起動して開く（既存 PolePole Dev プロセスを kill してから。Brew 版の PolePole は触らない）"
 run = """
 pkill -x "PolePole Dev" || true
-# ライセンス再検証を本番 API に向ける (Debug デフォルトの 127.0.0.1:8787 だと 30 日で失効する)。
-# ローカル backend で検証するときは POLEPOLE_BACKEND_URL=http://127.0.0.1:8787 で上書き。
+# ライセンス API の向き先 (Debug の既定も本番)。ローカル backend で検証するときは
+# POLEPOLE_BACKEND_URL=http://127.0.0.1:8787 で上書き。
 open -n "/tmp/polepole-build/Build/Products/Debug/PolePole Dev.app" --env POLEPOLE_BACKEND_URL="${POLEPOLE_BACKEND_URL:-https://polepole.dev}"
 """
 depends = ["build"]

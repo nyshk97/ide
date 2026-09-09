@@ -107,6 +107,9 @@ final class ProjectsModel: ObservableObject {
         applyTestAutoActivate()
         autoActivateLastOpenedProject()
         applyTestAutoPreview()
+        #if DEBUG
+        TestEventInjector.installIfRequested()
+        #endif
         applyTestSidebarCollapsed()
     }
 

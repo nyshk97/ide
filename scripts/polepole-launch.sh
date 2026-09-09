@@ -15,9 +15,8 @@ fi
 
 pkill -x "PolePole Dev" >/dev/null 2>&1 || true
 sleep 0.5
-# ライセンス再検証を本番 API に向ける。Debug のデフォルトは 127.0.0.1:8787 (ローカル wrangler dev) で、
-# ローカル backend が居ないと再検証が失敗し続け、オフライン猶予 (30日) 切れで
-# トライアル/購入モーダルが復活する。ライセンスフローをローカル backend で検証するときは
+# ライセンス API の向き先。Debug の既定も本番 (https://polepole.dev) なので通常は指定不要。
+# ライセンスフローをローカル backend で検証するときは
 # POLEPOLE_BACKEND_URL=http://127.0.0.1:8787 を付けて呼び出せば上書きできる。
 open -n "$APP" --env POLEPOLE_BACKEND_URL="${POLEPOLE_BACKEND_URL:-https://polepole.dev}"
 sleep "$WAIT"

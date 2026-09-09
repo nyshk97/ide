@@ -71,13 +71,13 @@ struct LicenseClient: Sendable {
         {
             return url
         }
-        #if DEBUG
-        return URL(string: "http://127.0.0.1:8787")!
-        #else
+        // Debug も既定は本番。かつて Debug だけ 127.0.0.1:8787（ローカル wrangler dev）を既定にしていたが、
+        // VERIFY のバイナリ直叩き等で POLEPOLE_BACKEND_URL を付け忘れると再検証が 30 日間一度も通らず
+        // grace 切れでロックされる事故が 2 回起きた（2026-08-06 / 2026-09-09）。ローカル backend で
+        // ライセンスフローを検証するときだけ POLEPOLE_BACKEND_URL=http://127.0.0.1:8787 を明示する。
         // Workers Assets 統合 (Phase 4) で polepole.dev/v1/license/* を 1 Worker で配信。
         // 別 subdomain (api.polepole.dev) は使わない。
         return URL(string: "https://polepole.dev")!
-        #endif
     }
 
     // MARK: - Endpoints
