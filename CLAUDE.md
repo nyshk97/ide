@@ -26,6 +26,7 @@
 1. **要件と整合する変更か** — `REQUIREMENTS.md` のセクション番号で議論する
 2. **plan があるか** — `docs/plans/` の進行中 plan があれば、ステップ通りに進める
 3. **テスト用フラグの位置** — `POLEPOLE_TEST_*` 環境変数の一覧は `docs/DEV.md`
+4. **機能追加は「やらないこと」の境界に触れていないか** — 編集機能 / ファイルツリーからの CRUD / 内蔵 AI チャット / 複数 AI のオーケストレーションは持たない（要望が来ても足さない。Cursor・Zed・Codex Desktop との機能勝負になる）。判断の基準にするペルソナは「Claude Code を主軸に、Codex CLI 等も併用・ウォッチしている macOS エンジニア」＝ユーザー本人で、この層から外れる層を取りに行かない。ポジションの正は [docs/COMMERCIALIZATION.md](./docs/COMMERCIALIZATION.md)、LP・README には「やらないこと」も明示する
 
 ---
 
@@ -58,6 +59,8 @@ mise run build                                        # ビルド（regen を含
 「確認しました」だけで済ませず、実行コマンド・出力（抜粋）・pass/fail 判定を報告する。
 
 ### ⚠️ PolePole の中で検証するには PolePole.app に TCC 権限が要る
+
+このプロジェクトは **PolePole.app（Brew 配布版）内のターミナルで Claude Code を動かして開発する**（dogfooding。ユーザーの明示の方針）。TCC や shell env で検証が詰まっても **Terminal.app への退避は提案せず**、PolePole.app 側の権限付与・再起動で解決する。
 
 `polepole-screenshot.sh` / `polepole-launch.sh` を PolePole 内ターミナルの Claude Code から回すには、`/Applications/PolePole.app` に **画面収録** と **フルディスクアクセス**（`~/Library/CloudStorage/` 配下の dotfiles を読むため）が付与されている必要がある。剥がれていると「could not create image from display」「`.zshrc` が読めずデフォルトプロンプト・mise/`claude` が PATH に無い」になる。Release ビルドは安定した Developer ID 署名なので brew 更新では剥がれない。詳細・再付与手順は [docs/DEV.md の「TCC（プライバシー）権限の罠」](./docs/DEV.md#tccプライバシー権限の罠)。
 
