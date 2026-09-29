@@ -109,6 +109,9 @@ ja/en は **意味の対応**であって逐語訳ではない。日本語で自
 7. **ペアの整合性**: `- ja:` と `- en:` は隣接 / カテゴリ配置一致 / bullet 数一致 を最後に確認
 
 ## [Unreleased]
+### ✨ Added
+- ja: Cmd+O でプロジェクトを名前・パスで絞り込んで切り替える検索を追加 (設定画面でキー変更可)
+- en: Added Cmd+O project search to filter projects by name or path and switch to one (rebindable in Settings)
 
 ## [1.4.19] - 2026-09-09
 ### 🐛 Fixed
