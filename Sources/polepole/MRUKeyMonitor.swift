@@ -1,6 +1,6 @@
 import AppKit
 
-/// アプリ全体で Ctrl+M / Esc / Ctrl 離しを最優先で捕捉して `ProjectsModel` に届ける。
+/// アプリ全体で Ctrl+M / Cmd+O / Esc / Ctrl 離しを最優先で捕捉して `ProjectsModel` に届ける。
 ///
 /// `NSEvent.addLocalMonitorForEvents` は AppKit/SwiftUI の通常パイプラインより前に呼ばれるので、
 /// Ghostty NSView の performKeyEquivalent や TUI の中（vim/claude）でも PolePole が確実に握れる。
@@ -48,6 +48,12 @@ enum MRUKeyMonitor {
         // オーバーレイ表示中の Esc: キャンセル
         if model.mruOverlay != nil, event.keyCode == 53 {  // 53 = Esc
             model.cancelMRUOverlay()
+            return true
+        }
+
+        // プロジェクト検索オーバーレイのトグル（default: Cmd+O）。
+        if shortcuts.matches(event, .projectSearch) {
+            model.toggleProjectSearch()
             return true
         }
 
@@ -99,7 +105,8 @@ enum MRUKeyMonitor {
         // 注: 矢印キーには .numericPad / .function フラグが乗るので、`mods == [.command, .option]`
         // の厳密一致だと外れる。primary modifier (Cmd/Ctrl/Opt/Shift) だけ取り出して比較する。
         let primaryMods = mods.intersection([.command, .control, .option, .shift])
-        let overlaysClosed = model.mruOverlay == nil && !model.quickSearchVisible && !model.fullSearchVisible && !model.diffOverlayVisible
+        let overlaysClosed = model.mruOverlay == nil && !model.quickSearchVisible && !model.fullSearchVisible
+            && !model.diffOverlayVisible && !model.projectSearchVisible
         if primaryMods == [.command, .option], overlaysClosed, let ws = model.activeWorkspace {
             switch event.keyCode {
             case 124:  // →: 次のタブへ
@@ -257,12 +264,45 @@ enum MRUKeyMonitor {
             }
         }
 
+        // プロジェクト検索表示中のキー操作
+        if model.projectSearchVisible {
+            // Ctrl+N / Ctrl+P: ↓↑ と同じく選択を移動（Emacs バインド）。
+            if mods == .control, event.keyCode == 45 {  // 45 = N
+                model.projectSearchMoveSelection(1)
+                return true
+            }
+            if mods == .control, event.keyCode == 35 {  // 35 = P
+                model.projectSearchMoveSelection(-1)
+                return true
+            }
+            // IME 変換中は Return/Esc/矢印を IME に渡す（Cmd+P と同じ理由）。
+            // Return は TextField.onSubmit に任せず、ここで確定する。
+            if !isComposingInTextField() {
+                switch event.keyCode {
+                case 36, 76:  // Return / Enter
+                    model.projectSearchConfirm()
+                    return true
+                case 53:  // Esc
+                    model.closeProjectSearch()
+                    return true
+                case 125:  // Down
+                    model.projectSearchMoveSelection(1)
+                    return true
+                case 126:  // Up
+                    model.projectSearchMoveSelection(-1)
+                    return true
+                default:
+                    break
+                }
+            }
+        }
+
         // プレビュー内検索バー表示中のキー操作（モーダルなオーバーレイが出ていないときだけ）。
         // バーが「見えている」だけでは握らず、first responder がプレビュー配下（入力欄・本文）に
         // あるときに限る。ターミナルをクリックして作業中の Return / Esc / Cmd+G まで横取りすると、
         // コマンドが実行できず vim / claude の Esc も効かなくなる（バーを ✕ で閉じるまで詰む）。
         // バー自体は表示とハイライトを維持し、Cmd+F で入力欄へ戻れる。
-        if model.mruOverlay == nil, !model.quickSearchVisible, !model.fullSearchVisible,
+        if model.mruOverlay == nil, !model.quickSearchVisible, !model.fullSearchVisible, !model.projectSearchVisible,
            let preview = model.activePreview, preview.findBarVisible,
            PreviewFocus.isFirstResponderWithinPreview() {
             // IME で日本語を変換中（marked text あり）のときは Return/Esc を横取りしない。

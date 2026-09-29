@@ -64,6 +64,15 @@ struct RootLayoutView: View {
             if let state = projects.mruOverlay {
                 MRUOverlayView(state: state)
                     .transition(.opacity.combined(with: .scale(scale: 0.95)))
+            } else if projects.projectSearchVisible {
+                ZStack {
+                    Color.black.opacity(0.001)
+                        .contentShape(Rectangle())
+                        .onTapGesture { projects.closeProjectSearch() }
+                    ProjectSearchView(model: projects)
+                        .padding(.top, 80)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+                }
             } else if projects.quickSearchVisible, let active = projects.activeProject {
                 ZStack {
                     // 枠外クリックで閉じる用の透明レイヤー。Color.clear は hit-test されないので

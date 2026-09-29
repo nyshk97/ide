@@ -1,10 +1,11 @@
 import AppKit
 import Foundation
 
-/// ユーザーが変更可能な 3 つのショートカットを表す。
+/// ユーザーが変更可能なショートカットを表す。
 /// MRUKeyMonitor が固定のキーコード直書きから ShortcutsStore.shared.matches(_:_:) 経由に置き換わる。
 enum ShortcutAction: String, CaseIterable, Codable {
     case mruOverlay
+    case projectSearch
     case diffOverlay
     case toggleSidebar
     case setPaneLayoutSingle
@@ -15,6 +16,7 @@ enum ShortcutAction: String, CaseIterable, Codable {
     var label: String {
         switch self {
         case .mruOverlay:            return "MRU project switcher"
+        case .projectSearch:         return "Search projects"
         case .diffOverlay:           return "Diff overlay"
         case .toggleSidebar:         return "Show/Hide Project Sidebar"
         case .setPaneLayoutSingle:   return "1 pane"
@@ -24,10 +26,12 @@ enum ShortcutAction: String, CaseIterable, Codable {
         }
     }
 
-    /// 初期値。Ctrl+M / Cmd+D / Cmd+S / Cmd+Opt+1〜4。
-    /// PolePole は編集機能を持たないので Cmd+S (save) が空いている。
+    /// 初期値。Ctrl+M / Cmd+O / Cmd+D / Cmd+S / Cmd+Opt+1〜4。
+    /// PolePole は編集機能を持たないので Cmd+S (save) / Cmd+O (open) が空いている。
+    /// Cmd+O はターミナルに届かないキーなので、Ctrl+英字と違って shell / vim / Claude Code から何も奪わない。
     static let defaults: [ShortcutAction: KeyCombo] = [
         .mruOverlay:              KeyCombo(keyCode: 46, modifiers: NSEvent.ModifierFlags.control.rawValue,                          keyLabel: "M"),
+        .projectSearch:           KeyCombo(keyCode: 31, modifiers: NSEvent.ModifierFlags.command.rawValue,                          keyLabel: "O"),
         .diffOverlay:             KeyCombo(keyCode: 2,  modifiers: NSEvent.ModifierFlags.command.rawValue,                          keyLabel: "D"),
         .toggleSidebar:           KeyCombo(keyCode: 1,  modifiers: NSEvent.ModifierFlags.command.rawValue,                          keyLabel: "S"),
         .setPaneLayoutSingle:     KeyCombo(keyCode: 18, modifiers: NSEvent.ModifierFlags([.command, .option]).rawValue, keyLabel: "1"),

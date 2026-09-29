@@ -144,8 +144,8 @@ final class FileIndex: ObservableObject {
         // ファジーマッチ: name に対して優先度高め、次にパス全体
         return entries
             .compactMap { e -> (Entry, Int)? in
-                let nameScore = fuzzyScore(query: q, target: e.lowercaseName)
-                let pathScore = fuzzyScore(query: q, target: e.lowercaseRelativePath) / 2
+                let nameScore = Self.fuzzyScore(query: q, target: e.lowercaseName)
+                let pathScore = Self.fuzzyScore(query: q, target: e.lowercaseRelativePath) / 2
                 let total = max(nameScore, pathScore)
                 guard total > 0 else { return nil }
                 var score = total
@@ -169,7 +169,8 @@ final class FileIndex: ObservableObject {
     /// 簡易ファジーマッチスコア。
     /// - 各クエリ文字が target 内に「順番通り」現れるかチェックし、隣接ボーナス・先頭ボーナスで加点。
     /// - 1 文字も match しなければ 0 を返す。
-    nonisolated private func fuzzyScore(query: String, target: String) -> Int {
+    /// プロジェクト検索（Cmd+O、`ProjectsModel.projectSearchResults()`）からも使う。
+    nonisolated static func fuzzyScore(query: String, target: String) -> Int {
         guard !query.isEmpty, !target.isEmpty else { return 0 }
         let qChars = Array(query)
         let tChars = Array(target)

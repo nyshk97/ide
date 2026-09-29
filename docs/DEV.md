@@ -130,6 +130,7 @@ VERIFY 用に起動時の状態を仕込めるフラグ。**本番ユーザー�
 | `POLEPOLE_TEST_AUTO_ACTIVATE_INDEX=N` | 起動時に N 番目のピン留めをアクティブ化（要件「再起動時は active を復元しない」を VERIFY で迂回するため） |
 | `POLEPOLE_TEST_AUTO_PREVIEW=<rel-path>` | active project からの相対パスでプレビューを開く |
 | `POLEPOLE_TEST_AUTO_QUICKSEARCH=<query>` | 起動時に Cmd+P の overlay を開いてクエリを入力した状態にする |
+| `POLEPOLE_TEST_AUTO_PROJECTSEARCH=<query>` | 起動時に Cmd+O のプロジェクト検索 overlay を開いてクエリを入力した状態にする（空文字なら空クエリで開く）。結果の displayName 一覧を `[projects] test-auto-projectsearch` としてログに出す |
 | `POLEPOLE_TEST_AUTO_FULLSEARCH=<query>` | 起動時に Cmd+Shift+F の overlay を開いて grep を実行（TextField.onSubmit が AppleScript の Enter で発火しないため） |
 | `POLEPOLE_TEST_PREVIEW_FIND=<query>` | `POLEPOLE_TEST_AUTO_PREVIEW` でプレビューを開いた状態で Cmd+F のファイル内検索バーを開き、`<query>` をハイライトする |
 | `POLEPOLE_TEST_TOAST=<message>` | 起動時に赤 toast を出す |
@@ -301,7 +302,7 @@ NSSplitView も cursor を出さない」の二段構えで、どの層も divid
 詳細は [ARCHITECTURE.md](./ARCHITECTURE.md#キー入力の優先順位)。
 
 要点だけ:
-- **NSEvent.addLocalMonitorForEvents（MRUKeyMonitor）が最優先**。Ctrl+M / Cmd+P / Cmd+Shift+F / (ツリーにフォーカス時) Cmd+R は vim/claude の中でも握る
+- **NSEvent.addLocalMonitorForEvents（MRUKeyMonitor）が最優先**。Ctrl+M / Cmd+O / Cmd+P / Cmd+Shift+F / (ツリーにフォーカス時) Cmd+R は vim/claude の中でも握る
 - `Ctrl+M` は `keyCode == 46` で判定（macOS が Ctrl+letter を CR にマップする問題回避）
 - 検索バー / オーバーレイ表示中に Return / Esc / ↑↓ を横取りする箇所は、**IME 変換中（field editor が marked text を持つ）なら横取りせずイベントを素通り**させる。さもないと日本語変換の確定（Return）・キャンセル（Esc）・候補移動（↑↓）が IME に届かない。判定は `NSApp.keyWindow?.firstResponder as? NSTextInputClient` → `hasMarkedText()`（`MRUKeyMonitor.isComposingInTextField()`）
 
@@ -344,6 +345,7 @@ Sources/polepole/
 ├─ FileIndex.swift / QuickSearchView.swift  Cmd+P
 ├─ FullTextSearcher.swift / FullSearchView.swift  Cmd+Shift+F
 ├─ MRUKeyMonitor.swift / MRUOverlayState.swift / MRUOverlayView.swift  Ctrl+M
+├─ ProjectSearchView.swift  Cmd+O
 ├─ Logger.swift / Logging.swift  ログ
 └─ ErrorBus.swift  toast
 ```

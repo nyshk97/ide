@@ -28,7 +28,7 @@ ide の主要モジュールとデータフロー。コードを読む前の地�
 └──────────────────────────────────────────────────────────────────────┘
 ```
 
-`overlay` として MRU 切替 / Cmd+P / Cmd+Shift+F / Toast が乗る。
+`overlay` として MRU 切替 / Cmd+O プロジェクト検索 / Cmd+P / Cmd+Shift+F / Toast が乗る。
 
 ---
 
@@ -47,6 +47,7 @@ ProjectsModel
 ├─ fileIndexes: [UUID: FileIndex]      # プロジェクト別 Cmd+P インデックス
 ├─ mruStack: [UUID]                    # Ctrl+M MRU 候補
 ├─ mruOverlay: MRUOverlayState?        # Ctrl+M overlay 状態
+├─ projectSearch*: …                   # Cmd+O overlay 状態（候補は mruStack 起点の全件 MRU 順）
 ├─ quickSearch*: …                     # Cmd+P overlay 状態
 └─ fullSearch*: …                      # Cmd+Shift+F overlay 状態
 ```
@@ -128,7 +129,7 @@ WorkspaceModel(project: ide)
 ### MRUKeyMonitor
 
 - `NSEvent.addLocalMonitorForEvents` でアプリ全体のキー入力を**最優先**で握る
-- `Ctrl+M` / `Cmd+P` / `Cmd+Shift+F` / overlay 表示中の `Esc` `↑` `↓`
+- `Ctrl+M` / `Cmd+O` / `Cmd+P` / `Cmd+Shift+F` / overlay 表示中の `Esc` `↑` `↓`
 - `Cmd+R` は `ProjectsModel.fileTreeFocused`（`FileTreeView` の `@FocusState` を同期）が `true` のときだけ握ってツリー再スキャン。フォーカスが端末側にあるときは素通し
 - Ghostty NSView の `performKeyEquivalent` より先に呼ばれるので、vim/claude 等の TUI 内でも PolePole が捕捉できる（要件 3）
 - `Ctrl+M` の判定は `keyCode == 46`（macOS が `Ctrl+letter` を CR にマップする問題回避）
@@ -144,7 +145,7 @@ WorkspaceModel(project: ide)
 
 ```
 NSEvent.addLocalMonitorForEvents (MRUKeyMonitor)
-  → Ctrl+M / Cmd+P / Cmd+Shift+F / (ツリーにフォーカス時) Cmd+R / overlay 中の Esc/↑/↓ を握って終了
+  → Ctrl+M / Cmd+O / Cmd+P / Cmd+Shift+F / (ツリーにフォーカス時) Cmd+R / overlay 中の Esc/↑/↓ を握って終了
   → Cmd+Opt+←/→/↑/↓ (タブ切替 / ペイン間フォーカス移動)、Cmd+/ (ペインレイアウト切替) もここで握る
   ↓
 SwiftUI の View 階層

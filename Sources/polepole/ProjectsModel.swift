@@ -64,6 +64,14 @@ final class ProjectsModel: ObservableObject {
     @Published var quickSearchQuery: String = ""
     @Published var quickSearchSelection: Int = 0
 
+    /// Cmd+O プロジェクト検索のオーバーレイ状態。
+    /// クエリが変わったら選択をその結果の既定位置（空クエリなら直前のプロジェクト）に戻す。
+    @Published var projectSearchVisible: Bool = false
+    @Published var projectSearchQuery: String = "" {
+        didSet { projectSearchSelection = defaultProjectSearchSelection() }
+    }
+    @Published var projectSearchSelection: Int = 0
+
     /// Cmd+Shift+F 全文検索のオーバーレイ状態。
     @Published var fullSearchVisible: Bool = false
     @Published var fullSearchQuery: String = ""
@@ -212,6 +220,12 @@ final class ProjectsModel: ObservableObject {
             openQuickSearch()
             quickSearchQuery = query
             Logger.shared.debug("[projects] test-auto-quicksearch \(query)")
+        }
+
+        if let query = env["POLEPOLE_TEST_AUTO_PROJECTSEARCH"] {
+            openProjectSearch()
+            projectSearchQuery = query
+            Logger.shared.debug("[projects] test-auto-projectsearch \(query) results=\(projectSearchResults().map(\.displayName))")
         }
 
         if env["POLEPOLE_TEST_AUTO_OPEN_DIFF"] != nil, activeProject != nil {
@@ -402,6 +416,7 @@ final class ProjectsModel: ObservableObject {
     func openQuickSearch() {
         guard activeProject != nil else { return }
         fullSearchVisible = false
+        projectSearchVisible = false
         quickSearchQuery = ""
         quickSearchSelection = 0
         quickSearchVisible = true
@@ -449,6 +464,7 @@ final class ProjectsModel: ObservableObject {
     func openFullSearch() {
         guard activeProject != nil else { return }
         quickSearchVisible = false
+        projectSearchVisible = false
         fullSearchHits = []
         fullSearchSelection = 0
         fullSearchInProgress = false
@@ -666,8 +682,13 @@ final class ProjectsModel: ObservableObject {
     }
 
     /// オーバーレイ用の候補。直近に使った最大 `mruLimit` 件だけ（close 済みは除外）。
-    /// 並び順は「このセッションで切り替えた順（MRU）」を最優先し、残り枠は `lastOpenedAt` 降順で埋める。
     func mruCandidates() -> [Project] {
+        Array(mruOrderedProjects().prefix(mruLimit))
+    }
+
+    /// 全プロジェクトを最近使った順に並べたもの。Ctrl+M（先頭 `mruLimit` 件）と Cmd+O（全件）が共有する。
+    /// 並び順は「このセッションで切り替えた順（MRU）」を最優先し、残りは `lastOpenedAt` 降順で埋める。
+    private func mruOrderedProjects() -> [Project] {
         let allById: [UUID: Project] = Dictionary(uniqueKeysWithValues: allOrdered.map { ($0.id, $0) })
         var seen = Set<UUID>()
         var result: [Project] = []
@@ -683,7 +704,7 @@ final class ProjectsModel: ObservableObject {
             result.append(p)
             seen.insert(p.id)
         }
-        return Array(result.prefix(mruLimit))
+        return result
     }
 
     /// Ctrl+M で起動 / 既に起動中なら次の候補にサイクル。
@@ -698,6 +719,7 @@ final class ProjectsModel: ObservableObject {
         } else {
             // 起動: 「直前のプロジェクト」（= MRU の 2 番目）にカーソル。1 件しかなければ 0。
             let initial = candidates.count > 1 ? 1 : 0
+            projectSearchVisible = false
             mruOverlay = MRUOverlayState(candidates: candidates, selection: initial)
         }
     }
@@ -714,6 +736,82 @@ final class ProjectsModel: ObservableObject {
     /// Esc キャンセル: MRU は不変、active も変えない。
     func cancelMRUOverlay() {
         mruOverlay = nil
+    }
+
+    // MARK: - Cmd+O プロジェクト検索
+
+    /// Cmd+O で開く / 開いていれば閉じる。active project が無くても（空のハブ画面でも）使える。
+    func toggleProjectSearch() {
+        if projectSearchVisible {
+            closeProjectSearch()
+        } else {
+            openProjectSearch()
+        }
+    }
+
+    func openProjectSearch() {
+        guard !allOrdered.isEmpty else { return }
+        mruOverlay = nil
+        quickSearchVisible = false
+        fullSearchVisible = false
+        if diffOverlayVisible { closeDiffOverlay() }
+        projectSearchQuery = ""  // didSet で選択も既定位置に戻る
+        projectSearchVisible = true
+        Logger.shared.debug("[project-search] open selection=\(projectSearchSelection)")
+    }
+
+    func closeProjectSearch() {
+        guard projectSearchVisible else { return }
+        projectSearchVisible = false
+        Logger.shared.debug("[project-search] close")
+    }
+
+    /// 検索結果。空クエリなら全件を最近使った順（Ctrl+M と同じ順序）。
+    /// クエリがあれば displayName とパスをファジーマッチし、スコア順（同点は最近使った順）。
+    /// パスが消えたプロジェクトも候補に残す（選ぶと `setActive` がエラー toast を出す。Ctrl+M と同じ）。
+    func projectSearchResults() -> [Project] {
+        let ordered = mruOrderedProjects()
+        let q = projectSearchQuery.trimmingCharacters(in: .whitespaces).lowercased()
+        guard !q.isEmpty else { return ordered }
+        return ordered.enumerated()
+            .compactMap { rank, p -> (Project, Int, Int)? in
+                let nameScore = FileIndex.fuzzyScore(query: q, target: p.displayName.lowercased())
+                let pathScore = FileIndex.fuzzyScore(query: q, target: p.path.path.lowercased()) / 2
+                let score = max(nameScore, pathScore)
+                return score > 0 ? (p, score, rank) : nil
+            }
+            .sorted { $0.1 != $1.1 ? $0.1 > $1.1 : $0.2 < $1.2 }
+            .map { $0.0 }
+    }
+
+    /// 空クエリでは「直前のプロジェクト」（= 先頭が active なら 2 番目）にカーソルを置く。
+    /// Cmd+O → Enter で直前のプロジェクトに戻れる（Ctrl+M の初期位置と同じ考え方）。
+    private func defaultProjectSearchSelection() -> Int {
+        guard projectSearchQuery.trimmingCharacters(in: .whitespaces).isEmpty else { return 0 }
+        let results = projectSearchResults()
+        if results.count > 1, results.first?.id == activeProject?.id { return 1 }
+        return 0
+    }
+
+    func projectSearchMoveSelection(_ delta: Int) {
+        let total = projectSearchResults().count
+        guard total > 0 else { return }
+        let next = (projectSearchSelection + delta) % total
+        projectSearchSelection = next < 0 ? total + next : next
+    }
+
+    func projectSearchSelect(_ project: Project) {
+        closeProjectSearch()
+        setActive(project)  // 切り替わったら pushMRU される
+        Logger.shared.debug("[project-search] select name=\(project.displayName) active=\(activeProject?.displayName ?? "nil")")
+    }
+
+    /// Enter で現在選択中のプロジェクトに切り替えてオーバーレイを閉じる。
+    func projectSearchConfirm() {
+        let results = projectSearchResults()
+        guard results.indices.contains(projectSearchSelection) else { return }
+        Logger.shared.debug("[project-search] confirm query=\(projectSearchQuery) results=\(results.map(\.displayName)) selection=\(projectSearchSelection)")
+        projectSearchSelect(results[projectSearchSelection])
     }
 
     // MARK: - ドラッグ並び替え

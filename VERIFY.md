@@ -2285,3 +2285,22 @@ sleep 2
 osascript -e 'tell application "System Events" to tell process "PolePole Dev" to click button "終了" of window 1'
 sleep 2 && { pgrep -f "PolePole Dev.app/Contents/MacOS/PolePole Dev" || echo "TERMINATED: pass"; }
 ```
+
+## 42. Cmd+O プロジェクト検索（自動）
+
+起動・絞り込み（名前 / パス）・Ctrl+N・P / ↓ での移動・Enter 確定・ヒット無しの Enter・Esc・パスが消えたプロジェクト・Cmd+O トグルを、`POLEPOLE_TEST_EVENT_FILE` の注入フックで流して `[project-search]` ログで判定する。`polepole-dev/` は退避・復元される。
+
+```bash
+mise run build
+./scripts/verify-project-search.sh
+# 期待: 全行 PASS、末尾 "--- failures: 0"
+```
+
+見た目（候補が少ないときにパネルが中身の高さまで縮む / 溢れたらスクロールし、選択に追従する）は `POLEPOLE_TEST_AUTO_PROJECTSEARCH=<query>` で開いて撮る。
+**Dev 版のウィンドウが画面上に出ていないと `polepole-screenshot.sh` は Release 版のウィンドウを撮る**（Release 版がフルスクリーンの別 Space にあるときなど）。撮れた画像のタイトルバーが `PolePole Dev` であることを確認する。
+
+```bash
+APP="/tmp/polepole-build/Build/Products/Debug/PolePole Dev.app"
+open -n "$APP" --env POLEPOLE_TEST_AUTO_ACTIVATE_INDEX=0 --env POLEPOLE_TEST_AUTO_PROJECTSEARCH="del"; sleep 5
+./scripts/polepole-screenshot.sh /tmp/project-search.png
+```

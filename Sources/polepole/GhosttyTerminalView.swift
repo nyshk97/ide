@@ -264,10 +264,10 @@ final class GhosttyTerminalNSView: NSView {
     /// 経由で発火するのを阻害する。Cmd+T/Cmd+W のようにフォーカスに依らず active pane に
     /// 効かせたいショートカットだけ先に処理し、それ以外は first responder のときだけ握る。
     override func performKeyEquivalent(with event: NSEvent) -> Bool {
-        // モーダル overlay（Cmd+P 検索 / Cmd+Shift+F 全文検索 / diff / MRU）表示中は
+        // モーダル overlay（Cmd+P 検索 / Cmd+Shift+F 全文検索 / Cmd+O プロジェクト検索 / diff / MRU）表示中は
         // Ghostty では何も握らない。overlay の TextField に paste 等を確実に届けるため。
         let model = ProjectsModel.shared
-        if model.quickSearchVisible || model.fullSearchVisible
+        if model.quickSearchVisible || model.fullSearchVisible || model.projectSearchVisible
             || model.diffOverlayVisible || model.mruOverlay != nil {
             return false
         }
