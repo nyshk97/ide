@@ -109,6 +109,8 @@ ja/en は **意味の対応**であって逐語訳ではない。日本語で自
 7. **ペアの整合性**: `- ja:` と `- en:` は隣接 / カテゴリ配置一致 / bullet 数一致 を最後に確認
 
 ## [Unreleased]
+
+## [1.4.21] - 2026-10-03
 ### 🐛 Fixed
 - ja: Dropbox 等のクラウド同期フォルダを開いていると、裏で動く git の異常終了に巻き込まれてアプリが突然終了することがある問題を修正
 - en: Fixed the app sometimes quitting unexpectedly when a background git process crashed, e.g. while a cloud-synced folder like Dropbox was open
