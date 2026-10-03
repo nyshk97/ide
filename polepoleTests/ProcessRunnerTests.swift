@@ -200,4 +200,78 @@ final class ProcessRunnerTests: XCTestCase {
 
         XCTAssertEqual(result.exitCode, -1)
     }
+
+    // MARK: - Mach 例外ポート
+
+    /// 子は親タスクの Mach 例外ポートを継承しない。
+    /// 継承すると、子のクラッシュが親の例外ハンドラ（PolePole では libghostty 内の breakpad）に届き、
+    /// breakpad の処理次第で本体ごと exit(1) する。ここでは返事をしない例外ポートを親に張っておき、
+    /// 子が継承していればクラッシュ時に返事待ちで固まって timeout する、という形で検出する。
+    ///
+    /// 子には自前ビルドのバイナリを使う。Apple の platform binary（/usr/bin/perl 等）の例外は
+    /// そもそも親の例外ポートに届かないため、継承していても検出できない（実害が出た Xcode 同梱の
+    /// git は platform binary ではないので届く）。
+    func testChildDoesNotInheritTaskExceptionPorts() throws {
+        let crasher = try makeCrashingExecutable()
+        let mask = exception_mask_t(EXC_MASK_BAD_ACCESS)
+        let task = mach_task_self_
+
+        // 既存の登録（Debug ホストなら breakpad）を退避して、テスト後に戻す
+        var savedMasks = [exception_mask_t](repeating: 0, count: Int(EXC_TYPES_COUNT))
+        var savedPorts = [mach_port_t](repeating: 0, count: Int(EXC_TYPES_COUNT))
+        var savedBehaviors = [exception_behavior_t](repeating: 0, count: Int(EXC_TYPES_COUNT))
+        var savedFlavors = [thread_state_flavor_t](repeating: 0, count: Int(EXC_TYPES_COUNT))
+        var savedCount = mach_msg_type_number_t(EXC_TYPES_COUNT)
+        XCTAssertEqual(
+            task_get_exception_ports(task, mask, &savedMasks, &savedCount, &savedPorts, &savedBehaviors, &savedFlavors),
+            KERN_SUCCESS
+        )
+
+        var port = mach_port_t(MACH_PORT_NULL)
+        XCTAssertEqual(mach_port_allocate(task, MACH_PORT_RIGHT_RECEIVE, &port), KERN_SUCCESS)
+        XCTAssertEqual(mach_port_insert_right(task, port, port, mach_msg_type_name_t(MACH_MSG_TYPE_MAKE_SEND)), KERN_SUCCESS)
+        XCTAssertEqual(
+            task_set_exception_ports(task, mask, port, exception_behavior_t(EXCEPTION_DEFAULT), thread_state_flavor_t(THREAD_STATE_NONE)),
+            KERN_SUCCESS
+        )
+        defer {
+            for i in 0..<Int(savedCount) {
+                task_set_exception_ports(task, savedMasks[i], savedPorts[i], savedBehaviors[i], savedFlavors[i])
+            }
+            mach_port_mod_refs(task, port, MACH_PORT_RIGHT_RECEIVE, -1)
+            mach_port_deallocate(task, port)
+        }
+
+        let start = Date()
+        let result = ProcessRunner.run(
+            executable: crasher,
+            arguments: [],
+            timeout: 3,
+            drainGrace: 0.5
+        )
+        let elapsed = Date().timeIntervalSince(start)
+
+        XCTAssertFalse(result.timedOut, "子のクラッシュが親の例外ポートに届いている（elapsed=\(elapsed))")
+        XCTAssertEqual(result.exitCode, SIGSEGV)
+        XCTAssertLessThan(elapsed, 2.0)
+    }
+
+    /// 起動するとアドレス 8 を読んで SIGSEGV で落ちる実行ファイルをテンポラリに作る。
+    private func makeCrashingExecutable() throws -> String {
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent("polepole-crasher-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        addTeardownBlock { try? FileManager.default.removeItem(at: dir) }
+        let source = dir.appendingPathComponent("crasher.c")
+        try "int main(void) { volatile int *p = (int *)8; return *p; }\n".write(to: source, atomically: true, encoding: .utf8)
+        let output = dir.appendingPathComponent("crasher").path
+        let compile = ProcessRunner.run(
+            executable: "/usr/bin/xcrun",
+            arguments: ["clang", "-o", output, source.path],
+            timeout: 60
+        )
+        guard compile.exitCode == 0 else {
+            throw XCTSkip("clang でクラッシュ用バイナリを作れない: \(compile.stderrString)")
+        }
+        return output
+    }
 }

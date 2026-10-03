@@ -295,6 +295,16 @@ NSSplitView も cursor を出さない」の二段構えで、どの層も divid
 - **config の load API は 5 つ**: `ghostty_config_load_file(cfg, path)` / `_string(cfg, str, len, source)` / `_default_files(cfg)` / `_recursive_files(cfg)` / `_cli_args(cfg)`。load 順序は呼び出し順そのまま。ヘッダは `GhosttyKit.xcframework/macos-arm64_x86_64/Headers/ghostty.h:1083-1087`
 - **確認**: `grep "ghostty" /tmp/polepole-poc.log` で `loaded bundled config: ...` の行が出る。user 設定で font-family を override しているケースは `user config has font-family; reset bundled font-family list` も追加で出る。`config diagnostics: 0` なら parse error なし
 
+### 外部コマンドは `Foundation.Process` で起動しない（子のクラッシュで本体が落ちる）
+
+libghostty 内の Sentry（breakpad）は `ghostty_init` の数秒後にタスクの Mach 例外ポート（BAD_ACCESS 等）を握る。`Process` で起動した子はこのポートを継承するので、子が落ちると例外が PolePole 側の breakpad に届き、breakpad が処理できないと `exit(1)` で本体ごと終了する。2026-10 に、Dropbox 配下の `.git/index` を mmap 中にオンライン専用（dataless）に差し替えられた `git status` が SIGBUS → 直後に PolePole が `exit(1)` を 3 回観測した（クラッシュレポートも `.ghosttycrash` も残らない）。
+
+- **外部コマンドは `ProcessRunner.run` / `ProcessRunner.launchDetached` を使う**。中身は `SpawnedChild`（`posix_spawn` + `posix_spawnattr_setexceptionports_np` で例外ポートを空にして起動）。ReportCrash 用の `EXC_MASK_CORPSE_NOTIFY` だけは残すので、子のクラッシュレポートは従来どおり出る
+- ターミナルのシェルは libghostty が `/usr/bin/login`（setuid）経由で起動するので例外ポートは継承されない（対象外）
+- `AppRelocator` の `Process` は対象外: `ghostty_init` より前の起動直後にしか走らず（breakpad がまだ例外ポートを握っていない）、起動するのも platform binary（`xattr` / `sh`）
+- Apple の platform binary（`/usr/bin/perl` 等）の例外はそもそも親のポートに届かない。Xcode 同梱の git は platform binary ではないので届く。テストで再現するときは自前ビルドのバイナリを使う（`ProcessRunnerTests.testChildDoesNotInheritTaskExceptionPorts`）
+- **「勝手に落ちた」の切り分け**: `log show --predicate 'process == "launchd" AND eventMessage CONTAINS "application.local.d0ne1s.polepole"' | grep "exited due to"` で終了理由を見る（zsh では `log` がビルトインなので `/usr/bin/log`）。`exit(1)` なら同時刻の `~/Library/Logs/DiagnosticReports/` に子プロセス（git 等）のクラッシュがないか見る
+
 ---
 
 ## キー入力の優先順位

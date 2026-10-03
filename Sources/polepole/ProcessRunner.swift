@@ -48,9 +48,11 @@ struct ProcessResult {
     var stderrString: String { String(decoding: stderr, as: UTF8.self) }
 }
 
-/// `Process` の起動・timeout・stdout/stderr drain・stdin 供給を 1 箇所にまとめる小さな部品。
+/// 子プロセスの起動・timeout・stdout/stderr drain・stdin 供給を 1 箇所にまとめる小さな部品。
 ///
 /// 個別実装で起きていた問題をここで一括して潰す:
+/// - 起動は `SpawnedChild`（`posix_spawn`）。子に Mach 例外ポートを継承させず、子のクラッシュで
+///   PolePole 本体が道連れで終了するのを防ぐ（理由は `SpawnedChild` 参照）。
 /// - stdout / stderr の **両方** を drain → pipe バッファ（macOS で 64KB）詰まりで
 ///   コマンドが write でブロックして固まる事故を防ぐ。
 /// - drain は `readabilityHandler` によるイベント駆動で、**待機中にスレッドを一切占有しない**。
@@ -67,10 +69,11 @@ struct ProcessResult {
 enum ProcessRunner {
     private static let ioQueue = DispatchQueue(label: "local.d0ne1s.polepole.process-runner.io", attributes: .concurrent)
 
-    /// pipe 生成〜`process.run()` の間に別スレッドが spawn すると、`FD_CLOEXEC` 設定前の
+    /// pipe 生成〜`markCloseOnExec` の間に別スレッドが spawn すると、`FD_CLOEXEC` 設定前の
     /// write 端 fd がその子プロセスに継承され、子が長寿命だと EOF が永遠に届かなくなる。
-    /// ProcessRunner 内の spawn 同士はこの lock で直列化して潰す。
-    /// libghostty のシェル spawn 等、外部の spawn 経路とのレースは制御外なので**緩和策**
+    /// ProcessRunner 自身の子は `SpawnedChild`（`POSIX_SPAWN_CLOEXEC_DEFAULT`）が 0〜2 以外の fd を
+    /// 渡さないので、このレースは起きない。lock と `markCloseOnExec` が守っているのは
+    /// libghostty のシェル spawn 等、外部の spawn 経路に対してで、そちらは制御外なので**緩和策**
     /// （残っても実害は当該 1 回の drain 猶予分の遅延に留まる）。
     private static let spawnLock = NSLock()
 
@@ -252,44 +255,40 @@ enum ProcessRunner {
         maxStdoutBytes: Int? = nil,
         drainGrace: TimeInterval = 2
     ) -> ProcessResult {
-        let process = Process()
-        process.executableURL = URL(fileURLWithPath: executable)
-        process.arguments = arguments
-        if let cwd { process.currentDirectoryURL = cwd }
-
-        // exit 通知は semaphore で受ける（waitUntilExit を使わないのは、caller スレッドで
-        // timeout を執行するため。GCD queue に timeout work を置くとプール枯渇時に発火しない）。
-        let exitSemaphore = DispatchSemaphore(value: 0)
-        process.terminationHandler = { _ in exitSemaphore.signal() }
+        // exit 待ちは caller スレッドで行い、timeout もここで執行する
+        // （GCD queue に timeout work を置くとプール枯渇時に発火しない）。
+        let child = SpawnedChild()
 
         let group = DispatchGroup()
         let timedOut = Flag()
 
-        // --- spawn 区間: pipe 生成〜run() を直列化（CLOEXEC レース緩和）---
+        // --- spawn 区間: pipe 生成〜spawn を直列化（外部 spawn との CLOEXEC レース緩和）---
         spawnLock.lock()
 
         let outPipe = Pipe()
         let errPipe = Pipe()
         markCloseOnExec(outPipe)
         markCloseOnExec(errPipe)
-        process.standardOutput = outPipe
-        process.standardError = errPipe
         let inPipe: Pipe? = (stdin != nil) ? Pipe() : nil
-        if let inPipe {
-            markCloseOnExec(inPipe)
-            process.standardInput = inPipe
-        }
+        if let inPipe { markCloseOnExec(inPipe) }
 
         let outDrain = StreamDrain(
             handle: outPipe.fileHandleForReading,
             group: group,
             limit: maxStdoutBytes,
-            onLimitExceeded: { if process.isRunning { process.terminate() } }
+            onLimitExceeded: { child.terminate() }
         )
         let errDrain = StreamDrain(handle: errPipe.fileHandleForReading, group: group, limit: nil)
 
         do {
-            try process.run()
+            try child.spawn(
+                executable: executable,
+                arguments: arguments,
+                cwd: cwd,
+                stdin: inPipe?.fileHandleForReading.fileDescriptor,
+                stdout: outPipe.fileHandleForWriting.fileDescriptor,
+                stderr: errPipe.fileHandleForWriting.fileDescriptor
+            )
         } catch {
             spawnLock.unlock()
             outDrain.finish()
@@ -298,7 +297,7 @@ enum ProcessRunner {
             return ProcessResult(exitCode: -1, timedOut: false, stdout: Data(), stderr: Data(), stdoutTruncated: false)
         }
 
-        // 子は run() 時点で自分用の fd を複製済み。親側の write 端を閉じないと
+        // 子は spawn 時点で自分用の fd を複製済み。親側の write 端を閉じないと
         // drain に EOF が永遠に届かない。
         closeIgnoringErrors(outPipe.fileHandleForWriting)
         closeIgnoringErrors(errPipe.fileHandleForWriting)
@@ -314,15 +313,15 @@ enum ProcessRunner {
         }
 
         // timeout: SIGTERM → 3 秒後も生きていれば SIGKILL（caller スレッドで執行）
-        if exitSemaphore.wait(timeout: .now() + timeout) == .timedOut {
+        if !child.waitForExit(timeout: timeout) {
             timedOut.set()
-            if process.isRunning { process.terminate() }
-            if exitSemaphore.wait(timeout: .now() + 3) == .timedOut {
-                if process.isRunning { kill(process.processIdentifier, SIGKILL) }
-                _ = exitSemaphore.wait(timeout: .now() + 2)
+            child.terminate()
+            if !child.waitForExit(timeout: 3) {
+                child.send(SIGKILL)
+                _ = child.waitForExit(timeout: 2)
             }
         }
-        let exited = !process.isRunning
+        let exited = !child.isRunning
 
         // 未完の stdin 書き込みはここで打ち切る（子孫が read 端を握ったまま読まない場合、
         // source が待機し続けて write fd がリークするため）。
@@ -335,20 +334,25 @@ enum ProcessRunner {
             errDrain.finish()
             logDrainTimeout(
                 executable: executable,
-                pid: process.processIdentifier,
-                exitCode: exited ? process.terminationStatus : -1,
+                pid: child.processIdentifier,
+                exitCode: exited ? child.terminationStatus : -1,
                 stdoutBytes: outDrain.data.count,
                 stderrBytes: errDrain.data.count
             )
         }
 
         return ProcessResult(
-            exitCode: exited ? process.terminationStatus : -1,
+            exitCode: exited ? child.terminationStatus : -1,
             timedOut: timedOut.value,
             stdout: outDrain.data,
             stderr: errDrain.data,
             stdoutTruncated: outDrain.truncated
         )
+    }
+
+    /// 終了を待たずに起動する（エディタの起動など）。exit の回収は `SpawnedChild` が行う。
+    nonisolated static func launchDetached(executable: String, arguments: [String]) {
+        try? SpawnedChild().spawn(executable: executable, arguments: arguments, cwd: nil, stdin: nil, stdout: nil, stderr: nil)
     }
 
     private static func logDrainTimeout(executable: String, pid: Int32, exitCode: Int32, stdoutBytes: Int, stderrBytes: Int) {

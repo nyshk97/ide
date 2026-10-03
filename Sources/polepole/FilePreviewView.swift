@@ -313,10 +313,7 @@ struct FilePreviewView: View {
             NSWorkspace.shared.open(url)
             return
         }
-        let process = Process()
-        process.executableURL = URL(fileURLWithPath: cursorPath)
-        process.arguments = [url.path]
-        try? process.run()
+        ProcessRunner.launchDetached(executable: cursorPath, arguments: [url.path])
     }
 
     // MARK: - ファイル内検索バー (Cmd+F)
