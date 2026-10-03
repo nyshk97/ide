@@ -8,7 +8,7 @@ PolePole の更新履歴。形式は [Keep a Changelog](https://keepachangelog.c
 
 ## 書き方
 
-このセクションは Claude Code のセッションが `mise run release` を叩く前に `[Unreleased]` を埋めるときの判断基準でもある（`git log <前回タグ>..HEAD` を読んで書き、commit してから叩く。release.sh に pause は無く、空なら止まる）。ここを読んだだけで自走できる粒度で書いてある。
+このセクションは Claude Code のセッションが `mise run release` を叩く前に `[Unreleased]` を埋めるときの判断基準でもある（`git log <前回タグ>..HEAD` を読んで書き、commit・push してから叩く（preflight が `HEAD == origin/main` を要求する）。release.sh に pause は無く、空なら止まる）。ここを読んだだけで自走できる粒度で書いてある。
 
 ### 1. フォーマット
 

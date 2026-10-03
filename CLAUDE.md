@@ -199,7 +199,7 @@ MRU の確定タイミング（修飾キーの release）は `ShortcutsStore.sho
 
 ## リリースノート (CHANGELOG)
 
-ユーザー目視で気づくレベルの変更は `docs/CHANGELOG.md` の `[Unreleased]` セクションに残す。基本は **リリース時** に Claude Code のセッションが `git log <前回タグ>..HEAD` + `git diff` を見て一括で書き、commit してから `mise run release [patch|minor|major|x.y.z]` を叩く運用なので、日々のコミットでは追記しなくて良い（release.sh に pause は無く、`[Unreleased]` が空なら止まる）。
+ユーザー目視で気づくレベルの変更は `docs/CHANGELOG.md` の `[Unreleased]` セクションに残す。基本は **リリース時** に Claude Code のセッションが `git log <前回タグ>..HEAD` + `git diff` を見て一括で書き、commit・push してから `mise run release [patch|minor|major|x.y.z]` を叩く運用なので、日々のコミットでは追記しなくて良い（release.sh に pause は無く、`[Unreleased]` が空なら止まる）。
 
 **書き方の本体は [docs/CHANGELOG.md](./docs/CHANGELOG.md) 冒頭の「書き方」セクションに集約**してある。AI が自動生成するときはあそこだけ読めば自走できるレベルに整備済み (フォーマット制約・カテゴリ判定・ja/en の文体・粒度・書く / 書かない・自動生成チェックリスト)。
 
@@ -217,7 +217,7 @@ MRU の確定タイミング（修飾キーの release）は `ShortcutsStore.sho
 2. `[Unreleased]` → `[<version>] - <date>` にリネームし、`project.yml` の `MARKETING_VERSION` も `<version>` に揃えて 1 commit（push 前に失敗したら trap で巻き戻る）
 3. 該当 section を抜き出して GitHub Release notes (md, ja/en 両方) と Sparkle appcast の `<description>` (HTML, ja のみ) を生成
 4. build → notarize → staple → dmg
-5. `git push origin main`（**release.sh が内部で実施するので事前 push は不要**）
+5. `git push origin main`（release commit の push。**ただし preflight が `HEAD == origin/main` を要求するので、`[Unreleased]` の commit までは事前に push しておく**。未 push だと「HEAD が origin/main と一致しません」で止まる）
 6. EdDSA 署名 → appcast.xml 生成 → `nyshk97/polepole-releases` に GitHub Release 作成
 7. `nyshk97/homebrew-tap/Casks/polepole.rb` の version / sha256 を更新してローカル tap を同期
 
